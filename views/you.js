@@ -124,6 +124,20 @@ function renderStats(container, { accent, units, settings }) {
       </div>`
     container.appendChild(csvSection)
 
+    // CSV import (exercises)
+    const csvExSection = document.createElement('div')
+    csvExSection.style.cssText = 'margin:12px 20px 0'
+    csvExSection.innerHTML = `
+      <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+        <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+          <strong style="color:#fafafa">Import exercises from CSV</strong> — format: name, muscle, image_url, tips, alternatives (skips existing)
+        </div>
+        <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
+        <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
+        <div id="csv-ex-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+      </div>`
+    container.appendChild(csvExSection)
+
     // Events
     setTimeout(() => {
       const unitsBtn = document.getElementById('units-btn')
@@ -162,6 +176,27 @@ function renderStats(container, { accent, units, settings }) {
           } catch (err) {
             csvStatus.textContent = `❌ ${err.message}`
             csvStatus.style.color = '#ff6b6b'
+          }
+        })
+      }
+
+      const csvExBtn = document.getElementById('csv-ex-btn')
+      const csvExInput = document.getElementById('csv-ex-input')
+      const csvExStatus = document.getElementById('csv-ex-status')
+      if (csvExBtn && csvExInput) {
+        csvExBtn.addEventListener('click', () => csvExInput.click())
+        csvExInput.addEventListener('change', async (e) => {
+          const file = e.target.files[0]
+          if (!file) return
+          try {
+            const text = await file.text()
+            const result = await Storage.importExercisesFromCSV(text)
+            csvExStatus.textContent = `✅ Created ${result.created}, skipped ${result.skipped}`
+            csvExStatus.style.color = accent
+            if (onRefresh) setTimeout(onRefresh, 1500)
+          } catch (err) {
+            csvExStatus.textContent = `❌ ${err.message}`
+            csvExStatus.style.color = '#ff6b6b'
           }
         })
       }

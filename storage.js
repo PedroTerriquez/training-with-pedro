@@ -158,4 +158,55 @@ const Storage = {
     await put('programs', program)
     return program
   },
+
+  // ── CSV Import (Exercises) ──
+  async importExercisesFromCSV(text) {
+    const lines = text.trim().split('\n')
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
+    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
+    const nameIdx = headers.indexOf('name')
+    const muscleIdx = headers.indexOf('muscle')
+    const imageUrlIdx = headers.indexOf('image_url')
+    const tipsIdx = headers.indexOf('tips')
+    const alternativesIdx = headers.indexOf('alternatives')
+
+    if (nameIdx === -1) throw new Error('CSV must have a "name" column')
+
+    const existing = await getAll('exercises')
+    let created = 0, skipped = 0
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map((c) => c.trim())
+      const name = cols[nameIdx]
+      if (!name) continue
+
+      if (existing.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+        skipped++
+        continue
+      }
+
+      const muscle = muscleIdx !== -1 ? (cols[muscleIdx] || '') : ''
+      const imgUrl = imageUrlIdx !== -1 ? (cols[imageUrlIdx] || '') : ''
+
+      let tips = []
+      if (tipsIdx !== -1 && cols[tipsIdx]) {
+        tips = cols[tipsIdx].split('|').map((t) => t.trim()).filter(Boolean)
+      }
+
+      let alternatives = []
+      if (alternativesIdx !== -1 && cols[alternativesIdx]) {
+        alternatives = cols[alternativesIdx].split('||').map((pair) => {
+          const [altName = '', altReason = ''] = pair.split('::').map((s) => s.trim())
+          return altName ? { name: altName, reason: altReason } : null
+        }).filter(Boolean)
+      }
+
+      const exercise = { id: await generateId(), name, muscle, imgUrl, tips, alternatives }
+      await put('exercises', exercise)
+      existing.push(exercise)
+      created++
+    }
+
+    return { created, skipped }
+  },
 }
