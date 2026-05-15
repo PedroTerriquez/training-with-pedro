@@ -113,6 +113,10 @@ async function renderScreen() {
         dayIndex: getTodayDayIndex(),
         accent,
         onOpenExercise: openDetailSheet,
+        onWeekChange: (idx) => {
+          _state.settings.currentWeekIdx = idx
+          renderScreen()
+        },
       })
       break
     case 'history':

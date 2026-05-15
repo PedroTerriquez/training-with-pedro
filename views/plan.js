@@ -3,7 +3,7 @@
 
 let _planWeekIdx = 0
 
-function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExercise }) {
+function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExercise, onWeekChange }) {
   container.innerHTML = ''
   const page = document.createElement('div')
   page.className = 'page'
@@ -15,6 +15,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
   }
 
   const weeks = program.weeks || []
+  _planWeekIdx = typeof weekIdx === 'number' ? weekIdx : _planWeekIdx
   if (_planWeekIdx >= weeks.length) _planWeekIdx = 0
 
   const week = weeks[_planWeekIdx] || weeks[0]
@@ -40,7 +41,14 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:${on ? (w.accent || accent) : 'rgba(255,255,255,0.4)'};text-transform:uppercase">${w.tag || ''}</div>
         <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;margin-top:2px;letter-spacing:-0.3px">${w.name}</div>
         <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${w.subtitle || ''}</div>`
-      btn.addEventListener('click', () => { _planWeekIdx = i; mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExercise }) })
+      btn.addEventListener('click', async () => {
+        _planWeekIdx = i
+        const s = await Storage.getSettings()
+        s.currentWeekIdx = i
+        await Storage.saveSettings(s)
+        if (typeof onWeekChange === 'function') onWeekChange(i)
+        else mountPlan(container, { program, weekIdx: i, dayIndex, accent, onOpenExercise })
+      })
       tabs.appendChild(btn)
     })
     page.appendChild(tabs)
