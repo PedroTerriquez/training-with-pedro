@@ -13,7 +13,9 @@ let _state = {
 }
 
 let _rootEl = null
+let _appEl = null
 let _screenContainer = null
+let _tabBarEl = null
 
 async function init() {
   _rootEl = document.getElementById('root')
@@ -60,16 +62,26 @@ function handleRoute() {
 function renderShell() {
   _rootEl.innerHTML = ''
 
-  const app = document.createElement('div')
-  app.style.cssText = 'position:relative;min-height:100vh;background:#0a0a0a;overflow:hidden'
+  _appEl = document.createElement('div')
+  _appEl.style.cssText = 'position:relative;min-height:100vh;background:#0a0a0a;overflow:hidden'
 
   _screenContainer = document.createElement('div')
   _screenContainer.id = 'screen-container'
-  app.appendChild(_screenContainer)
+  _appEl.appendChild(_screenContainer)
 
-  // Tab bar
+  _rootEl.appendChild(_appEl)
+
+  renderScreen()
+}
+
+async function renderScreen() {
+  if (!_screenContainer) return
+
+  if (_tabBarEl && _tabBarEl.parentNode) {
+    _tabBarEl.parentNode.removeChild(_tabBarEl)
+  }
   const accent = _state.settings?.accentColor || '#d4ff3a'
-  app.appendChild(TabBar({
+  _tabBarEl = TabBar({
     active: _state.route,
     onChange: (tab) => {
       _state.route = tab
@@ -77,19 +89,10 @@ function renderShell() {
       renderScreen()
     },
     accent,
-  }))
+  })
+  _appEl.appendChild(_tabBarEl)
 
-  _rootEl.appendChild(app)
-
-  // Load exercise logs for current date
-  renderScreen()
-}
-
-async function renderScreen() {
-  if (!_screenContainer) return
   _screenContainer.innerHTML = ''
-
-  const accent = _state.settings?.accentColor || '#d4ff3a'
 
   switch (_state.route) {
     case 'today':

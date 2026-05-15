@@ -38,12 +38,12 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   body.style.cssText = 'margin-top:20px'
   page.appendChild(body)
 
-  if (_youTab === 'stats') renderStats(body, { accent, units, settings })
+  if (_youTab === 'stats') renderStats(body, { accent, units, settings, onRefresh })
   else if (_youTab === 'exercises') renderExercises(body, { accent, units, onRefresh })
   else if (_youTab === 'programs') renderPrograms(body, { accent, settings, onRefresh })
 }
 
-function renderStats(container, { accent, units, settings }) {
+function renderStats(container, { accent, units, settings, onRefresh }) {
   Storage.getExercises().then(async (exercises) => {
     let totalSessions = 0, totalVolume = 0, prCount = 0
     for (const e of exercises) {

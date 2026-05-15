@@ -1,3 +1,35 @@
+function parseCSVLine(line) {
+  const result = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        current += ch
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(current.trim())
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+  }
+  result.push(current.trim())
+  return result
+}
+
 const Storage = {
   // ── Exercises ──
   async getExercises() {
@@ -100,7 +132,7 @@ const Storage = {
   async importProgramFromCSV(text) {
     const lines = text.trim().split('\n')
     if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
-    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
+    const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
     const weekIdx = headers.indexOf('week')
     const dayIdx = headers.indexOf('day')
     const daySubtitleIdx = headers.indexOf('day_subtitle') !== -1 ? headers.indexOf('day_subtitle') : -1
@@ -117,7 +149,7 @@ const Storage = {
 
     const weekMap = {}
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map((c) => c.trim())
+      const cols = parseCSVLine(lines[i])
       const weekName = cols[weekIdx] || 'Week 1'
       const dayName = cols[dayIdx] || 'Day'
       const daySubtitle = daySubtitleIdx !== -1 ? (cols[daySubtitleIdx] || '') : ''
@@ -163,7 +195,7 @@ const Storage = {
   async importExercisesFromCSV(text) {
     const lines = text.trim().split('\n')
     if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
-    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
+    const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
     const nameIdx = headers.indexOf('name')
     const muscleIdx = headers.indexOf('muscle')
     const imageUrlIdx = headers.indexOf('image_url')
@@ -176,7 +208,7 @@ const Storage = {
     let created = 0, skipped = 0
 
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map((c) => c.trim())
+      const cols = parseCSVLine(lines[i])
       const name = cols[nameIdx]
       if (!name) continue
 
