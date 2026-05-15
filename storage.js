@@ -121,7 +121,7 @@ const Storage = {
   // ── Settings ──
   async getSettings() {
     const s = await get('settings', 'settings')
-    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a' }
+    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a', userName: 'Pedro' }
   },
 
   async saveSettings(settings) {
@@ -205,17 +205,12 @@ const Storage = {
     if (nameIdx === -1) throw new Error('CSV must have a "name" column')
 
     const existing = await getAll('exercises')
-    let created = 0, skipped = 0
+    let created = 0, updated = 0
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i])
       const name = cols[nameIdx]
       if (!name) continue
-
-      if (existing.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
-        skipped++
-        continue
-      }
 
       const muscle = muscleIdx !== -1 ? (cols[muscleIdx] || '') : ''
       const imgUrl = imageUrlIdx !== -1 ? (cols[imageUrlIdx] || '') : ''
@@ -233,12 +228,22 @@ const Storage = {
         }).filter(Boolean)
       }
 
-      const exercise = { id: await generateId(), name, muscle, imgUrl, tips, alternatives }
-      await put('exercises', exercise)
-      existing.push(exercise)
-      created++
+      const match = existing.find((e) => e.name.toLowerCase() === name.toLowerCase())
+      if (match) {
+        match.muscle = muscle
+        match.imgUrl = imgUrl
+        match.tips = tips
+        match.alternatives = alternatives
+        await put('exercises', match)
+        updated++
+      } else {
+        const exercise = { id: await generateId(), name, muscle, imgUrl, tips, alternatives }
+        await put('exercises', exercise)
+        existing.push(exercise)
+        created++
+      }
     }
 
-    return { created, skipped }
+    return { created, updated }
   },
 }

@@ -27,7 +27,7 @@ function mountHistory(container, { accent, units, onOpenExercise }) {
     muscles.forEach((m) => {
       const on = _historyFilter === m
       const btn = document.createElement('button')
-      btn.style.cssText = `flex-shrink:0;padding:6px 12px;border-radius:9999px;border:0;cursor:pointer;background:${on ? accent : 'rgba(255,255,255,0.05)'};color:${on ? '#0a0a0a' : 'rgba(255,255,255,0.7)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:-0.1px`
+      btn.style.cssText = `flex-shrink:0;padding:8px 14px;border-radius:9999px;border:0;cursor:pointer;background:${on ? accent : 'rgba(255,255,255,0.05)'};color:${on ? '#0a0a0a' : 'rgba(255,255,255,0.7)'};font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;letter-spacing:-0.1px;touch-action:manipulation`
       btn.textContent = m
       btn.addEventListener('click', () => { _historyFilter = m; mountHistory(container, { accent, units, onOpenExercise }) })
       chips.appendChild(btn)

@@ -24,6 +24,7 @@ const SEED_DATA = {
     currentWeekIdx: 0,
     units: 'kg',
     accentColor: '#d4ff3a',
+    userName: 'Pedro',
   },
 
   programs: [

@@ -13,14 +13,14 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   header.style.padding = '56px 20px 16px'
   header.innerHTML = `
     <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.45);text-transform:uppercase">Profile</div>
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px">Pedro.</div>`
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px"><span id="user-name" contenteditable style="outline:none;border:0;caret-color:${accent};display:inline-block;min-width:50px">${settings.userName || 'Pedro'}</span>.</div>`
   page.appendChild(header)
 
   // Section tabs
   const tabs = document.createElement('div')
   tabs.style.cssText = 'margin:0 20px;display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.06)'
   const tabOptions = [
-    { id: 'stats', label: 'Stats' },
+    { id: 'stats', label: 'Data' },
     { id: 'exercises', label: 'Exercises' },
     { id: 'programs', label: 'Programs' },
   ]
@@ -44,164 +44,142 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
 }
 
 function renderStats(container, { accent, units, settings, onRefresh }) {
-  Storage.getExercises().then(async (exercises) => {
-    let totalSessions = 0, totalVolume = 0, prCount = 0
-    for (const e of exercises) {
-      const logs = await Storage.getLogsForExercise(e.id)
-      totalSessions += logs.length
-      logs.forEach((l) => {
-        totalVolume += l.weight * 100
+  // Settings
+  const settingsLabel = document.createElement('div')
+  settingsLabel.style.cssText = 'margin-bottom:10px'
+  settingsLabel.appendChild(SectionLabel({ children: 'Quick settings', accent }))
+  container.appendChild(settingsLabel)
+
+  const settingsCard = document.createElement('div')
+  settingsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
+  settingsCard.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Units</div>
+      <button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilograms (kg)' : 'Pounds (lb)'}</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Accent color</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Theme</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">Dark</div>
+    </div>`
+  container.appendChild(settingsCard)
+
+  // Data Import
+  const importLabel = document.createElement('div')
+  importLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
+  importLabel.appendChild(SectionLabel({ children: 'Data Import', accent }))
+  container.appendChild(importLabel)
+
+  // CSV import (program)
+  const csvSection = document.createElement('div')
+  csvSection.style.cssText = 'margin:0 20px 12px'
+  csvSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Import program from CSV</strong> — format: week, day, exercise_name, muscle, sets, reps, rest_sec
+      </div>
+      <input type="file" id="csv-input" accept=".csv" style="display:none">
+      <button id="csv-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
+      <div id="csv-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(csvSection)
+
+  // CSV import (exercises)
+  const csvExSection = document.createElement('div')
+  csvExSection.style.cssText = 'margin:0 20px 0'
+  csvExSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Import exercises from CSV</strong> — format: name, muscle, image_url, tips, alternatives (skips existing)
+      </div>
+      <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
+      <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
+      <div id="csv-ex-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(csvExSection)
+
+  // Events
+  setTimeout(() => {
+    const unitsBtn = document.getElementById('units-btn')
+    if (unitsBtn) {
+      unitsBtn.addEventListener('click', async () => {
+        const s = await Storage.getSettings()
+        s.units = s.units === 'kg' ? 'lb' : 'kg'
+        await Storage.saveSettings(s)
+        if (onRefresh) onRefresh()
       })
-      if (logs.length > 0) {
-        const allTime = Math.max(...logs.map((l) => l.weight))
-        if (logs[logs.length - 1].weight >= allTime) prCount++
-      }
     }
-    totalVolume = Math.round(totalVolume / 100) * 100
+    const accentInput = document.getElementById('accent-input')
+    if (accentInput) {
+      accentInput.addEventListener('input', async (e) => {
+        const s = await Storage.getSettings()
+        s.accentColor = e.target.value
+        await Storage.saveSettings(s)
+        document.documentElement.style.setProperty('--accent', e.target.value)
+        if (onRefresh) onRefresh()
+      })
+    }
+    const userNameEl = document.getElementById('user-name')
+    if (userNameEl) {
+      userNameEl.addEventListener('blur', async () => {
+        const s = await Storage.getSettings()
+        s.userName = userNameEl.textContent.trim() || 'Pedro'
+        await Storage.saveSettings(s)
+      })
+      userNameEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          userNameEl.blur()
+        }
+      })
+    }
+    const csvBtn = document.getElementById('csv-btn')
+    const csvInput = document.getElementById('csv-input')
+    const csvStatus = document.getElementById('csv-status')
+    if (csvBtn && csvInput) {
+      csvBtn.addEventListener('click', () => csvInput.click())
+      csvInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        try {
+          const text = await file.text()
+          const prog = await Storage.importProgramFromCSV(text)
+          csvStatus.textContent = `✅ Imported "${prog.name}" with ${prog.weeks.length} week(s)`
+          csvStatus.style.color = accent
+          if (onRefresh) setTimeout(onRefresh, 1500)
+        } catch (err) {
+          csvStatus.textContent = `❌ ${err.message}`
+          csvStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
 
-    // Stats grid
-    const grid = document.createElement('div')
-    grid.style.cssText = 'padding:0 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px'
-    grid.innerHTML = `
-      <div class="surface-card" style="padding:16px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Exercises</div>
-        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:#fafafa;letter-spacing:-1px;line-height:1">${exercises.length}</div>
-        <div style="margin-top:6px;font-size:10.5px;color:rgba(255,255,255,0.5)">in your library</div>
-      </div>
-      <div class="surface-card" style="padding:16px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Sessions</div>
-        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:#fafafa;letter-spacing:-1px;line-height:1">${totalSessions}</div>
-        <div style="margin-top:6px;font-size:10.5px;color:rgba(255,255,255,0.5)">total logged</div>
-      </div>
-      <div class="surface-card" style="padding:16px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Volume</div>
-        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:#fafafa;letter-spacing:-1px;line-height:1">${(totalVolume / 1000).toFixed(1)}k</div>
-        <div style="margin-top:6px;font-size:10.5px;color:rgba(255,255,255,0.5)">${units} · estimated</div>
-      </div>
-      <div class="surface-card" style="padding:16px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Active PRs</div>
-        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;color:#fafafa;letter-spacing:-1px;line-height:1">${prCount}</div>
-        <div style="margin-top:6px;font-size:10.5px;color:rgba(255,255,255,0.5)">last session = best</div>
-      </div>`
-    container.appendChild(grid)
-
-    // Settings
-    const settingsLabel = document.createElement('div')
-    settingsLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-    settingsLabel.appendChild(SectionLabel({ children: 'Quick settings', accent }))
-    container.appendChild(settingsLabel)
-
-    const settingsCard = document.createElement('div')
-    settingsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
-    settingsCard.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Units</div>
-        <button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilograms (kg)' : 'Pounds (lb)'}</button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Accent color</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer">
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Theme</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">Dark</div>
-      </div>`
-    container.appendChild(settingsCard)
-
-    // CSV import
-    const csvSection = document.createElement('div')
-    csvSection.style.cssText = 'margin:20px 20px 0'
-    csvSection.innerHTML = `
-      <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-        <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-          <strong style="color:#fafafa">Import program from CSV</strong> — format: week, day, exercise_name, muscle, sets, reps, rest_sec
-        </div>
-        <input type="file" id="csv-input" accept=".csv" style="display:none">
-        <button id="csv-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
-        <div id="csv-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-      </div>`
-    container.appendChild(csvSection)
-
-    // CSV import (exercises)
-    const csvExSection = document.createElement('div')
-    csvExSection.style.cssText = 'margin:12px 20px 0'
-    csvExSection.innerHTML = `
-      <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-        <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-          <strong style="color:#fafafa">Import exercises from CSV</strong> — format: name, muscle, image_url, tips, alternatives (skips existing)
-        </div>
-        <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
-        <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
-        <div id="csv-ex-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-      </div>`
-    container.appendChild(csvExSection)
-
-    // Events
-    setTimeout(() => {
-      const unitsBtn = document.getElementById('units-btn')
-      if (unitsBtn) {
-        unitsBtn.addEventListener('click', async () => {
-          const s = await Storage.getSettings()
-          s.units = s.units === 'kg' ? 'lb' : 'kg'
-          await Storage.saveSettings(s)
-          if (onRefresh) onRefresh()
-        })
-      }
-      const accentInput = document.getElementById('accent-input')
-      if (accentInput) {
-        accentInput.addEventListener('input', async (e) => {
-          const s = await Storage.getSettings()
-          s.accentColor = e.target.value
-          await Storage.saveSettings(s)
-          document.documentElement.style.setProperty('--accent', e.target.value)
-          if (onRefresh) onRefresh()
-        })
-      }
-      const csvBtn = document.getElementById('csv-btn')
-      const csvInput = document.getElementById('csv-input')
-      const csvStatus = document.getElementById('csv-status')
-      if (csvBtn && csvInput) {
-        csvBtn.addEventListener('click', () => csvInput.click())
-        csvInput.addEventListener('change', async (e) => {
-          const file = e.target.files[0]
-          if (!file) return
-          try {
-            const text = await file.text()
-            const prog = await Storage.importProgramFromCSV(text)
-            csvStatus.textContent = `✅ Imported "${prog.name}" with ${prog.weeks.length} week(s)`
-            csvStatus.style.color = accent
-            if (onRefresh) setTimeout(onRefresh, 1500)
-          } catch (err) {
-            csvStatus.textContent = `❌ ${err.message}`
-            csvStatus.style.color = '#ff6b6b'
-          }
-        })
-      }
-
-      const csvExBtn = document.getElementById('csv-ex-btn')
-      const csvExInput = document.getElementById('csv-ex-input')
-      const csvExStatus = document.getElementById('csv-ex-status')
-      if (csvExBtn && csvExInput) {
-        csvExBtn.addEventListener('click', () => csvExInput.click())
-        csvExInput.addEventListener('change', async (e) => {
-          const file = e.target.files[0]
-          if (!file) return
-          try {
-            const text = await file.text()
-            const result = await Storage.importExercisesFromCSV(text)
-            csvExStatus.textContent = `✅ Created ${result.created}, skipped ${result.skipped}`
-            csvExStatus.style.color = accent
-            if (onRefresh) setTimeout(onRefresh, 1500)
-          } catch (err) {
-            csvExStatus.textContent = `❌ ${err.message}`
-            csvExStatus.style.color = '#ff6b6b'
-          }
-        })
-      }
-    }, 0)
-  })
+    const csvExBtn = document.getElementById('csv-ex-btn')
+    const csvExInput = document.getElementById('csv-ex-input')
+    const csvExStatus = document.getElementById('csv-ex-status')
+    if (csvExBtn && csvExInput) {
+      csvExBtn.addEventListener('click', () => csvExInput.click())
+      csvExInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        try {
+          const text = await file.text()
+          const result = await Storage.importExercisesFromCSV(text)
+          csvExStatus.textContent = `✅ Created ${result.created}, updated ${result.updated}`
+          csvExStatus.style.color = accent
+          if (onRefresh) setTimeout(onRefresh, 1500)
+        } catch (err) {
+          csvExStatus.textContent = `❌ ${err.message}`
+          csvExStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+  }, 0)
 }
 
 // ── Exercise CRUD ──
@@ -212,7 +190,7 @@ function renderExercises(container, { accent, units, onRefresh }) {
     toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 20px 12px'
     toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${exercises.length} exercises</div>`
     const addBtn = document.createElement('button')
-    addBtn.style.cssText = `padding:6px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700`
+    addBtn.style.cssText = `padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation`
     addBtn.textContent = '+ New'
     addBtn.addEventListener('click', () => showExerciseEdit(null, accent, onRefresh))
     toolbar.appendChild(addBtn)
@@ -233,8 +211,8 @@ function renderExercises(container, { accent, units, onRefresh }) {
           <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${e.name}</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
         </div>
-        <button class="edit-ex-btn" style="padding:4px 10px;border-radius:6px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:11px">Edit</button>
-        <button class="del-ex-btn" style="padding:4px 10px;border-radius:6px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:11px">Del</button>`
+        <button class="edit-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Edit</button>
+        <button class="del-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Del</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.edit-ex-btn')) showExerciseEdit(e, accent, onRefresh)
         else if (ev.target.closest('.del-ex-btn')) deleteExercise(e, accent, onRefresh)
@@ -433,7 +411,7 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
     toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 20px 12px'
     toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${programs.length} programs</div>`
     const addBtn = document.createElement('button')
-    addBtn.style.cssText = `padding:6px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700`
+    addBtn.style.cssText = `padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation`
     addBtn.textContent = '+ New'
     addBtn.addEventListener('click', () => showProgramEdit(null, accent, onRefresh))
     toolbar.appendChild(addBtn)
@@ -458,9 +436,9 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
           </div>
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${p.weeks.length} week(s) · ${p.weeks.reduce((s, w) => s + w.days.reduce((sd, d) => sd + d.exercises.length, 0), 0)} total exercises</div>
         </div>
-        ${!isActive ? `<button class="activate-btn" style="padding:4px 10px;border-radius:6px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:11px">Activate</button>` : ''}
-        <button class="edit-prog-btn" style="padding:4px 10px;border-radius:6px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:11px">Edit</button>
-        <button class="del-prog-btn" style="padding:4px 10px;border-radius:6px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:11px">Del</button>`
+        ${!isActive ? `<button class="activate-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:13px;touch-action:manipulation">Activate</button>` : ''}
+        <button class="edit-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Edit</button>
+        <button class="del-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Del</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.activate-btn')) activateProgram(p.id)
         else if (ev.target.closest('.edit-prog-btn')) showProgramEdit(p, accent, onRefresh)
@@ -503,7 +481,7 @@ function showProgramEdit(program, accent, onRefresh) {
       weeksHTML += buildProgramDayHTML(di, d)
     })
     weeksHTML += `</div>
-      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:6px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:11px">+ Add day</button>
+      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Add day</button>
     </div>`
   })
 
@@ -548,7 +526,7 @@ function showProgramEdit(program, accent, onRefresh) {
         <input class="prog-week-tag" value="" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="TAG">
       </div>
       <div class="prog-days-in-week"></div>
-      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:6px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:11px">+ Add day</button>`
+      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Add day</button>`
     container.appendChild(block)
   })
 
@@ -631,7 +609,7 @@ function buildProgramDayHTML(idx, day) {
       <button class="del-day-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
     </div>
     ${exHTML}
-    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:5px;border-radius:6px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:11px">+ Add exercise</button>
+    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Add exercise</button>
   </div>`
 }
 
@@ -646,17 +624,17 @@ function buildProgramDayElement(idx) {
       <input class="prog-day-dur" type="number" value="60" style="width:44px;padding:6px 4px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="min">
       <button class="del-day-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
     </div>
-    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:5px;border-radius:6px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:11px">+ Add exercise</button>`
+    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Add exercise</button>`
   return div
 }
 
 function createProgExerciseRowHtml(exerciseId, sets, reps, rest) {
   return `<div class="prog-ex-row" style="display:flex;gap:4px;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
     <input class="prog-ex-name" list="prog-ex-list" value="${exerciseId || ''}" placeholder="Ex. name" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
-    <input class="prog-ex-sets" type="number" value="${sets}" style="width:34px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
-    <input class="prog-ex-reps" value="${reps}" style="width:38px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
-    <input class="prog-ex-rest" type="number" value="${rest}" style="width:34px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
-    <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
+    <input class="prog-ex-sets" type="number" value="${sets}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
+    <input class="prog-ex-reps" value="${reps}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
+    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
+    <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0;touch-action:manipulation">✕</button>
   </div>`
 }
 
@@ -666,10 +644,10 @@ function createProgExerciseRow(exerciseId, sets, reps, rest) {
   div.style.cssText = 'display:flex;gap:4px;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)'
   div.innerHTML = `
     <input class="prog-ex-name" list="prog-ex-list" placeholder="Ex. name" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
-    <input class="prog-ex-sets" type="number" value="${sets}" style="width:34px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
-    <input class="prog-ex-reps" value="${reps}" style="width:38px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
-    <input class="prog-ex-rest" type="number" value="${rest}" style="width:34px;padding:6px 2px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
-    <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>`
+    <input class="prog-ex-sets" type="number" value="${sets}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
+    <input class="prog-ex-reps" value="${reps}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
+    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
+    <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0;touch-action:manipulation">✕</button>`
   return div
 }
 
