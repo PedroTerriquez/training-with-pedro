@@ -1,7 +1,7 @@
 // ── Today screen ──
 // Shows today's workout or rest day
 
-function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise }) {
+function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises }) {
   container.innerHTML = ''
   const page = document.createElement('div')
   page.className = 'page'
@@ -11,6 +11,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const jsDay = now.getDay()
   const detectedDayIdx = (jsDay + 6) % 7
   const dayIdx = dayIndex >= 0 ? dayIndex : detectedDayIdx
+  const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
   const weekObj = program?.weeks[weekIdx]
   const day = weekObj?.days[dayIdx]
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -58,7 +59,8 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   page.appendChild(list)
 
   day.exercises.forEach((ex) => {
-    const row = createExerciseRow(ex, accent, settings?.units || 'kg', onOpenExercise)
+    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+    const row = createExerciseRow(resolved, accent, settings?.units || 'kg', onOpenExercise)
     list.appendChild(row)
   })
 
@@ -71,8 +73,9 @@ function createExerciseRow(ex, accent, units, onOpen) {
   btn.className = 'exercise-row'
   btn.style.cssText = `background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;text-align:left;display:flex;align-items:stretch;gap:14px;color:inherit;position:relative;transition:border-color 0.2s`
 
+  const hasImg = ex.imgUrl
   btn.innerHTML = `
-    <div style="width:64px;height:64px;flex-shrink:0;border-radius:12px;position:relative;overflow:hidden;background:#1c1c1c;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px);border:0.5px solid rgba(255,255,255,0.04)"></div>
+    <div style="width:64px;height:64px;flex-shrink:0;border-radius:12px;position:relative;overflow:hidden;background:#1c1c1c;border:0.5px solid rgba(255,255,255,0.04)">${hasImg ? `<img src="${ex.imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px)"></div>`}</div>
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ex.name}</div>
       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:3px">${ex.muscle}</div>

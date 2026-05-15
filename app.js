@@ -101,6 +101,7 @@ async function renderScreen() {
         weekIdx: _state.settings?.currentWeekIdx || 0,
         dayIndex: -1,
         settings: _state.settings,
+        exercises: _state.exercises,
         accent,
         onOpenExercise: openDetailSheet,
       })
@@ -135,6 +136,7 @@ async function renderScreen() {
         weekIdx: _state.settings?.currentWeekIdx || 0,
         dayIndex: -1,
         settings: _state.settings,
+        exercises: _state.exercises,
         accent,
         onOpenExercise: openDetailSheet,
       })
