@@ -121,6 +121,7 @@ async function renderScreen() {
         weekIdx: _state.settings?.currentWeekIdx || 0,
         dayIndex: getTodayDayIndex(),
         accent,
+        exercises: _state.exercises,
         onOpenExercise: openDetailSheet,
         onWeekChange: (idx) => {
           _state.settings.currentWeekIdx = idx
