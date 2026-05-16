@@ -152,7 +152,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const prog = await Storage.importProgramFromCSV(text)
           csvStatus.textContent = `✅ Imported "${prog.name}" with ${prog.weeks.length} week(s)`
           csvStatus.style.color = accent
-          if (onRefresh) setTimeout(onRefresh, 1500)
+          setTimeout(async () => {
+            _youTab = 'programs'
+            if (onRefresh) await onRefresh()
+          }, 2000)
         } catch (err) {
           csvStatus.textContent = `❌ ${err.message}`
           csvStatus.style.color = '#ff6b6b'
@@ -173,7 +176,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const result = await Storage.importExercisesFromCSV(text)
           csvExStatus.textContent = `✅ Created ${result.created}, updated ${result.updated}`
           csvExStatus.style.color = accent
-          if (onRefresh) setTimeout(onRefresh, 1500)
+          setTimeout(async () => {
+            _youTab = 'exercises'
+            if (onRefresh) await onRefresh()
+          }, 2000)
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
