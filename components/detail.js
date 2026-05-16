@@ -27,7 +27,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#fafafa;letter-spacing:-0.8px;line-height:1.1">${exercise.name}</div>
-        <button onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(exercise.name)}','_blank')" style="flex-shrink:0;width:36px;height:36px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Search on Google">
+        <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${encodeURIComponent(exercise.name)}','_blank')" style="flex-shrink:0;width:36px;height:36px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Search on Google">
           <svg width="17" height="17" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
         </button>
       </div>
