@@ -1,3 +1,51 @@
+function showToast(message, isError = false) {
+  const existing = document.getElementById('backup-toast')
+  if (existing) existing.remove()
+  const toast = document.createElement('div')
+  toast.id = 'backup-toast'
+  toast.textContent = message
+  toast.style.cssText = `position:fixed;bottom:100px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:12px;z-index:9999;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;background:${isError ? '#2a0f0f' : '#1a1a1a'};color:${isError ? '#ff6b6b' : '#fafafa'};border:0.5px solid ${isError ? 'rgba(255,107,107,0.25)' : 'rgba(255,255,255,0.08)'};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);max-width:80%;text-align:center;transition:opacity 0.3s;`
+  document.body.appendChild(toast)
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300) }, 3500)
+}
+
+const BACKUP_PREFIX = 'idb_backup_'
+
+async function backupAll() {
+  try {
+    const data = {
+      exercises: await getAll('exercises'),
+      exerciseLogs: await getAll('exerciseLogs'),
+      programs: await getAll('programs'),
+      settings: [(await get('settings', 'settings'))].filter(Boolean),
+    }
+    for (const key of Object.keys(data)) {
+      localStorage.setItem(BACKUP_PREFIX + key, JSON.stringify(data[key]))
+    }
+    localStorage.setItem('hasUsedApp', 'true')
+    localStorage.setItem('lastBackupDate', new Date().toISOString())
+  } catch (e) {
+    showToast('⚠️ Backup automático falló: ' + e.message, true)
+  }
+}
+
+async function restoreFromBackup() {
+  const stores = ['exercises', 'exerciseLogs', 'programs', 'settings']
+  for (const store of stores) {
+    const raw = localStorage.getItem(BACKUP_PREFIX + store)
+    if (!raw) continue
+    try {
+      const items = JSON.parse(raw)
+      for (const item of items) {
+        await put(store, item)
+      }
+    } catch (e) {
+      showToast('⚠️ No se pudo restaurar ' + store + ': ' + e.message, true)
+    }
+  }
+  showToast('✅ Datos recuperados desde backup automático')
+}
+
 function parseCSVLine(line) {
   const result = []
   let current = ''
@@ -31,6 +79,8 @@ function parseCSVLine(line) {
 }
 
 const Storage = {
+  backupAll,
+  restoreFromBackup,
   // ── Exercises ──
   async getExercises() {
     return getAll('exercises')
@@ -130,6 +180,7 @@ const Storage = {
 
   // ── CSV Import ──
   async importProgramFromCSV(text) {
+    try {
     const lines = text.trim().split('\n')
     if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
     const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
@@ -189,10 +240,15 @@ const Storage = {
     }
     await put('programs', program)
     return program
+    } catch (err) {
+      showToast('❌ ' + err.message, true)
+      throw err
+    }
   },
 
   // ── CSV Import (Exercises) ──
   async importExercisesFromCSV(text) {
+    try {
     const lines = text.trim().split('\n')
     if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
     const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
@@ -245,5 +301,9 @@ const Storage = {
     }
 
     return { created, updated }
+    } catch (err) {
+      showToast('❌ ' + err.message, true)
+      throw err
+    }
   },
 }

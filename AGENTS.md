@@ -12,9 +12,9 @@
 /index.html          → App shell, font loading, script includes
 /styles.css          → CSS variables, design tokens, global styles
 /app.js              → SPA router, state management, event bus, mount
-/db.js               → IndexedDB open/CRUD helpers (openDB, getAll, get, put, del, getByIndex, generateId, seedIfEmpty)
-/storage.js          → Data service layer (Storage object with all business logic)
-/data.js             → SEED_DATA (exercises + programs + settings + RECOVERY_TIPS + day/month name constants)
+/db.js               → IndexedDB open/CRUD helpers (openDB, getAll, get, put, del, getByIndex, generateId)
+/storage.js          → Data service layer (Storage object), showToast, backupAll, restoreFromBackup
+/data.js             → RECOVERY_TIPS (displayed on rest days)
 /components/
   ui.js              → Chip, SectionLabel, StatBlock, ExercisePlaceholder, TabBar, Sheet
   chart.js           → Sparkline, LineChart (SVG-based)
@@ -81,7 +81,8 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 - Duplicate exercise IDs allowed in same program (different days)
 - Logs are flat exerciseLogs — no workout grouping. Each log = one weight entry for one exercise on one date
 - History is computed by scanning exerciseLogs per exerciseId, sorted by date
-- First launch seeds: default program + exercises from SEED_DATA, empty logs (no mock history)
+- No seed data — app starts empty, user creates exercises/programs or imports CSV
+- localStorage backup layer mirrors IndexedDB on every write; auto-restores on data loss (iOS purge)
 - Full CRUD on exercises and programs (You screen)
 - CSV import: week, day, exercise_name, muscle, sets, reps, rest_sec — auto-creates exercises by name
 - User picks active program from You screen; Today/Plan use active program
@@ -108,14 +109,14 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 - Tab bar: glassmorphism with backdrop-filter blur
 
 ## Data Flow
-1. `init()` → `seedIfEmpty()` → `loadState()` → `renderShell()` → `renderScreen()`
-2. User actions call `Storage.*` methods → IndexedDB → `refresh()` → re-render
+1. `init()` → `loadState()` (if data lost → `restoreFromBackup()`) → `renderShell()` → `renderScreen()`
+2. User actions call `Storage.*` methods → IndexedDB → `backupAll()` (localStorage mirror) → `refresh()` → re-render
 3. `window.appRefresh()` exposed for external re-render triggers
 4. Weight logging: Detail sheet → `onLog()` → `Storage.logWeight()` → append to exerciseLogs
 
 ## Prior Art
 Design prototype in `training-with-pedro/project/` — use for visual reference only
-The static data in SEED_DATA is for initial seeding; IndexedDB is the source of truth at runtime
+IndexedDB is the source of truth at runtime
 
 ## Build/Deploy
 No build step. Open `index.html` directly in browser or deploy to any static host.

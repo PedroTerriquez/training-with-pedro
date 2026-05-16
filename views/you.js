@@ -130,6 +130,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         const s = await Storage.getSettings()
         s.userName = userNameEl.textContent.trim() || 'Pedro'
         await Storage.saveSettings(s)
+        if (onRefresh) onRefresh()
       })
       userNameEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {

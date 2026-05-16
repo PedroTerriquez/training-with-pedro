@@ -83,25 +83,3 @@ async function generateId() {
   return 'id-' + Array.from(arr, (b) => b.toString(36).padStart(2, '0')).join('')
 }
 
-async function seedIfEmpty() {
-  const exercises = await getAll('exercises')
-  if (exercises.length > 0) return
-
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES, 'readwrite')
-
-    for (const ex of SEED_DATA.exercises) {
-      tx.objectStore('exercises').put(ex)
-    }
-    for (const prog of SEED_DATA.programs) {
-      tx.objectStore('programs').put(prog)
-    }
-
-    const settings = { ...SEED_DATA.settings, id: 'settings', activeProgramId: SEED_DATA.programs[0]?.id || null }
-    tx.objectStore('settings').put(settings)
-
-    tx.oncomplete = () => { resolve(); db.close() }
-    tx.onerror = () => { reject(tx.error); db.close() }
-  })
-}

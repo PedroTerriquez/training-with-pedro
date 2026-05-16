@@ -21,8 +21,17 @@ async function init() {
   _rootEl = document.getElementById('root')
   _rootEl.innerHTML = ''
 
-  await seedIfEmpty()
   await loadState()
+
+  if (localStorage.getItem('hasUsedApp') && _state.exercises.length === 0) {
+    try {
+      await Storage.restoreFromBackup()
+      await loadState()
+    } catch (e) {
+      showToast('❌ No se pudieron recuperar datos guardados', true)
+    }
+  }
+
   renderShell()
 
   window.addEventListener('hashchange', handleRoute)
@@ -220,6 +229,13 @@ async function refresh() {
     : _state.programs[0] || null
 
   document.documentElement.style.setProperty('--accent', _state.settings?.accentColor || '#d4ff3a')
+
+  try {
+    await Storage.backupAll()
+  } catch (e) {
+    showToast('⚠️ Error al guardar: ' + e.message, true)
+  }
+
   renderShell()
 }
 
