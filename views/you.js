@@ -225,7 +225,7 @@ function renderExercises(container, { accent, units, onRefresh }) {
 
 function showExerciseEdit(exercise, accent, onRefresh) {
   const isNew = !exercise
-  const ex = exercise || { name: '', muscle: '', imgUrl: '', sets: 3, reps: '10', rest: 60, tips: [], alternatives: [] }
+  const ex = { sets: 3, reps: '10', rest: 60, tips: [], alternatives: [], ...(exercise || { name: '', muscle: '', imgUrl: '' }) }
 
   const overlay = document.createElement('div')
   overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;padding:0'
