@@ -50,8 +50,8 @@ function ExercisePlaceholder({ name, muscle, accent, size, imgUrl, actions }) {
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase;background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px">${muscle}</div>
         <div style="width:8px;height:8px;border-radius:50%;background:${accent || '#d4ff3a'};box-shadow:0 0 10px ${accent || '#d4ff3a'}"></div>
       </div>
-      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:${size === 'sm' ? 14 : 22}px;font-weight:600;color:#fafafa;letter-spacing:-0.5px;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${name}</div>
+      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,0,0,0.55);padding:8px 10px;border-radius:8px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:${size === 'sm' ? 14 : 22}px;font-weight:600;color:#fafafa;letter-spacing:-0.5px;line-height:1.05">${name}</div>
         ${actions || ''}
       </div>`
   } else {
@@ -139,4 +139,29 @@ function Sheet({ open, onClose, children }) {
   }
 
   return overlay
+}
+
+// ── Center Toast ──
+const TOAST_SVG_WATCH = `<svg width="72" height="72" viewBox="0 0 72 72" fill="none"><rect x="14" y="6" width="44" height="60" rx="13" stroke="currentColor" stroke-width="2.5" fill="none"/><rect x="20" y="16" width="32" height="30" rx="6" fill="currentColor" fill-opacity="0.06"/><circle cx="36" cy="30" r="5" fill="currentColor" fill-opacity="0.2"/><path d="M30 28h12v2H30z" fill="currentColor"/><path d="M30 32h8v2H30z" fill="currentColor" fill-opacity="0.5"/><circle cx="36" cy="54" r="3" fill="currentColor" fill-opacity="0.15"/><rect x="28" y="3" width="16" height="4" rx="2" fill="currentColor" fill-opacity="0.12"/></svg>`
+
+const TOAST_IMG_TRAINER = `<img src="data/Gemini_Generated_Image_skjbz4skjbz4skjb.png" alt="Pedro" style="max-width:180px;max-height:180px;width:auto;height:auto;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5)">`
+
+function showCenterToast({ svg, message, duration, accent, onDone }) {
+  const existing = document.querySelector('.toast-overlay')
+  if (existing) existing.remove()
+
+  const overlay = document.createElement('div')
+  overlay.className = 'toast-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:fadeIn 0.3s ease'
+  overlay.innerHTML = `<div style="text-align:center;animation:fadeUp 0.4s ease;color:${accent || '#d4ff3a'}">${svg}<div style="margin-top:20px;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.5px">${message}</div></div>`
+  document.body.appendChild(overlay)
+
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.35s ease'
+    overlay.style.opacity = '0'
+    setTimeout(() => {
+      overlay.remove()
+      if (onDone) onDone()
+    }, 350)
+  }, duration || 3000)
 }

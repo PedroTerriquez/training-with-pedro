@@ -63,9 +63,28 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         <input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer">
       </div>
     </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Estatura</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input id="height-input" type="number" value="${settings.height || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
+        <span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">cm</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Peso</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input id="weight-input" type="number" value="${settings.weight || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
+        <span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">kg</span>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Theme</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">Dark</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Sexo</div>
+      <select id="sex-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
+        <option value="" ${!settings.sex ? 'selected' : ''}>Seleccionar</option>
+        <option value="Masculino" ${settings.sex === 'Masculino' ? 'selected' : ''}>Masculino</option>
+        <option value="Femenino" ${settings.sex === 'Femenino' ? 'selected' : ''}>Femenino</option>
+        <option value="Otro" ${settings.sex === 'Otro' ? 'selected' : ''}>Otro</option>
+      </select>
     </div>`
   container.appendChild(settingsCard)
 
@@ -122,6 +141,30 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         await Storage.saveSettings(s)
         document.documentElement.style.setProperty('--accent', e.target.value)
         if (onRefresh) onRefresh()
+      })
+    }
+    const heightInput = document.getElementById('height-input')
+    if (heightInput) {
+      heightInput.addEventListener('blur', async () => {
+        const s = await Storage.getSettings()
+        s.height = heightInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const weightInput = document.getElementById('weight-input')
+    if (weightInput) {
+      weightInput.addEventListener('blur', async () => {
+        const s = await Storage.getSettings()
+        s.weight = weightInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const sexInput = document.getElementById('sex-input')
+    if (sexInput) {
+      sexInput.addEventListener('change', async () => {
+        const s = await Storage.getSettings()
+        s.sex = sexInput.value
+        await Storage.saveSettings(s)
       })
     }
     const userNameEl = document.getElementById('user-name')

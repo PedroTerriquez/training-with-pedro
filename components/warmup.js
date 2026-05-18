@@ -13,83 +13,34 @@ const GENERIC_WARMUP = [
   { name: 'Superman', imgUrl: img('Superman/0.jpg'), tag: 'estirar', desc: 'Acostado boca abajo, levanta brazos y piernas simultáneamente. Sostén 15 s.' },
 ]
 
-function WarmupSection({ muscles, accent }) {
-  const section = document.createElement('div')
-  section.style.cssText = 'margin-top:20px;padding:0 20px'
+const GENERIC_WARMUP_ONLY = GENERIC_WARMUP.filter(ex => ex.tag === 'calentar')
+const GENERIC_STRETCH_ONLY = GENERIC_WARMUP.filter(ex => ex.tag === 'estirar')
 
+function resolvePanelItems(muscles, mode) {
   const keys = getUniqueWarmupMuscles(muscles)
-
-  const header = document.createElement('button')
-  header.style.cssText = `display:flex;align-items:center;gap:8px;width:100%;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:12px 14px;cursor:pointer;color:inherit;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;font-weight:600`
-  let expanded = false
-
-  const dot = document.createElement('span')
-  dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${accent || '#d4ff3a'};flex-shrink:0`
-
-  const label = document.createElement('span')
-  label.textContent = 'Calentamiento y Estiramiento'
-
-  const chevron = document.createElement('span')
-  chevron.style.cssText = 'margin-left:auto;transition:transform 0.25s;font-size:14px;color:rgba(255,255,255,0.4)'
-  chevron.textContent = '▾'
-
-  header.appendChild(dot)
-  header.appendChild(label)
-  header.appendChild(chevron)
-  section.appendChild(header)
-
-  const body = document.createElement('div')
-  body.style.cssText = 'overflow:hidden;max-height:0;transition:max-height 0.35s ease, opacity 0.25s ease;opacity:0'
-  section.appendChild(body)
-
-  const inner = document.createElement('div')
-  inner.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding-top:10px'
-
+  const items = []
   if (keys.length > 0) {
-    keys.forEach((key) => {
+    keys.forEach(key => {
       const data = WARMUP_DATA[key]
       if (!data) return
-      const group = document.createElement('div')
-      group.style.cssText = 'border-radius:14px;background:#141414;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden'
-
-      if (data.warmup && data.warmup.length > 0) {
-        if (data.warmup.length > 0) {
-          data.warmup.forEach(ex => group.appendChild(makeRow(ex, 'calentar', accent)))
-        }
-      }
-      if (data.stretch && data.stretch.length > 0) {
-        data.stretch.forEach(ex => group.appendChild(makeRow(ex, 'estirar', accent)))
-      }
-      inner.appendChild(group)
-    })
-  } else {
-    GENERIC_WARMUP.forEach((ex) => {
-      const rowWrap = document.createElement('div')
-      rowWrap.style.cssText = 'border-radius:14px;background:#141414;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden'
-      rowWrap.appendChild(makeRow(ex, ex.tag, accent))
-      inner.appendChild(rowWrap)
+      const pool = mode === 'warmup' ? data.warmup : data.stretch
+      if (pool) pool.forEach(ex => items.push({ ...ex, tag: mode === 'warmup' ? 'calentar' : 'estirar' }))
     })
   }
-
-  body.appendChild(inner)
-
-  header.addEventListener('click', () => {
-    expanded = !expanded
-    chevron.style.transform = expanded ? 'rotate(180deg)' : ''
-    body.style.maxHeight = expanded ? body.scrollHeight + 200 + 'px' : '0'
-    body.style.opacity = expanded ? '1' : '0'
-  })
-
-  return section
+  return items.length > 0 ? items : (mode === 'warmup' ? GENERIC_WARMUP_ONLY : GENERIC_STRETCH_ONLY)
 }
 
-function makeRow(ex, tag, accent) {
+function makeCheckableRow(ex, tag, accent, { checked, onToggle }) {
   const el = document.createElement('div')
-  el.style.cssText = 'display:flex;gap:14px;padding:14px;border-bottom:0.5px solid rgba(255,255,255,0.04)'
+  el.style.cssText = 'display:flex;gap:14px;padding:14px;border-bottom:0.5px solid rgba(255,255,255,0.04);cursor:pointer;transition:opacity 0.2s'
+  el.style.opacity = checked ? '0.5' : '1'
+
+  const cb = document.createElement('div')
+  cb.style.cssText = `width:24px;height:24px;border-radius:50%;border:2px solid ${checked ? accent : 'rgba(255,255,255,0.2)'};flex-shrink:0;margin-top:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;background:${checked ? accent : 'transparent'}`
+  if (checked) cb.innerHTML = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 
   const imgWrap = document.createElement('div')
-  imgWrap.style.cssText = 'width:80px;height:80px;border-radius:14px;overflow:hidden;background:#1c1c1c;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.04)'
-
+  imgWrap.style.cssText = 'width:64px;height:64px;border-radius:12px;overflow:hidden;background:#1c1c1c;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.04)'
   if (ex.imgUrl) {
     const imgEl = document.createElement('img')
     imgEl.src = ex.imgUrl
@@ -100,8 +51,6 @@ function makeRow(ex, tag, accent) {
     imgWrap.style.backgroundImage = 'repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px)'
   }
 
-  const isStallbar = ex.desc && ex.desc.startsWith('STALLBAR:')
-
   const info = document.createElement('div')
   info.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px'
 
@@ -109,11 +58,11 @@ function makeRow(ex, tag, accent) {
   nameRow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap'
 
   const nameEl = document.createElement('div')
-  nameEl.style.cssText = `font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.3;overflow-wrap:break-word`
+  nameEl.style.cssText = `font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:${checked ? 'rgba(255,255,255,0.5)' : '#fafafa'};letter-spacing:-0.2px;line-height:1.3;overflow-wrap:break-word;text-decoration:${checked ? 'line-through' : 'none'}`
   nameEl.textContent = ex.name
-
   nameRow.appendChild(nameEl)
 
+  const isStallbar = ex.desc && ex.desc.startsWith('STALLBAR:')
   if (isStallbar) {
     const stallbarBadge = document.createElement('span')
     stallbarBadge.textContent = 'STALLBAR'
@@ -126,14 +75,111 @@ function makeRow(ex, tag, accent) {
   tagEl.textContent = tag
 
   const descEl = document.createElement('div')
-  descEl.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.55);line-height:1.45;margin-top:2px'
+  descEl.style.cssText = `font-size:12px;color:${checked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'};line-height:1.45;margin-top:2px`
   descEl.textContent = isStallbar ? ex.desc.slice(10) : (ex.desc || '')
 
   info.appendChild(tagEl)
   info.appendChild(nameRow)
   info.appendChild(descEl)
+  el.appendChild(cb)
   el.appendChild(imgWrap)
   el.appendChild(info)
 
-  return el
+  el.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onToggle()
+  })
+
+  return { el, cb }
+}
+
+function makePanelContent({ muscles, accent, mode, onComplete }) {
+  const container = document.createElement('div')
+  container.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding-top:10px'
+
+  const items = resolvePanelItems(muscles, mode)
+  if (items.length === 0) {
+    container.innerHTML = `<div style="padding:14px 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center">No ${mode === 'warmup' ? 'calentamiento' : 'estiramiento'} sugerido para hoy</div>`
+    return container
+  }
+
+  const checkedSet = new Set()
+  const rows = []
+
+  function updateCompletion() {
+    const allDone = checkedSet.size === items.length
+    if (allDone && onComplete) onComplete()
+  }
+
+  const markAllBtn = document.createElement('button')
+  markAllBtn.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;transition:all 0.2s;align-self:flex-start;touch-action:manipulation`
+  markAllBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0.5" y="0.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Marcar todo como listo`
+
+  markAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    checkedSet.clear()
+    items.forEach((_, idx) => checkedSet.add(idx))
+    rows.forEach(({ el, cb, index }) => {
+      const checked = true
+      cb.style.borderColor = accent
+      cb.style.background = accent
+      cb.innerHTML = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      el.style.opacity = '0.5'
+      el.querySelector('div:last-child div:nth-child(2) div:first-child').style.color = 'rgba(255,255,255,0.5)'
+      el.querySelector('div:last-child div:nth-child(2) div:first-child').style.textDecoration = 'line-through'
+      el.querySelector('div:last-child > div:last-child').style.color = 'rgba(255,255,255,0.3)'
+    })
+    updateCompletion()
+  })
+
+  const topRow = document.createElement('div')
+  topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between'
+  topRow.appendChild(markAllBtn)
+  container.appendChild(topRow)
+
+  items.forEach((ex, idx) => {
+    const result = makeCheckableRow(ex, ex.tag, accent, {
+      checked: checkedSet.has(idx),
+      onToggle: () => {
+        if (checkedSet.has(idx)) {
+          checkedSet.delete(idx)
+        } else {
+          checkedSet.add(idx)
+        }
+        renderCheckState(idx)
+        updateCompletion()
+      }
+    })
+    result.index = idx
+
+    function renderCheckState(index) {
+      const row = rows.find(r => r.index === index)
+      if (!row) return
+      const checked = checkedSet.has(index)
+      row.cb.style.borderColor = checked ? accent : 'rgba(255,255,255,0.2)'
+      row.cb.style.background = checked ? accent : 'transparent'
+      row.cb.innerHTML = checked ? `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''
+      row.el.style.opacity = checked ? '0.5' : '1'
+      const nameEl = row.el.querySelector('div:last-child div:nth-child(2) div:first-child')
+      if (nameEl) {
+        nameEl.style.color = checked ? 'rgba(255,255,255,0.5)' : '#fafafa'
+        nameEl.style.textDecoration = checked ? 'line-through' : 'none'
+      }
+      const descEl = row.el.querySelector('div:last-child > div:last-child')
+      if (descEl) descEl.style.color = checked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'
+    }
+
+    rows.push(result)
+    container.appendChild(result.el)
+  })
+
+  return container
+}
+
+function WarmupPanelContent({ muscles, accent, onComplete }) {
+  return makePanelContent({ muscles, accent, mode: 'warmup', onComplete })
+}
+
+function StretchingPanelContent({ muscles, accent, onComplete }) {
+  return makePanelContent({ muscles, accent, mode: 'stretch', onComplete })
 }

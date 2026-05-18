@@ -1,5 +1,7 @@
 // ── Today screen ──
-// Shows today's workout or rest day
+
+let _step = 0
+let _exercisesSkipped = false
 
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises }) {
   container.innerHTML = ''
@@ -24,6 +26,11 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     return
   }
 
+  const warmupMuscles = day.exercises.map((ex) => {
+    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+    return resolved.muscle
+  }).filter(Boolean)
+
   // Header
   const header = document.createElement('div')
   header.style.padding = '56px 20px 12px'
@@ -47,31 +54,141 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     <div style="margin-top:6px;font-size:13.5px;color:rgba(255,255,255,0.55)">${day.subtitle || ''}</div>`
   page.appendChild(hero)
 
-  // Warmup section
-  const warmupMuscles = day.exercises.map((ex) => {
-    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
-    return resolved.muscle
-  }).filter(Boolean)
-  page.appendChild(WarmupSection({ muscles: warmupMuscles, accent }))
+  // Accordion flow
+  const accordionEl = document.createElement('div')
+  accordionEl.style.cssText = 'margin-top:20px'
+  page.appendChild(accordionEl)
 
-  // Section label
-  const secLabel = document.createElement('div')
-  secLabel.style.cssText = 'margin-top:28px;margin-bottom:12px'
-  secLabel.appendChild(SectionLabel({ children: 'Exercises', accent }))
-  page.appendChild(secLabel)
+  function renderAccordion() {
+    accordionEl.innerHTML = ''
+    const inner = document.createElement('div')
+    inner.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:0 20px'
+    accordionEl.appendChild(inner)
 
-  // Exercise list
-  const list = document.createElement('div')
-  list.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:0 20px'
-  page.appendChild(list)
+    const steps = [
+      { num: 1, label: 'Calentamiento' },
+      { num: 2, label: 'Ejercicios' },
+      { num: 3, label: 'Estiramientos' },
+    ]
 
-  day.exercises.forEach((ex) => {
-    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
-    const row = createExerciseRow(resolved, accent, settings?.units || 'kg', onOpenExercise)
-    list.appendChild(row)
-  })
+    steps.forEach((s, idx) => {
+      const status = idx < _step ? 'completed' : (idx === _step ? 'current' : 'pending')
 
-  // Load logged weights
+      const header = document.createElement('button')
+      header.style.cssText = `display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:default;color:inherit;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;text-align:left;background:${status === 'current' ? '#141414' : 'transparent'};transition:all 0.2s`
+
+      const badge = document.createElement('div')
+      if (status === 'completed') {
+        badge.style.cssText = `width:26px;height:26px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;flex-shrink:0`
+        badge.innerHTML = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      } else if (status === 'current') {
+        badge.style.cssText = `width:26px;height:26px;border-radius:50%;background:${accent}22;border:1.5px solid ${accent};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:${accent}`
+        badge.textContent = s.num
+      } else {
+        badge.style.cssText = `width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:rgba(255,255,255,0.3)`
+        badge.textContent = s.num
+      }
+
+      const labelSpan = document.createElement('span')
+      labelSpan.textContent = s.label
+      labelSpan.style.color = status === 'pending' ? 'rgba(255,255,255,0.3)' : '#fafafa'
+
+      const statusLabel = document.createElement('span')
+      statusLabel.style.cssText = `margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase`
+      if (status === 'completed') {
+        statusLabel.style.color = accent
+        statusLabel.textContent = 'Listo'
+      } else if (status === 'current') {
+        statusLabel.style.color = 'rgba(255,255,255,0.4)'
+        statusLabel.textContent = 'En curso'
+      } else {
+        statusLabel.style.color = 'rgba(255,255,255,0.15)'
+        statusLabel.textContent = 'Pendiente'
+      }
+
+      header.appendChild(badge)
+      header.appendChild(labelSpan)
+      header.appendChild(statusLabel)
+      inner.appendChild(header)
+
+      if (status === 'current') {
+        const body = document.createElement('div')
+        body.style.cssText = 'animation:fadeUp 0.3s ease;padding:4px 0 8px'
+
+        if (idx === 0) renderWarmupBody(body)
+        else if (idx === 1) renderExercisesBody(body)
+        else if (idx === 2) renderStretchBody(body)
+
+        inner.appendChild(body)
+      }
+    })
+  }
+
+  function renderWarmupBody(container) {
+    const items = resolvePanelItems(warmupMuscles, 'warmup')
+    if (items.length === 0) { _step = 1; renderAccordion(); return }
+    container.appendChild(WarmupPanelContent({
+      muscles: warmupMuscles,
+      accent,
+      onComplete: () => {
+        showCenterToast({
+          svg: TOAST_SVG_WATCH,
+          message: 'Inicia tu Smart Watch',
+          duration: 3000,
+          accent,
+          onDone: () => { _step = 1; renderAccordion() }
+        })
+      }
+    }))
+  }
+
+  function renderExercisesBody(container) {
+    const topRow = document.createElement('div')
+    topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'
+    const skipBtn = document.createElement('button')
+    skipBtn.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;touch-action:manipulation`
+    skipBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0.5" y="0.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Marcar todo listo (sin peso)`
+    skipBtn.addEventListener('click', () => { _exercisesSkipped = true; _step = 2; renderAccordion() })
+    topRow.appendChild(skipBtn)
+    container.appendChild(topRow)
+
+    const list = document.createElement('div')
+    list.style.cssText = 'display:flex;flex-direction:column;gap:10px'
+    container.appendChild(list)
+
+    day.exercises.forEach((ex) => {
+      const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+      list.appendChild(createExerciseRow(resolved, accent, settings?.units || 'kg', onOpenExercise))
+    })
+
+    setTimeout(async () => {
+      if (_step !== 1) return
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const logs = await Storage.getLogsForDate(dateStr)
+      const allLogged = day.exercises.every(ex => logs.some(l => l.exerciseId === (ex.exerciseId || ex.id)))
+      if ((allLogged || _exercisesSkipped) && _step === 1) { _step = 2; renderAccordion() }
+    }, 200)
+  }
+
+  function renderStretchBody(container) {
+    const items = resolvePanelItems(warmupMuscles, 'stretch')
+    if (items.length === 0) { _step = 3; renderAccordion(); return }
+    container.appendChild(StretchingPanelContent({
+      muscles: warmupMuscles,
+      accent,
+      onComplete: () => {
+        showCenterToast({
+          svg: TOAST_IMG_TRAINER,
+          message: 'Pedro te felicita',
+          duration: 3000,
+          accent,
+          onDone: () => { _step = 3; renderAccordion() }
+        })
+      }
+    }))
+  }
+
+  renderAccordion()
   loadLoggedWeights(day.exercises, accent)
 }
 
