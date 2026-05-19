@@ -11,7 +11,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
   container.appendChild(page)
 
   if (!program) {
-    page.innerHTML = `<div style="padding:56px 20px;text-align:center;color:rgba(255,255,255,0.4);font-size:14px">No program selected. Go to You to create one.</div>`
+    page.innerHTML = `<div style="padding:56px 20px;text-align:center;color:rgba(255,255,255,0.4);font-size:14px">Ningún programa seleccionado. Ve a Tú para crear uno.</div>`
     return
   }
 
@@ -20,14 +20,14 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
   if (_planWeekIdx >= weeks.length) _planWeekIdx = 0
 
   const week = weeks[_planWeekIdx] || weeks[0]
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
   const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
 
   // Header
   const header = document.createElement('div')
   header.style.padding = '56px 20px 16px'
   header.innerHTML = `
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,0.45);text-transform:uppercase">Your program</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,0.45);text-transform:uppercase">Tu programa</div>
     <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px">Plan.</div>`
   page.appendChild(header)
 
@@ -61,7 +61,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
     daysGrid.style.cssText = 'padding:0 20px;display:flex;flex-direction:column;gap:10px'
     week.days.forEach((day, i) => {
       const isToday = i === dayIndex && _planWeekIdx === weekIdx
-      const isRest = day.name === 'Rest'
+      const isRest = day.name === 'Rest' || day.name === 'Descanso'
       const isExpanded = _planExpandedDayIdx === i
 
       const dayContainer = document.createElement('div')
@@ -87,7 +87,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
           ${!isRest ? `
             <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#fafafa;font-weight:500">${day.exercises.length}</div>
             <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">${day.duration}m</div>
-          ` : `<div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#9bd1ff">REST</div>`}
+          ` : `      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#9bd1ff">DESC</div>`}
         </div>`
 
       if (!isRest) {
@@ -124,7 +124,7 @@ function createPlanExerciseRow(ex, accent, onOpen) {
       ${ex.imgUrl ? `<img src="${ex.imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 10px,rgba(255,255,255,0.05) 10px 20px)"></div>`}
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px;overflow-wrap:break-word">${ex.name || 'Unknown'}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px;overflow-wrap:break-word">${ex.name || 'Desconocido'}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${ex.muscle || ''}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">

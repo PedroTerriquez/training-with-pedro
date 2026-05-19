@@ -2,49 +2,184 @@
 
 // ─────────────────────────────────────────────────────────────
 // Striped placeholder used for exercise imagery (no real photos)
+// Carries: name, muscle, sets×reps overlay, Google + TikTok search buttons,
+// optional PR badge.
 // ─────────────────────────────────────────────────────────────
-function ExercisePlaceholder({ name, muscle, accent = "#d4ff3a", size = "lg", style }) {
-  const heights = { sm: 80, md: 140, lg: 200, xl: 240 };
-  const h = heights[size] || 200;
+function ExercisePlaceholder({
+  name, muscle, sets, reps,
+  accent = "#d4ff3a", size = "lg",
+  isPR = false, showActions = false,
+  style,
+}) {
+  const heights = { compact: 130, sm: 80, md: 140, lg: 165, xl: 240 };
+  const h = heights[size] || 165;
   const stripe = `repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)`;
+  const titleSize = size === 'sm' ? 14 : size === 'md' ? 18 : 26;
+
+  const openSearch = (e, url) => {
+    e.stopPropagation();
+    e.preventDefault();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const q = encodeURIComponent(`${name} exercise technique`);
+  const tt = encodeURIComponent(`${name} exercise`);
+
   return (
     <div style={{
       height: h, borderRadius: 18, overflow: 'hidden', position: 'relative',
       background: '#161616',
       backgroundImage: stripe,
       border: '0.5px solid rgba(255,255,255,0.06)',
+      padding: 16, boxSizing: 'border-box',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      padding: 14, boxSizing: 'border-box',
       ...style,
     }}>
       {/* Soft glow blob */}
       <div style={{
-        position: 'absolute', width: 220, height: 220, borderRadius: '50%',
-        background: accent, opacity: 0.06, filter: 'blur(60px)',
-        top: -60, right: -60, pointerEvents: 'none',
+        position: 'absolute', width: 240, height: 240, borderRadius: '50%',
+        background: accent, opacity: 0.07, filter: 'blur(70px)',
+        top: -80, right: -60, pointerEvents: 'none',
       }} />
+
+      {/* Top row */}
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8,
         position: 'relative', zIndex: 1,
       }}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, ui-monospace, monospace',
-          fontSize: 10, letterSpacing: 1.5, color: 'rgba(255,255,255,0.4)',
-          textTransform: 'uppercase',
-        }}>[ photo · {muscle} ]</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {muscle && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '4px 10px', borderRadius: 9999,
+              background: 'rgba(0,0,0,0.45)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '0.5px solid rgba(255,255,255,0.1)',
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              fontSize: 10, letterSpacing: 1.2, fontWeight: 500,
+              color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}>{muscle}</span>
+          )}
+          {isPR && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', borderRadius: 9999,
+              background: `${accent}22`,
+              border: `0.5px solid ${accent}55`,
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              fontSize: 10, letterSpacing: 1.2, fontWeight: 600,
+              color: accent, textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}>★ PR</span>
+          )}
+        </div>
         <div style={{
           width: 8, height: 8, borderRadius: '50%', background: accent,
           boxShadow: `0 0 10px ${accent}`,
+          flexShrink: 0, marginTop: 6,
         }} />
       </div>
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{
-          fontFamily: 'Space Grotesk, system-ui, sans-serif',
-          fontSize: size === 'sm' ? 14 : 22, fontWeight: 600,
-          color: '#fafafa', letterSpacing: -0.5, lineHeight: 1.05,
-        }}>{name}</div>
+
+      {/* Bottom — title, sets×reps, and action buttons */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: 'Space Grotesk, system-ui, sans-serif',
+            fontSize: titleSize, fontWeight: 700,
+            color: '#fafafa', letterSpacing: -0.6, lineHeight: 1.05,
+            textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}>{name}</div>
+          {sets !== undefined && reps !== undefined && size !== 'sm' && (
+            <div style={{
+              marginTop: 8,
+              display: 'inline-flex', alignItems: 'baseline', gap: 6,
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              fontSize: 14, color: 'rgba(255,255,255,0.85)',
+              background: 'rgba(0,0,0,0.42)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              padding: '5px 12px', borderRadius: 9999,
+              border: '0.5px solid rgba(255,255,255,0.1)',
+              whiteSpace: 'nowrap', maxWidth: '100%',
+            }}>
+              <span style={{ fontWeight: 500 }}>{sets}</span>
+              <span style={{ color: 'rgba(255,255,255,0.45)' }}>×</span>
+              <span style={{ fontWeight: 500 }}>{reps}</span>
+              <span style={{
+                marginLeft: 4, fontSize: 9, letterSpacing: 1.4,
+                textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)',
+                fontWeight: 500, whiteSpace: 'nowrap',
+              }}>sets×reps</span>
+            </div>
+          )}
+        </div>
+
+        {showActions && (
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <SearchButton
+              label="Google"
+              onClick={(e) => openSearch(e, `https://www.google.com/search?q=${q}`)}
+              icon={<GoogleIcon />}
+            />
+            <SearchButton
+              label="TikTok"
+              onClick={(e) => openSearch(e, `https://www.tiktok.com/search?q=${tt}`)}
+              icon={<TikTokIcon />}
+            />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function SearchButton({ label, onClick, icon }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`Search on ${label}`}
+      title={`Search on ${label}`}
+      style={{
+        width: 38, height: 38, borderRadius: '50%',
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        border: '0.5px solid rgba(255,255,255,0.18)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', padding: 0,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        transition: 'transform 0.15s, background 0.15s',
+      }}
+      onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.92)'; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.49h4.84c-.21 1.13-.84 2.09-1.79 2.73v2.27h2.9c1.7-1.56 2.69-3.86 2.69-6.65z"/>
+      <path fill="#34A853" d="M9 18c2.43 0 4.46-.8 5.95-2.18l-2.9-2.27c-.81.54-1.84.86-3.05.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.34A9 9 0 009 18z"/>
+      <path fill="#FBBC05" d="M3.95 10.69A5.4 5.4 0 013.66 9c0-.59.1-1.16.29-1.69V4.97H.96A9 9 0 000 9c0 1.45.35 2.83.96 4.03l2.99-2.34z"/>
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 00.96 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/>
+    </svg>
+  );
+}
+
+function TikTokIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#fff" d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005.8 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1.84-.1z"/>
+    </svg>
   );
 }
 
@@ -97,10 +232,10 @@ function StatBlock({ value, label, unit, accent = "#fafafa", align = "left", siz
 // ─────────────────────────────────────────────────────────────
 function TabBar({ active, onChange, accent }) {
   const tabs = [
-    { id: 'today', label: 'Today', icon: TabIconHome },
+    { id: 'today', label: 'Hoy', icon: TabIconHome },
     { id: 'plan', label: 'Plan', icon: TabIconCal },
-    { id: 'history', label: 'History', icon: TabIconChart },
-    { id: 'me', label: 'You', icon: TabIconUser },
+    { id: 'history', label: 'Historial', icon: TabIconChart },
+    { id: 'me', label: 'Tú', icon: TabIconUser },
   ];
   return (
     <div style={{
@@ -325,5 +460,6 @@ function SectionLabel({ children, accent }) {
 }
 
 Object.assign(window, {
-  ExercisePlaceholder, Chip, StatBlock, TabBar, Sheet, Sparkline, LineChart, SectionLabel,
+  ExercisePlaceholder, SearchButton, GoogleIcon, TikTokIcon,
+  Chip, StatBlock, TabBar, Sheet, Sparkline, LineChart, SectionLabel,
 });

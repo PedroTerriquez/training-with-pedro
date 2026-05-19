@@ -9,14 +9,15 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "dark"
 }/*EDITMODE-END*/;
 
-const DAY_NAMES_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAY_NAMES_LONG = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MONTH_NAMES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = React.useState("today");
   const [sheetExercise, setSheetExercise] = React.useState(null);
   const [logState, setLogState] = React.useState({});
+  const [dayState, setDayState] = React.useState({});
 
   // Date detection — May 14, 2026 = Thursday
   const now = new Date(2026, 4, 14); // override for demo: May 14 2026
@@ -37,8 +38,17 @@ function App() {
     weekDayName, dateStr,
     accent: t.accent, units: t.units,
     activeWeeks: t.rotationWeeks,
-    logState,
+    logState, dayState, setDayState,
   };
+
+  // Compute next exercise in the day's flow (for "Next exercise" CTA)
+  const computeNext = (current) => {
+    if (!current || !day.exercises) return null;
+    const idx = day.exercises.findIndex(e => e.id === current.id);
+    if (idx === -1 || idx >= day.exercises.length - 1) return null;
+    return day.exercises[idx + 1];
+  };
+  const nextExercise = computeNext(sheetExercise);
 
   const openExercise = (e) => setSheetExercise(e);
 
@@ -73,20 +83,22 @@ function App() {
             onClose={() => setSheetExercise(null)}
             logState={logState}
             setLogState={setLogState}
+            nextExercise={nextExercise}
+            onNext={(ex) => setSheetExercise(ex)}
           />
         </Sheet>
       </div>
 
-      <TweaksPanel title="Tweaks">
-        <TweakSection label="Program" />
+      <TweaksPanel title="Ajustes">
+        <TweakSection label="Programa" />
         <TweakRadio
-          label="Rotation"
+          label="Rotación"
           value={t.rotationWeeks}
-          options={[{ value: 2, label: '2-week' }, { value: 3, label: '3-week' }]}
+          options={[{ value: 2, label: '2 semanas' }, { value: 3, label: '3 semanas' }]}
           onChange={(v) => setTweak('rotationWeeks', v)}
         />
         <TweakSelect
-          label="Current week"
+          label="Semana actual"
           value={t.currentWeekIdx}
           options={Array.from({ length: t.rotationWeeks }).map((_, i) => ({
             value: i,
@@ -95,29 +107,29 @@ function App() {
           onChange={(v) => setTweak('currentWeekIdx', Number(v))}
         />
         <TweakSelect
-          label="Today (demo)"
+          label="Hoy (demo)"
           value={t.dayOverride}
           options={[
-            { value: -1, label: 'Auto-detect' },
-            { value: 0, label: 'Mon · Push' },
-            { value: 1, label: 'Tue · Pull' },
-            { value: 2, label: 'Wed · Legs' },
-            { value: 3, label: 'Thu · Push' },
-            { value: 4, label: 'Fri · Pull' },
-            { value: 5, label: 'Sat · Legs' },
-            { value: 6, label: 'Sun · Rest' },
+            { value: -1, label: 'Detección automática' },
+            { value: 0, label: 'Lun · Empuje' },
+            { value: 1, label: 'Mar · Tirón' },
+            { value: 2, label: 'Mié · Piernas' },
+            { value: 3, label: 'Jue · Empuje' },
+            { value: 4, label: 'Vie · Tirón' },
+            { value: 5, label: 'Sáb · Piernas' },
+            { value: 6, label: 'Dom · Descanso' },
           ]}
           onChange={(v) => setTweak('dayOverride', Number(v))}
         />
-        <TweakSection label="Display" />
+        <TweakSection label="Visualización" />
         <TweakRadio
-          label="Units"
+          label="Unidades"
           value={t.units}
           options={['kg', 'lb']}
           onChange={(v) => setTweak('units', v)}
         />
         <TweakColor
-          label="Accent"
+          label="Color"
           value={t.accent}
           options={['#d4ff3a', '#ff5a36', '#9bd1ff', '#c2f970', '#ff6b9d']}
           onChange={(v) => setTweak('accent', v)}

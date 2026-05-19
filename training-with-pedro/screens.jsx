@@ -11,7 +11,7 @@ function PlanScreen({ ctx, onOpenExercise }) {
   const [weekIdx, setWeekIdx] = React.useState(ctx.weekIdx);
   const week = weeks[weekIdx] || weeks[0];
 
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   return (
     <div style={{ paddingBottom: 120 }}>
@@ -20,7 +20,7 @@ function PlanScreen({ ctx, onOpenExercise }) {
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 11, letterSpacing: 1.6, color: 'rgba(255,255,255,0.45)',
           textTransform: 'uppercase',
-        }}>Your program</div>
+        }}>Tu programa</div>
         <div style={{
           fontFamily: 'Space Grotesk, system-ui',
           fontSize: 38, fontWeight: 700, color: '#fafafa',
@@ -59,7 +59,7 @@ function PlanScreen({ ctx, onOpenExercise }) {
       <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {week.days.map((day, i) => {
           const isToday = i === ctx.dayIndex && weekIdx === ctx.weekIdx;
-          const isRest = day.name === "Rest";
+          const isRest = day.name === "Descanso";
           return (
             <div key={i} style={{
               background: '#141414',
@@ -122,7 +122,7 @@ function PlanScreen({ ctx, onOpenExercise }) {
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase',
                     color: '#9bd1ff',
-                  }}>REST</div>
+                  }}>DESC</div>
                 )}
               </div>
             </div>
@@ -151,9 +151,9 @@ function HistoryScreen({ ctx, onOpenExercise }) {
     });
   });
 
-  const [filter, setFilter] = React.useState("All");
-  const muscles = ["All", ...new Set(exercises.map(e => e.muscle.split(' ')[0]))];
-  const filtered = filter === "All" ? exercises : exercises.filter(e => e.muscle.startsWith(filter));
+  const [filter, setFilter] = React.useState("Todos");
+  const muscles = ["Todos", ...new Set(exercises.map(e => e.muscle.split(' ')[0]))];
+  const filtered = filter === "Todos" ? exercises : exercises.filter(e => e.muscle.startsWith(filter));
 
   return (
     <div style={{ paddingBottom: 120 }}>
@@ -162,12 +162,12 @@ function HistoryScreen({ ctx, onOpenExercise }) {
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 11, letterSpacing: 1.6, color: 'rgba(255,255,255,0.45)',
           textTransform: 'uppercase',
-        }}>Lifting history</div>
+        }}>Historial de pesas</div>
         <div style={{
           fontFamily: 'Space Grotesk, system-ui',
           fontSize: 38, fontWeight: 700, color: '#fafafa',
           letterSpacing: -1.5, lineHeight: 1, marginTop: 4,
-        }}>Progress.</div>
+        }}>Progreso.</div>
       </div>
 
       {/* Filter chips */}
@@ -265,7 +265,7 @@ function YouScreen({ ctx }) {
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 11, letterSpacing: 1.6, color: 'rgba(255,255,255,0.45)',
           textTransform: 'uppercase',
-        }}>Profile</div>
+        }}>Perfil</div>
         <div style={{
           fontFamily: 'Space Grotesk, system-ui',
           fontSize: 38, fontWeight: 700, color: '#fafafa',
@@ -278,25 +278,25 @@ function YouScreen({ ctx }) {
         padding: '0 20px',
         display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
       }}>
-        <StatCard accent={accent} label="Active program" big={`${activeWeeks}wk`} sub="rotation" />
-        <StatCard accent={accent} label="Sessions / week" big="6" sub="Sun rest" />
-        <StatCard accent={accent} label="Volume (last 6w)" big={(totalVolume / 1000).toFixed(1) + 'k'} sub={`${units} · sets × reps × weight`} />
-        <StatCard accent={accent} label="Active PRs" big={prCount} sub="last session = best" />
+        <StatCard accent={accent} label="Programa activo" big={`${activeWeeks}sem`} sub="rotación" />
+        <StatCard accent={accent} label="Sesiones / semana" big="6" sub="Descanso dom" />
+        <StatCard accent={accent} label="Volumen (últ. 6 sem.)" big={(totalVolume / 1000).toFixed(1) + 'k'} sub={`${units} · series × reps × peso`} />
+        <StatCard accent={accent} label="PRs activos" big={prCount} sub="última sesión = mejor" />
       </div>
 
       {/* Settings */}
       <div style={{ marginTop: 26, marginBottom: 10 }}>
-        <SectionLabel accent={accent}>Quick settings</SectionLabel>
+        <SectionLabel accent={accent}>Ajustes rápidos</SectionLabel>
       </div>
       <div style={{ padding: '0 20px' }}>
         <div style={{
           background: '#141414', borderRadius: 18, padding: 4,
           border: '0.5px solid rgba(255,255,255,0.06)',
         }}>
-          <SettingsRow label="Units" value={units === 'kg' ? 'Kilograms (kg)' : 'Pounds (lb)'} />
-          <SettingsRow label="Rotation" value={`${activeWeeks} weeks`} />
-          <SettingsRow label="Split" value="Push / Pull / Legs" />
-          <SettingsRow label="Theme" value="Dark" last />
+          <SettingsRow label="Unidades" value={units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'} />
+          <SettingsRow label="Rotación" value={`${activeWeeks} semanas`} />
+          <SettingsRow label="División" value="Empuje / Tirón / Piernas" />
+          <SettingsRow label="Tema" value="Oscuro" last />
         </div>
         <div style={{
           marginTop: 14, padding: 16,
@@ -312,7 +312,7 @@ function YouScreen({ ctx }) {
             fontSize: 16, flexShrink: 0,
           }}>✦</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
-            <strong style={{ color: '#fafafa' }}>Open the Tweaks panel</strong> (top toolbar) to switch rotation length, units, accent color, and theme.
+            <strong style={{ color: '#fafafa' }}>Abre el panel de Ajustes</strong> (barra superior) para cambiar la rotación, unidades, color y tema.
           </div>
         </div>
       </div>

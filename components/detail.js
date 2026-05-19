@@ -25,10 +25,10 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       actions: `
         <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">
           <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:#fafafa;letter-spacing:-0.3px;margin-right:2px;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${exercise.sets}<span style="color:rgba(255,255,255,0.35);margin:0 2px;font-size:14px">×</span>${exercise.reps}</div>
-          <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${searchUrl}','_blank')" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Search on Google">
+          <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${searchUrl}','_blank')" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Buscar en Google">
             <svg width="15" height="15" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
           </button>
-          <button onclick="this.closest('div').querySelector('a').click()" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Search on TikTok">
+          <button onclick="this.closest('div').querySelector('a').click()" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Buscar en TikTok">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
           </button>
           <a href="https://www.tiktok.com/search?q=${searchUrl}" target="_blank" rel="noopener noreferrer" style="display:none"></a>
@@ -43,7 +43,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       const btn = document.createElement('button')
       const on = tab === t
       btn.style.cssText = `flex:1;padding:8px 0;border:0;cursor:pointer;background:${on ? '#262626' : 'transparent'};color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;letter-spacing:-0.1px;border-radius:8px`
-      btn.textContent = t === 'workout' ? 'Workout' : 'History'
+      btn.textContent = t === 'workout' ? 'Registrar' : 'Historial'
       btn.addEventListener('click', () => { tab = t; render() })
       seg.appendChild(btn)
     })
@@ -61,7 +61,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     // Weight stepper card
     const stepperWrap = document.createElement('div')
     stepperWrap.style.cssText = 'margin-top:22px;margin-bottom:10px'
-    stepperWrap.appendChild(SectionLabel({ children: "Today's working weight", accent }))
+    stepperWrap.appendChild(SectionLabel({ children: 'Peso de hoy', accent }))
     scrollEl.appendChild(stepperWrap)
 
     const card = document.createElement('div')
@@ -88,7 +88,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     // Clear button
     const clearBtn = document.createElement('button')
     clearBtn.style.cssText = `margin:8px auto 0;display:${loggedToday ? 'block' : 'none'};padding:10px 14px;background:transparent;border:0;cursor:pointer;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:0.2px;touch-action:manipulation`
-    clearBtn.textContent = "Clear today's log"
+    clearBtn.textContent = 'Borrar registro de hoy'
     scrollEl.appendChild(clearBtn)
 
     function updateLogBtn() {
@@ -97,17 +97,17 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
         logBtn.style.background = `${accent}22`
         logBtn.style.color = accent
         logBtn.style.boxShadow = 'none'
-        logBtn.innerHTML = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Logged · ${pending}${units}`
+        logBtn.innerHTML = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Guardado · ${pending}${units}`
       } else if (loggedToday && dirty) {
         logBtn.style.background = accent
         logBtn.style.color = '#0a0a0a'
         logBtn.style.boxShadow = `0 6px 20px ${accent}33`
-        logBtn.innerHTML = `Update · ${pending}${units}`
+        logBtn.innerHTML = `Actualizar · ${pending}${units}`
       } else {
         logBtn.style.background = accent
         logBtn.style.color = '#0a0a0a'
         logBtn.style.boxShadow = `0 6px 20px ${accent}33`
-        logBtn.innerHTML = `Log workout · ${pending}${units}`
+        logBtn.innerHTML = `Registrar · ${pending}${units}`
       }
       clearBtn.style.display = loggedToday ? 'block' : 'none'
     }
@@ -154,12 +154,12 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     // Tips
     const tipsLabel = document.createElement('div')
     tipsLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-    tipsLabel.appendChild(SectionLabel({ children: 'Form cues', accent }))
+    tipsLabel.appendChild(SectionLabel({ children: 'Consejos de técnica', accent }))
     scrollEl.appendChild(tipsLabel)
 
     const tipsCard = document.createElement('div')
     tipsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06)'
-    const tips = exercise.tips && exercise.tips.length ? exercise.tips : ['Control the eccentric (lowering) — 2 seconds minimum', 'Full range of motion beats heavy partials', 'Breathe out on the exertion, in on the return']
+    const tips = exercise.tips && exercise.tips.length ? exercise.tips : ['Controla la fase excéntrica (bajada) — mínimo 2 segundos', 'El rango completo de movimiento supera a las parciales pesadas', 'Exhala en el esfuerzo, inhala al regresar']
     tipsCard.innerHTML = tips.map((tip, i) => `
       <div style="display:flex;gap:12px;padding:8px 4px;${i < tips.length - 1 ? 'border-bottom:0.5px solid rgba(255,255,255,0.04)' : ''}">
         <div style="width:18px;height:18px;border-radius:50%;background:rgba(212,255,58,0.12);color:${accent};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i + 1}</div>
@@ -172,7 +172,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     if (alts.length > 0) {
       const altLabel = document.createElement('div')
       altLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-      altLabel.appendChild(SectionLabel({ children: "Can't do it? Try one of these", accent }))
+      altLabel.appendChild(SectionLabel({ children: '¿No puedes hacerlo? Prueba con', accent }))
       scrollEl.appendChild(altLabel)
 
       const altScroll = document.createElement('div')
@@ -203,9 +203,9 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     const statsGrid = document.createElement('div')
     statsGrid.style.cssText = 'padding:22px 20px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px'
     const stats = [
-      { label: 'All-time', val: allTime, color: accent },
-      { label: 'Current', val: last ? last.weight : 0, color: '#fafafa' },
-      { label: '6-week Δ', val: (totalGain >= 0 ? '+' : '') + totalGain.toFixed(1), color: totalGain >= 0 ? accent : '#ff6b6b' },
+      { label: 'Máx total', val: allTime, color: accent },
+      { label: 'Actual', val: last ? last.weight : 0, color: '#fafafa' },
+      { label: 'Δ 6 sem.', val: (totalGain >= 0 ? '+' : '') + totalGain.toFixed(1), color: totalGain >= 0 ? accent : '#ff6b6b' },
     ]
     statsGrid.innerHTML = stats.map((s) => `
       <div style="background:#141414;border-radius:14px;padding:12px;border:0.5px solid rgba(255,255,255,0.06)">
@@ -221,7 +221,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       chartWrap.innerHTML = `
         <div style="background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06)">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Weight per session</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Peso por sesión</div>
             <span class="pill" style="background:rgba(255,255,255,0.08);color:#fafafa">${pct >= 0 ? '+' : ''}${pct}%</span>
           </div>
           ${LineChart({ data, width: 324, height: 170, color: accent, unit: units })}
@@ -232,13 +232,13 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     // Session list
     const sessLabel = document.createElement('div')
     sessLabel.style.cssText = 'margin-top:22px;margin-bottom:10px'
-    sessLabel.appendChild(SectionLabel({ children: 'Past sessions', accent }))
+    sessLabel.appendChild(SectionLabel({ children: 'Sesiones anteriores', accent }))
     scrollEl.appendChild(sessLabel)
 
     const sessList = document.createElement('div')
     sessList.style.cssText = 'padding:0 20px;display:flex;flex-direction:column;gap:8px'
     if (data.length === 0) {
-      sessList.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No sessions logged yet. Start tracking!</div>`
+      sessList.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay sesiones registradas. ¡Empieza a registrar!</div>`
     } else {
       sessList.innerHTML = [...data].reverse().map((sess, i) => {
         const idx = data.length - 1 - i
@@ -252,7 +252,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
             <div style="flex:1;min-width:0">
               <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${isToday ? accent : 'rgba(255,255,255,0.7)'};letter-spacing:0.4px;${isToday ? 'text-transform:uppercase;font-weight:600' : ''}">${sess.date}</div>
               ${delta !== null && delta !== 0 ? `<div style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.4px;color:${delta > 0 ? accent : '#ff6b6b'};background:${delta > 0 ? `${accent}14` : 'rgba(255,107,107,0.12)'};padding:2px 7px;border-radius:6px"><span>${delta > 0 ? '▲' : '▼'}</span><span>${delta > 0 ? '+' : ''}${delta}${units}</span></div>` : ''}
-              ${delta === 0 ? `<div style="display:inline-block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.6px;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:6px">— hold</div>` : ''}
+              ${delta === 0 ? `<div style="display:inline-block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.6px;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:6px">— mantén</div>` : ''}
             </div>
             <div style="text-align:right">
               <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:${isPR ? accent : '#fafafa'};letter-spacing:-0.4px">${sess.weight}<span style="font-size:10px;color:rgba(255,255,255,0.4);margin-left:2px">${units}</span></div>

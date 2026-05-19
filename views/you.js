@@ -12,7 +12,7 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   const header = document.createElement('div')
   header.style.padding = '56px 20px 16px'
   header.innerHTML = `
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.45);text-transform:uppercase">Profile</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.45);text-transform:uppercase">Perfil</div>
     <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px"><span id="user-name" contenteditable style="outline:none;border:0;caret-color:${accent};display:inline-block;min-width:50px">${settings.userName || 'Pedro'}</span>.</div>`
   page.appendChild(header)
 
@@ -20,9 +20,9 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   const tabs = document.createElement('div')
   tabs.style.cssText = 'margin:0 20px;display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.06)'
   const tabOptions = [
-    { id: 'stats', label: 'Data' },
-    { id: 'exercises', label: 'Exercises' },
-    { id: 'programs', label: 'Programs' },
+    { id: 'stats', label: 'Datos' },
+    { id: 'exercises', label: 'Ejercicios' },
+    { id: 'programs', label: 'Programas' },
   ]
   tabOptions.forEach((t) => {
     const btn = document.createElement('button')
@@ -47,18 +47,18 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   // Settings
   const settingsLabel = document.createElement('div')
   settingsLabel.style.cssText = 'margin-bottom:10px'
-  settingsLabel.appendChild(SectionLabel({ children: 'Quick settings', accent }))
+  settingsLabel.appendChild(SectionLabel({ children: 'Ajustes rápidos', accent }))
   container.appendChild(settingsLabel)
 
   const settingsCard = document.createElement('div')
   settingsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
   settingsCard.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Units</div>
-      <button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilograms (kg)' : 'Pounds (lb)'}</button>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Unidades</div>
+      <button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'}</button>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Accent color</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Color de acento</div>
       <div style="display:flex;gap:6px;align-items:center">
         <input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer">
       </div>
@@ -91,7 +91,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   // Data Import
   const importLabel = document.createElement('div')
   importLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-  importLabel.appendChild(SectionLabel({ children: 'Data Import', accent }))
+  importLabel.appendChild(SectionLabel({ children: 'Importar datos', accent }))
   container.appendChild(importLabel)
 
   // CSV import (program)
@@ -100,10 +100,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   csvSection.innerHTML = `
     <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
       <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Import program from CSV</strong> — format: week, day, exercise_name, muscle, sets, reps, rest_sec
+        <strong style="color:#fafafa">Importar programa desde CSV</strong> — formato: semana, día, nombre_ejercicio, músculo, series, reps, descanso_seg
       </div>
       <input type="file" id="csv-input" accept=".csv" style="display:none">
-      <button id="csv-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
+      <button id="csv-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Seleccionar archivo CSV</button>
       <div id="csv-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
     </div>`
   container.appendChild(csvSection)
@@ -114,10 +114,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   csvExSection.innerHTML = `
     <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
       <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Import exercises from CSV</strong> — format: name, muscle, image_url, tips, alternatives (skips existing)
+        <strong style="color:#fafafa">Importar ejercicios desde CSV</strong> — formato: nombre, músculo, url_imagen, consejos, alternativas (salta existentes)
       </div>
       <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
-      <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Choose CSV file</button>
+      <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Seleccionar archivo CSV</button>
       <div id="csv-ex-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
     </div>`
   container.appendChild(csvExSection)
@@ -193,7 +193,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         try {
           const text = await file.text()
           const prog = await Storage.importProgramFromCSV(text)
-          csvStatus.textContent = `✅ Imported "${prog.name}" with ${prog.weeks.length} week(s)`
+          csvStatus.textContent = `✅ Importado "${prog.name}" con ${prog.weeks.length} semana(s)`
           csvStatus.style.color = accent
           setTimeout(async () => {
             _youTab = 'programs'
@@ -217,7 +217,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         try {
           const text = await file.text()
           const result = await Storage.importExercisesFromCSV(text)
-          csvExStatus.textContent = `✅ Created ${result.created}, updated ${result.updated}`
+          csvExStatus.textContent = `✅ Creados ${result.created}, actualizados ${result.updated}`
           csvExStatus.style.color = accent
           setTimeout(async () => {
             _youTab = 'exercises'
@@ -238,16 +238,16 @@ function renderExercises(container, { accent, units, onRefresh }) {
     // Header + add btn
     const toolbar = document.createElement('div')
     toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 20px 12px'
-    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${exercises.length} exercises</div>`
+    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${exercises.length} ejercicios</div>`
     const addBtn = document.createElement('button')
     addBtn.style.cssText = `padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation`
-    addBtn.textContent = '+ New'
+    addBtn.textContent = '+ Nuevo'
     addBtn.addEventListener('click', () => showExerciseEdit(null, accent, onRefresh))
     toolbar.appendChild(addBtn)
     container.appendChild(toolbar)
 
     if (exercises.length === 0) {
-      container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No exercises yet. Create your first one.</div>`
+      container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay ejercicios todavía. Crea tu primero.</div>`
       return
     }
 
@@ -261,8 +261,8 @@ function renderExercises(container, { accent, units, onRefresh }) {
           <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${e.name}</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
         </div>
-        <button class="edit-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Edit</button>
-        <button class="del-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Del</button>`
+        <button class="edit-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
+        <button class="del-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.edit-ex-btn')) showExerciseEdit(e, accent, onRefresh)
         else if (ev.target.closest('.del-ex-btn')) deleteExercise(e, accent, onRefresh)
@@ -291,50 +291,50 @@ function showExerciseEdit(exercise, accent, onRefresh) {
   })
 
   modal.innerHTML = `
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;margin-bottom:16px">${isNew ? 'New Exercise' : 'Edit Exercise'}</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;margin-bottom:16px">${isNew ? 'Nuevo ejercicio' : 'Editar ejercicio'}</div>
     <div style="display:flex;flex-direction:column;gap:12px">
       <div>
-        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Name</label>
+        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Nombre</label>
         <input id="ex-name" value="${ex.name}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
       </div>
       <div>
-        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Muscle</label>
+        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Músculo</label>
         <input id="ex-muscle" value="${ex.muscle}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div>
-          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Sets</label>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Series</label>
           <input id="ex-sets" type="number" value="${ex.sets}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
         </div>
         <div>
-          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Reps</label>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Repeticiones</label>
           <input id="ex-reps" value="${ex.reps}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
         </div>
         <div>
-          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Rest (s)</label>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Descanso (s)</label>
           <input id="ex-rest" type="number" value="${ex.rest || 60}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
         </div>
       </div>
       <div>
-        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Image URL (optional)</label>
+        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">URL de imagen (opcional)</label>
         <div style="display:flex;gap:6px">
           <input id="ex-img" value="${ex.imgUrl || ''}" style="flex:1;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
-          <button id="ex-img-search" title="Search image from free-exercise-db" style="padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:#0a0a0a;color:rgba(255,255,255,0.5);font-size:14px;line-height:1;touch-action:manipulation">🔍</button>
+          <button id="ex-img-search" title="Buscar imagen de free-exercise-db" style="padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:#0a0a0a;color:rgba(255,255,255,0.5);font-size:14px;line-height:1;touch-action:manipulation">🔍</button>
         </div>
       </div>
       <div>
-        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Tips (one per line)</label>
+        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Consejos (uno por línea)</label>
         <textarea id="ex-tips" rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box">${(ex.tips || []).join('\n')}</textarea>
       </div>
       <div>
-        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Alternatives</label>
+        <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Alternativas</label>
         <div id="alts-container">${altsHtml}</div>
-        <button id="add-alt-btn" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.15);cursor:pointer;background:transparent;color:rgba(255,255,255,0.5);font-size:12px">+ Add alternative</button>
+        <button id="add-alt-btn" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.15);cursor:pointer;background:transparent;color:rgba(255,255,255,0.5);font-size:12px">+ Añadir alternativa</button>
       </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:18px">
-      <button id="ex-save-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">${isNew ? 'Create' : 'Save'}</button>
-      <button id="ex-cancel-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancel</button>
+      <button id="ex-save-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">${isNew ? 'Crear' : 'Guardar'}</button>
+      <button id="ex-cancel-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancelar</button>
     </div>`
 
   overlay.appendChild(modal)
@@ -369,8 +369,8 @@ function showExerciseEdit(exercise, accent, onRefresh) {
     row.innerHTML = `
       <span class="alt-num" style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;padding-top:10px;text-align:center;flex-shrink:0">${idx + 1}</span>
       <div style="flex:1;display:flex;flex-direction:column;gap:4px">
-        <input class="alt-name" list="ex-list" placeholder="Exercise name (type to search)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box">
-        <input class="alt-reason" placeholder="Why this alternative? (optional)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:rgba(255,255,255,0.6);font-size:12px;outline:none;box-sizing:border-box">
+        <input class="alt-name" list="ex-list" placeholder="Nombre del ejercicio (escribe para buscar)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box">
+        <input class="alt-reason" placeholder="¿Por qué esta alternativa? (opcional)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:rgba(255,255,255,0.6);font-size:12px;outline:none;box-sizing:border-box">
       </div>
       <button class="del-alt" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0">✕</button>`
     container.appendChild(row)
@@ -403,7 +403,7 @@ function showExerciseEdit(exercise, accent, onRefresh) {
     const nameInput = document.getElementById('ex-name')
     const imgInput = document.getElementById('ex-img')
     const name = nameInput?.value.trim()
-    if (!name) { showToast('⚠️ Enter an exercise name first'); return }
+    if (!name) { showToast('⚠️ Ingresa un nombre de ejercicio primero'); return }
     const btn = document.getElementById('ex-img-search')
     btn.textContent = '⏳'
     const url = await findExerciseImageUrl(name)
@@ -411,10 +411,10 @@ function showExerciseEdit(exercise, accent, onRefresh) {
     if (url && imgInput) {
       imgInput.value = url
       imgInput.dispatchEvent(new Event('input'))
-      showToast('✅ Image found for "' + name + '"')
+      showToast('✅ Imagen encontrada para "' + name + '"')
     } else {
       window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(name + ' exercise'), '_blank')
-      showToast('🔍 No match in DB, opened Google Images')
+      showToast('🔍 Sin coincidencia en la BD, se abrió Google Imágenes')
     }
   })
 
@@ -445,8 +445,8 @@ function createAltRowHtml(idx, name, reason) {
   return `<div class="alt-row" style="display:flex;gap:6px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
     <span class="alt-num" style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;padding-top:10px;text-align:center;flex-shrink:0">${idx + 1}</span>
     <div style="flex:1;display:flex;flex-direction:column;gap:4px">
-      <input class="alt-name" list="ex-list" value="${(name || '').replace(/"/g, '&quot;')}" placeholder="Exercise name (type to search)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box">
-      <input class="alt-reason" value="${(reason || '').replace(/"/g, '&quot;')}" placeholder="Why this alternative? (optional)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:rgba(255,255,255,0.6);font-size:12px;outline:none;box-sizing:border-box">
+      <input class="alt-name" list="ex-list" value="${(name || '').replace(/"/g, '&quot;')}" placeholder="Nombre del ejercicio (escribe para buscar)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box">
+      <input class="alt-reason" value="${(reason || '').replace(/"/g, '&quot;')}" placeholder="¿Por qué esta alternativa? (opcional)" style="width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:rgba(255,255,255,0.6);font-size:12px;outline:none;box-sizing:border-box">
     </div>
     <button class="del-alt" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0">✕</button>
   </div>`
@@ -460,11 +460,11 @@ function deleteExercise(exercise, accent, onRefresh) {
   const modal = document.createElement('div')
   modal.style.cssText = `background:#141414;border-radius:20px;padding:24px;max-width:360px;width:100%;border:0.5px solid rgba(255,255,255,0.08)`
   modal.innerHTML = `
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#fafafa">Delete "${exercise.name}"?</div>
-    <div style="font-size:13px;color:rgba(255,255,255,0.55);margin-top:8px">This will also remove all logs and unlink it from any programs.</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#fafafa">¿Eliminar "${exercise.name}"?</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);margin-top:8px">Esto eliminará todos los registros y lo desvinculará de los programas.</div>
     <div style="display:flex;gap:10px;margin-top:18px">
-      <button id="del-confirm" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:#ff6b6b;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">Delete</button>
-      <button id="del-cancel" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancel</button>
+      <button id="del-confirm" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:#ff6b6b;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">Eliminar</button>
+      <button id="del-cancel" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancelar</button>
     </div>`
   overlay.appendChild(modal)
   document.body.appendChild(overlay)
@@ -482,16 +482,16 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
   Storage.getPrograms().then((programs) => {
     const toolbar = document.createElement('div')
     toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 20px 12px'
-    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${programs.length} programs</div>`
+    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${programs.length} programas</div>`
     const addBtn = document.createElement('button')
     addBtn.style.cssText = `padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation`
-    addBtn.textContent = '+ New'
+    addBtn.textContent = '+ Nuevo'
     addBtn.addEventListener('click', () => showProgramEdit(null, accent, onRefresh))
     toolbar.appendChild(addBtn)
     container.appendChild(toolbar)
 
     if (programs.length === 0) {
-      container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No programs yet. Create or import one.</div>`
+      container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay programas todavía. Crea o importa uno.</div>`
       return
     }
 
@@ -505,13 +505,13 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${p.name}</div>
-            ${isActive ? `<span class="pill" style="background:${accent}22;color:${accent};font-size:8px">ACTIVE</span>` : ''}
+            ${isActive ? `<span class="pill" style="background:${accent}22;color:${accent};font-size:8px">ACTIVO</span>` : ''}
           </div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${p.weeks.length} week(s) · ${p.weeks.reduce((s, w) => s + w.days.reduce((sd, d) => sd + d.exercises.length, 0), 0)} total exercises</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${p.weeks.length} semana(s) · ${p.weeks.reduce((s, w) => s + w.days.reduce((sd, d) => sd + d.exercises.length, 0), 0)} ejercicios totales</div>
         </div>
-        ${!isActive ? `<button class="activate-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:13px;touch-action:manipulation">Activate</button>` : ''}
-        <button class="edit-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Edit</button>
-        <button class="del-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Del</button>`
+        ${!isActive ? `<button class="activate-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:13px;touch-action:manipulation">Activar</button>` : ''}
+        <button class="edit-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
+        <button class="del-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.activate-btn')) activateProgram(p.id)
         else if (ev.target.closest('.edit-prog-btn')) showProgramEdit(p, accent, onRefresh)
@@ -532,7 +532,7 @@ async function activateProgram(id) {
 
 function showProgramEdit(program, accent, onRefresh) {
   const isNew = !program
-  const p = program || { id: null, name: '', weeks: [{ name: 'Week 1', subtitle: '', tag: '', days: [] }] }
+  const p = program || { id: null, name: '', weeks: [{ name: 'Semana 1', subtitle: '', tag: '', days: [] }] }
 
   const overlay = document.createElement('div')
   overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;padding:0'
@@ -546,26 +546,26 @@ function showProgramEdit(program, accent, onRefresh) {
   p.weeks.forEach((w, wi) => {
     weeksHTML += `<div class="prog-week-block" style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.03);border-radius:14px">
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-        <input class="prog-week-name" value="${w.name}" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Week name">
-        <input class="prog-week-tag" value="${w.tag || ''}" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="TAG">
+        <input class="prog-week-name" value="${w.name}" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre semana">
+        <input class="prog-week-tag" value="${w.tag || ''}" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="ETIQUETA">
       </div>
       <div class="prog-days-in-week">`
     w.days.forEach((d, di) => {
       weeksHTML += buildProgramDayHTML(di, d)
     })
     weeksHTML += `</div>
-      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Add day</button>
+      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Añadir día</button>
     </div>`
   })
 
   modal.innerHTML = `
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;margin-bottom:14px">${isNew ? 'New Program' : 'Edit Program'}</div>
-    <input id="prog-name" value="${p.name}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:16px;outline:none;font-weight:600;margin-bottom:14px;box-sizing:border-box" placeholder="Program name">
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;margin-bottom:14px">${isNew ? 'Nuevo programa' : 'Editar programa'}</div>
+    <input id="prog-name" value="${p.name}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:16px;outline:none;font-weight:600;margin-bottom:14px;box-sizing:border-box" placeholder="Nombre del programa">
     <div id="prog-weeks-container">${weeksHTML}</div>
-    <button id="add-week-btn" style="margin-bottom:14px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.15);cursor:pointer;background:transparent;color:rgba(255,255,255,0.5);font-size:12px;font-weight:600">+ Add week</button>
+    <button id="add-week-btn" style="margin-bottom:14px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.15);cursor:pointer;background:transparent;color:rgba(255,255,255,0.5);font-size:12px;font-weight:600">+ Añadir semana</button>
     <div style="display:flex;gap:10px">
-      <button id="prog-save-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">${isNew ? 'Create' : 'Save'}</button>
-      <button id="prog-cancel-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancel</button>
+      <button id="prog-save-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700">${isNew ? 'Crear' : 'Guardar'}</button>
+      <button id="prog-cancel-btn" style="flex:1;padding:12px;border-radius:10px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600">Cancelar</button>
     </div>`
 
   overlay.appendChild(modal)
@@ -595,11 +595,11 @@ function showProgramEdit(program, accent, onRefresh) {
     block.style.cssText = 'margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.03);border-radius:14px'
     block.innerHTML = `
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-        <input class="prog-week-name" value="Week ${wi + 1}" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Week name">
-        <input class="prog-week-tag" value="" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="TAG">
+        <input class="prog-week-name" value="Semana ${wi + 1}" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre semana">
+        <input class="prog-week-tag" value="" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="ETIQUETA">
       </div>
       <div class="prog-days-in-week"></div>
-      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Add day</button>`
+      <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Añadir día</button>`
     container.appendChild(block)
   })
 
@@ -625,7 +625,7 @@ function showProgramEdit(program, accent, onRefresh) {
   })
 
   document.getElementById('prog-save-btn').addEventListener('click', async () => {
-    const name = document.getElementById('prog-name').value.trim() || 'Unnamed Program'
+    const name = document.getElementById('prog-name').value.trim() || 'Programa sin nombre'
 
     const exerciseNameToId = {}
     const allExercises = await Storage.getExercises()
@@ -633,11 +633,11 @@ function showProgramEdit(program, accent, onRefresh) {
 
     const weeks = []
     modal.querySelectorAll('.prog-week-block').forEach((wDiv) => {
-      const wName = wDiv.querySelector('.prog-week-name')?.value || 'Week'
+      const wName = wDiv.querySelector('.prog-week-name')?.value || 'Semana'
       const wTag = wDiv.querySelector('.prog-week-tag')?.value || ''
       const days = []
       wDiv.querySelectorAll('.prog-day-block').forEach((dDiv) => {
-        const name = dDiv.querySelector('.prog-day-name')?.value || 'Day'
+        const name = dDiv.querySelector('.prog-day-name')?.value || 'Día'
         const sub = dDiv.querySelector('.prog-day-sub')?.value || ''
         const dur = parseInt(dDiv.querySelector('.prog-day-dur')?.value) || 0
         const exercises = []
@@ -669,7 +669,7 @@ function showProgramEdit(program, accent, onRefresh) {
 }
 
 function buildProgramDayHTML(idx, day) {
-  const d = day || { name: 'Day', subtitle: '', duration: 60, exercises: [] }
+  const d = day || { name: 'Día', subtitle: '', duration: 60, exercises: [] }
   let exHTML = ''
   ;(d.exercises || []).forEach((e) => {
     exHTML += createProgExerciseRowHtml(e.exerciseId || '', e.sets || 3, e.reps || '10', e.rest || 60)
@@ -677,12 +677,12 @@ function buildProgramDayHTML(idx, day) {
   return `<div class="prog-day-block" style="margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px">
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
       <span style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;flex-shrink:0;text-align:center">${idx + 1}</span>
-      <input class="prog-day-name" value="${d.name}" style="flex:1;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:12px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Day name">
+      <input class="prog-day-name" value="${d.name}" style="flex:1;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:12px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre día">
       <input class="prog-day-dur" type="number" value="${d.duration || 60}" style="width:44px;padding:6px 4px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="min">
       <button class="del-day-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
     </div>
     ${exHTML}
-    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Add exercise</button>
+    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Añadir ejercicio</button>
   </div>`
 }
 
@@ -693,20 +693,20 @@ function buildProgramDayElement(idx) {
   div.innerHTML = `
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
       <span style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;flex-shrink:0;text-align:center">${idx + 1}</span>
-      <input class="prog-day-name" value="Day" style="flex:1;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:12px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Day name">
+      <input class="prog-day-name" value="Día" style="flex:1;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:12px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre día">
       <input class="prog-day-dur" type="number" value="60" style="width:44px;padding:6px 4px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="min">
       <button class="del-day-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
     </div>
-    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Add exercise</button>`
+    <button class="add-ex-prog" style="margin-top:4px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.35);font-size:12px;touch-action:manipulation">+ Añadir ejercicio</button>`
   return div
 }
 
 function createProgExerciseRowHtml(exerciseId, sets, reps, rest) {
   return `<div class="prog-ex-row" style="display:flex;gap:4px;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-    <input class="prog-ex-name" list="prog-ex-list" value="${exerciseId || ''}" placeholder="Ex. name" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
+    <input class="prog-ex-name" list="prog-ex-list" value="${exerciseId || ''}" placeholder="Nombre ej." style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
     <input class="prog-ex-sets" type="number" value="${sets}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
     <input class="prog-ex-reps" value="${reps}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
-    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
+    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Desc">
     <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0;touch-action:manipulation">✕</button>
   </div>`
 }
@@ -716,16 +716,16 @@ function createProgExerciseRow(exerciseId, sets, reps, rest) {
   div.className = 'prog-ex-row'
   div.style.cssText = 'display:flex;gap:4px;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)'
   div.innerHTML = `
-    <input class="prog-ex-name" list="prog-ex-list" placeholder="Ex. name" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
+    <input class="prog-ex-name" list="prog-ex-list" placeholder="Nombre ej." style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;outline:none;box-sizing:border-box">
     <input class="prog-ex-sets" type="number" value="${sets}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="S">
     <input class="prog-ex-reps" value="${reps}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="R">
-    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Rt">
+    <input class="prog-ex-rest" type="number" value="${rest}" style="width:48px;padding:8px 4px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:center;outline:none;box-sizing:border-box" placeholder="Desc">
     <button class="del-ex-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:16px;padding:8px 4px;flex-shrink:0;touch-action:manipulation">✕</button>`
   return div
 }
 
 function deleteProgram(program, onRefresh) {
-  if (!confirm(`Delete "${program.name}"?`)) return
+  if (!confirm(`¿Eliminar "${program.name}"?`)) return
   Storage.deleteProgram(program.id).then(() => {
     if (onRefresh) onRefresh()
   })

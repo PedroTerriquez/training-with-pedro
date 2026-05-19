@@ -61,7 +61,7 @@ function ExercisePlaceholder({ name, muscle, accent, size, imgUrl, actions }) {
     el.innerHTML = `
       <div style="position:absolute;width:220px;height:220px;border-radius:50%;background:${accent || '#d4ff3a'};opacity:0.06;filter:blur(60px);top:-60px;right:-60px;pointer-events:none"></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase">[ photo · ${muscle} ]</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase">[ foto · ${muscle} ]</div>
         <div style="width:8px;height:8px;border-radius:50%;background:${accent || '#d4ff3a'};box-shadow:0 0 10px ${accent || '#d4ff3a'}"></div>
       </div>
       <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
@@ -75,10 +75,10 @@ function ExercisePlaceholder({ name, muscle, accent, size, imgUrl, actions }) {
 // ── Bottom Tab Bar ──
 function TabBar({ active, onChange, accent }) {
   const tabs = [
-    { id: 'today', label: 'Today', icon: TabIconHome },
+    { id: 'today', label: 'Hoy', icon: TabIconHome },
     { id: 'plan', label: 'Plan', icon: TabIconCal },
-    { id: 'history', label: 'History', icon: TabIconChart },
-    { id: 'you', label: 'You', icon: TabIconUser },
+    { id: 'history', label: 'Historial', icon: TabIconChart },
+    { id: 'you', label: 'Tú', icon: TabIconUser },
   ]
   const el = document.createElement('div')
   el.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:30;padding:8px 12px 28px;pointer-events:none`

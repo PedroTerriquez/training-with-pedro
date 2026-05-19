@@ -1,7 +1,7 @@
 // ── History screen ──
 // All exercises with muscle filter, sparklines, last weight
 
-let _historyFilter = 'All'
+let _historyFilter = 'Todos'
 
 function mountHistory(container, { accent, units, onOpenExercise }) {
   container.innerHTML = ''
@@ -13,13 +13,13 @@ function mountHistory(container, { accent, units, onOpenExercise }) {
   const header = document.createElement('div')
   header.style.padding = '56px 20px 16px'
   header.innerHTML = `
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,0.45);text-transform:uppercase">Lifting history</div>
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px">Progress.</div>`
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,0.45);text-transform:uppercase">Historial de pesas</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px">Progreso.</div>`
   page.appendChild(header)
 
   // Load exercises
   Storage.getExercises().then(async (exercises) => {
-    const muscles = ['All', ...new Set(exercises.map((e) => e.muscle.split('/')[0].split(' ')[0]))]
+    const muscles = ['Todos', ...new Set(exercises.map((e) => e.muscle.split('/')[0].split(' ')[0]))]
 
     // Filter chips
     const chips = document.createElement('div')
@@ -35,14 +35,14 @@ function mountHistory(container, { accent, units, onOpenExercise }) {
     page.appendChild(chips)
 
     // Filter
-    const filtered = _historyFilter === 'All'
+    const filtered = _historyFilter === 'Todos'
       ? exercises
       : exercises.filter((e) => e.muscle.startsWith(_historyFilter))
 
     if (filtered.length === 0) {
       const empty = document.createElement('div')
       empty.style.cssText = 'padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)'
-      empty.textContent = 'No exercises found.'
+      empty.textContent = 'No se encontraron ejercicios.'
       page.appendChild(empty)
       return
     }
