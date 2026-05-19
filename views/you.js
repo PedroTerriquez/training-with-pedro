@@ -274,7 +274,10 @@ function showExerciseEdit(exercise, accent, onRefresh) {
       </div>
       <div>
         <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Image URL (optional)</label>
-        <input id="ex-img" value="${ex.imgUrl || ''}" style="width:100%;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
+        <div style="display:flex;gap:6px">
+          <input id="ex-img" value="${ex.imgUrl || ''}" style="flex:1;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;box-sizing:border-box">
+          <button id="ex-img-search" title="Search image from free-exercise-db" style="padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:#0a0a0a;color:rgba(255,255,255,0.5);font-size:14px;line-height:1;touch-action:manipulation">🔍</button>
+        </div>
       </div>
       <div>
         <label style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-bottom:4px">Tips (one per line)</label>
@@ -352,6 +355,26 @@ function showExerciseEdit(exercise, accent, onRefresh) {
   modal.appendChild(datalist)
 
   document.getElementById('ex-cancel-btn').addEventListener('click', () => overlay.remove())
+
+  document.getElementById('ex-img-search')?.addEventListener('click', async () => {
+    const nameInput = document.getElementById('ex-name')
+    const imgInput = document.getElementById('ex-img')
+    const name = nameInput?.value.trim()
+    if (!name) { showToast('⚠️ Enter an exercise name first'); return }
+    const btn = document.getElementById('ex-img-search')
+    btn.textContent = '⏳'
+    const url = await findExerciseImageUrl(name)
+    btn.textContent = '🔍'
+    if (url && imgInput) {
+      imgInput.value = url
+      imgInput.dispatchEvent(new Event('input'))
+      showToast('✅ Image found for "' + name + '"')
+    } else {
+      window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(name + ' exercise'), '_blank')
+      showToast('🔍 No match in DB, opened Google Images')
+    }
+  })
+
   document.getElementById('ex-save-btn').addEventListener('click', async () => {
     const data = {
       name: document.getElementById('ex-name').value.trim(),

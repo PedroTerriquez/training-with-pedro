@@ -38,7 +38,7 @@ function StatBlock({ value, label, unit, accent, size }) {
 }
 
 // ── Exercise Placeholder ──
-function ExercisePlaceholder({ name, muscle, accent, size, imgUrl }) {
+function ExercisePlaceholder({ name, muscle, accent, size, imgUrl, actions }) {
   const h = { sm: 80, md: 140, lg: 200, xl: 240 }[size || 'lg'] || 200
   const el = document.createElement('div')
   el.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;justify-content:space-between;padding:14px;box-sizing:border-box`
@@ -50,8 +50,9 @@ function ExercisePlaceholder({ name, muscle, accent, size, imgUrl }) {
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase;background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px">${muscle}</div>
         <div style="width:8px;height:8px;border-radius:50%;background:${accent || '#d4ff3a'};box-shadow:0 0 10px ${accent || '#d4ff3a'}"></div>
       </div>
-      <div style="position:relative;z-index:1">
+      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
         <div style="font-family:'Space Grotesk',sans-serif;font-size:${size === 'sm' ? 14 : 22}px;font-weight:600;color:#fafafa;letter-spacing:-0.5px;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${name}</div>
+        ${actions || ''}
       </div>`
   } else {
     const stripe = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)'
@@ -63,8 +64,9 @@ function ExercisePlaceholder({ name, muscle, accent, size, imgUrl }) {
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase">[ photo · ${muscle} ]</div>
         <div style="width:8px;height:8px;border-radius:50%;background:${accent || '#d4ff3a'};box-shadow:0 0 10px ${accent || '#d4ff3a'}"></div>
       </div>
-      <div style="position:relative;z-index:1">
+      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
         <div style="font-family:'Space Grotesk',sans-serif;font-size:${size === 'sm' ? 14 : 22}px;font-weight:600;color:#fafafa;letter-spacing:-0.5px;line-height:1.05">${name}</div>
+        ${actions || ''}
       </div>`
   }
   return el
