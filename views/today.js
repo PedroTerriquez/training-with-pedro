@@ -47,6 +47,13 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     <div style="margin-top:6px;font-size:13.5px;color:rgba(255,255,255,0.55)">${day.subtitle || ''}</div>`
   page.appendChild(hero)
 
+  // Warmup section
+  const warmupMuscles = day.exercises.map((ex) => {
+    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+    return resolved.muscle
+  }).filter(Boolean)
+  page.appendChild(WarmupSection({ muscles: warmupMuscles, accent }))
+
   // Section label
   const secLabel = document.createElement('div')
   secLabel.style.cssText = 'margin-top:28px;margin-bottom:12px'
