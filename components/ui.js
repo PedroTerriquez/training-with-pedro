@@ -146,14 +146,14 @@ const TOAST_SVG_WATCH = `<svg width="72" height="72" viewBox="0 0 72 72" fill="n
 
 const TOAST_IMG_TRAINER = `<img src="data/Gemini_Generated_Image_skjbz4skjbz4skjb.png" alt="Pedro" style="max-width:180px;max-height:180px;width:auto;height:auto;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5)">`
 
-function showCenterToast({ svg, message, duration, accent, onDone }) {
+function showCenterToast({ svg, message, subtitle, duration, accent, onDone }) {
   const existing = document.querySelector('.toast-overlay')
   if (existing) existing.remove()
 
   const overlay = document.createElement('div')
   overlay.className = 'toast-overlay'
   overlay.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:fadeIn 0.3s ease'
-  overlay.innerHTML = `<div style="text-align:center;animation:fadeUp 0.4s ease;color:${accent || '#d4ff3a'}">${svg}<div style="margin-top:20px;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.5px">${message}</div></div>`
+  overlay.innerHTML = `<div style="text-align:center;animation:fadeUp 0.4s ease;color:${accent || '#d4ff3a'}">${svg}<div style="margin-top:20px;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.5px">${message}</div>${subtitle ? `<div style="margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:500;color:rgba(255,255,255,0.65);letter-spacing:-0.2px;line-height:1.4">${subtitle}</div>` : ''}</div>`
   document.body.appendChild(overlay)
 
   setTimeout(() => {

@@ -1,10 +1,25 @@
 // ── ExerciseDetail bottom sheet ──
-// Renders Workout tab (stepper + tips + alternatives) and History tab (chart + sessions)
+// Renders Workout tab (stepper + sets/reps opt-in), Cues tab, Swap tab, and History tab
 
-function mountExerciseDetail(container, { exercise, accent, units, onClose, onLog }) {
+function parseRepsDefault(rep) {
+  if (typeof rep === 'number') return rep
+  const m = String(rep).match(/(\d+)(?:\s*-\s*(\d+))?/)
+  if (!m) return 8
+  return parseInt(m[2] || m[1], 10)
+}
+
+function mountExerciseDetail(container, { exercise, accent, units, onClose, onLog, nextExercise, onNext }) {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayLog = exercise.logs?.find(l => l.date === todayStr) || null
+  const lastLog = exercise.logs?.length ? exercise.logs[exercise.logs.length - 1] : null
+
   let tab = 'workout'
-  let pendingWeight = null
-  let loggedToday = false
+  let savedWeight = todayLog ? todayLog.weight : null
+  let pendingWeight = todayLog ? todayLog.weight : (lastLog ? lastLog.weight : 0)
+  let loggedToday = !!todayLog
+  let trackSR = todayLog?.sets !== undefined && todayLog?.reps !== undefined
+  let pendingSets = trackSR ? todayLog.sets : exercise.sets
+  let pendingReps = trackSR ? todayLog.reps : parseRepsDefault(exercise.reps)
 
   function render() {
     container.innerHTML = ''
@@ -12,182 +27,362 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     scrollEl.style.cssText = `color:#fafafa;padding-bottom:40px`
     container.appendChild(scrollEl)
 
-    // Hero
+    // Hero — matching design prototype (ui.jsx)
     const heroWrap = document.createElement('div')
-    heroWrap.style.padding = '16px 16px 0'
-    const searchUrl = encodeURIComponent(exercise.name)
-    heroWrap.appendChild(ExercisePlaceholder({
-      name: exercise.name,
-      muscle: exercise.muscle,
-      accent,
-      size: 'xl',
-      imgUrl: exercise.imgUrl,
-      actions: `
-        <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:#fafafa;letter-spacing:-0.3px;margin-right:2px;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${exercise.sets}<span style="color:rgba(255,255,255,0.35);margin:0 2px;font-size:14px">×</span>${exercise.reps}</div>
-          <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${searchUrl}','_blank')" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Buscar en Google">
-            <svg width="15" height="15" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
-          </button>
-          <button onclick="this.closest('div').querySelector('a').click()" style="width:30px;height:30px;border-radius:8px;border:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation" aria-label="Buscar en TikTok">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-          </button>
-          <a href="https://www.tiktok.com/search?q=${searchUrl}" target="_blank" rel="noopener noreferrer" style="display:none"></a>
-        </div>`
-    }))
+    heroWrap.style.padding = '12px 14px 0'
+    const searchUrl = encodeURIComponent(exercise.name + ' exercise')
+    const h = 240
+    const hero = document.createElement('div')
+    hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);padding:16px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between`
+    if (exercise.imgUrl) {
+      hero.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
+    } else {
+      hero.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)'
+      const blob = document.createElement('div')
+      blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:0.07;filter:blur(70px);top:-80px;right:-60px;pointer-events:none`
+      hero.appendChild(blob)
+    }
+    // Top row: muscle pill + accent dot
+    const topRow = document.createElement('div')
+    topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1'
+    topRow.innerHTML = `
+      <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:9999px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;font-weight:500;color:rgba(255,255,255,0.85);text-transform:uppercase;white-space:nowrap">${exercise.muscle}</span>
+      <div style="width:8px;height:8px;border-radius:50%;background:${accent};box-shadow:0 0 10px ${accent};flex-shrink:0;margin-top:6px"></div>`
+    hero.appendChild(topRow)
+    // Bottom row: name + sets/reps pill + search buttons
+    const bottomRow = document.createElement('div')
+    bottomRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:12px;position:relative;z-index:1'
+    bottomRow.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#fafafa;letter-spacing:-0.6px;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,0.4)">${exercise.name}</div>
+        <div style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 12px;border-radius:9999px;border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:14px;color:rgba(255,255,255,0.85);white-space:nowrap">
+          <span style="font-weight:500">${exercise.sets}</span>
+          <span style="color:rgba(255,255,255,0.45)">×</span>
+          <span style="font-weight:500">${exercise.reps}</span>
+          <span style="margin-left:4px;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">sets×reps</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
+        <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${searchUrl}','_blank','noopener,noreferrer')" style="width:38px;height:38px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 4px 12px rgba(0,0,0,0.3)" aria-label="Buscar en Google">
+          <svg width="15" height="15" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
+        </button>
+        <button onclick="window.open('https://www.tiktok.com/search?q=${searchUrl}','_blank','noopener,noreferrer')" style="width:38px;height:38px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 4px 12px rgba(0,0,0,0.3)" aria-label="Buscar en TikTok">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+        </button>
+      </div>`
+    hero.appendChild(bottomRow)
+    heroWrap.appendChild(hero)
     scrollEl.appendChild(heroWrap)
 
-    // Segmented control
+    // Prescription strip — 4-cell dashboard
+    const lastW = lastLog ? lastLog.weight : 0
+    const strip = document.createElement('div')
+    strip.style.cssText = 'padding:14px 20px 0'
+    strip.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);background:#141414;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">
+        <div style="padding:11px 6px;border-right:0.5px solid rgba(255,255,255,0.05);text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.4);font-weight:600">series</div>
+          <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;color:#fafafa;letter-spacing:-0.5px;line-height:1">${exercise.sets}</div>
+        </div>
+        <div style="padding:11px 6px;border-right:0.5px solid rgba(255,255,255,0.05);text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.4);font-weight:600">reps</div>
+          <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;color:#fafafa;letter-spacing:-0.5px;line-height:1">${exercise.reps}</div>
+        </div>
+        <div style="padding:11px 6px;border-right:0.5px solid rgba(255,255,255,0.05);text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.4);font-weight:600">desc.</div>
+          <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;color:#fafafa;letter-spacing:-0.5px;line-height:1">${exercise.rest}s</div>
+        </div>
+        <div style="padding:11px 6px;text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.4);font-weight:600">última</div>
+          <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;color:${lastW > 0 ? accent : '#fafafa'};letter-spacing:-0.5px;line-height:1">${lastW > 0 ? `${lastW}${units}` : '—'}</div>
+        </div>
+      </div>`
+    scrollEl.appendChild(strip)
+
+    // Segmented control — 4 tabs
     const seg = document.createElement('div')
-    seg.style.cssText = `margin:16px 20px 0;display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.06)`
-    ;['workout', 'history'].forEach((t) => {
+    seg.style.cssText = `margin:14px 20px 0;display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.06)`
+    const tabs = [
+      { id: 'workout', label: 'Registrar' },
+      { id: 'cues', label: 'Consejos', badge: (exercise.tips || []).length },
+      { id: 'swap', label: 'Alternativas', badge: (exercise.alternatives || []).length },
+      { id: 'history', label: 'Historial' },
+    ]
+    tabs.forEach((t) => {
       const btn = document.createElement('button')
-      const on = tab === t
-      btn.style.cssText = `flex:1;padding:8px 0;border:0;cursor:pointer;background:${on ? '#262626' : 'transparent'};color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;letter-spacing:-0.1px;border-radius:8px`
-      btn.textContent = t === 'workout' ? 'Registrar' : 'Historial'
-      btn.addEventListener('click', () => { tab = t; render() })
+      const on = tab === t.id
+      btn.style.cssText = `flex:1;padding:9px 0;border:0;cursor:pointer;background:${on ? '#262626' : 'transparent'};color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;letter-spacing:-0.1px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.15s`
+      btn.innerHTML = t.label + (t.badge !== undefined && !on ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:9999px;letter-spacing:0">${t.badge}</span>` : '')
+      btn.addEventListener('click', () => { tab = t.id; render() })
       seg.appendChild(btn)
     })
     scrollEl.appendChild(seg)
 
     if (tab === 'workout') renderWorkoutTab(scrollEl)
+    else if (tab === 'cues') renderCuesTab(scrollEl)
+    else if (tab === 'swap') renderSwapTab(scrollEl)
     else renderHistoryTab(scrollEl)
   }
 
   function renderWorkoutTab(scrollEl) {
     const STEP = 5
-    const initial = pendingWeight !== null ? pendingWeight : 0
-    let pending = initial
 
     // Weight stepper card
-    const stepperWrap = document.createElement('div')
-    stepperWrap.style.cssText = 'margin-top:22px;margin-bottom:10px'
-    stepperWrap.appendChild(SectionLabel({ children: 'Peso de hoy', accent }))
-    scrollEl.appendChild(stepperWrap)
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'padding:14px 20px 0'
+    scrollEl.appendChild(wrap)
 
     const card = document.createElement('div')
-    card.style.cssText = `margin:0 20px;background:#141414;border-radius:20px;padding:20px;border:0.5px solid ${loggedToday ? `${accent}33` : 'rgba(255,255,255,0.06)'};position:relative;overflow:hidden`
-    card.innerHTML = loggedToday ? `<div style="position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:${accent};opacity:0.08;filter:blur(50px)"></div>` : ''
+    card.style.cssText = `background:#141414;border-radius:20px;padding:18px 18px 16px;border:0.5px solid ${loggedToday ? `${accent}33` : 'rgba(255,255,255,0.06)'};position:relative;overflow:hidden;box-shadow:${loggedToday ? `0 8px 32px ${accent}11` : '0 6px 20px rgba(0,0,0,0.2)'}`
+    card.innerHTML = loggedToday ? `<div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:${accent};opacity:0.09;filter:blur(60px)"></div>` : ''
 
+    // Eyebrow
+    const eyebrow = document.createElement('div')
+    eyebrow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;margin-bottom:10px'
+    eyebrow.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600">Peso de hoy</div>`
+    if (loggedToday) {
+      const badge = document.createElement('div')
+      badge.style.cssText = `display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:${accent};font-weight:600;background:${accent}1a;padding:3px 8px;border-radius:9999px`
+      badge.innerHTML = `<span style="width:5px;height:5px;border-radius:50%;background:${accent};box-shadow:0 0 6px ${accent}"></span> Guardado`
+      eyebrow.appendChild(badge)
+    }
+    card.appendChild(eyebrow)
+
+    // Stepper row
     const stepperRow = document.createElement('div')
-    stepperRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1'
+    stepperRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:1'
     stepperRow.innerHTML = `
-      <button class="stepper-btn" style="width:72px;height:72px;border-radius:18px;border:0;background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fafafa;touch-action:manipulation;flex-shrink:0">−</button>
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-        <input type="text" inputmode="decimal" value="${pending || ''}" placeholder="0" style="background:transparent;border:0;outline:none;text-align:center;width:100%;font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:500;color:${loggedToday ? accent : '#fafafa'};letter-spacing:-2px;line-height:1;padding:0">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.45)">${units}</div>
+      <button class="stepper-dec" style="width:54px;height:54px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fafafa;touch-action:manipulation;flex-shrink:0;padding:0;line-height:1;transition:all 0.15s,transform 0.08s">−</button>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+        <input type="text" inputmode="decimal" value="${pendingWeight || ''}" placeholder="0" style="background:transparent;border:0;outline:none;text-align:center;width:100%;font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:500;color:${loggedToday ? accent : '#fafafa'};letter-spacing:-2.2px;line-height:1;padding:0">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.45);white-space:nowrap">${units} <span style="opacity:0.5;margin:0 4px">·</span> incrementos de ${STEP}${units}</div>
       </div>
-      <button class="stepper-btn" style="width:72px;height:72px;border-radius:18px;border:0;background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fafafa;touch-action:manipulation;flex-shrink:0">+</button>`
+      <button class="stepper-inc" style="width:54px;height:54px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fafafa;touch-action:manipulation;flex-shrink:0;padding:0;line-height:1;transition:all 0.15s,transform 0.08s">+</button>`
     card.appendChild(stepperRow)
 
-    const isDirty = () => pending !== (pendingWeight !== null ? pendingWeight : 0)
-    const logBtn = document.createElement('button')
-    logBtn.style.cssText = `margin-top:18px;width:100%;padding:13px 18px;border-radius:12px;border:0;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:-0.1px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;position:relative;z-index:1`
-    card.appendChild(logBtn)
-    scrollEl.appendChild(card)
+    // Sets/reps opt-in
+    const srWrap = document.createElement('div')
+    srWrap.style.cssText = 'position:relative;z-index:1'
+    card.appendChild(srWrap)
 
-    // Clear button
+    if (!trackSR) {
+      const srBtn = document.createElement('button')
+      srBtn.style.cssText = `margin-top:12px;width:100%;padding:8px 10px;border-radius:9px;cursor:pointer;background:transparent;border:0.5px dashed rgba(255,255,255,0.15);color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;z-index:1`
+      srBtn.innerHTML = `<span style="font-size:13px;line-height:1;font-weight:400">＋</span> Registrar series y repeticiones`
+      srBtn.addEventListener('click', () => { trackSR = true; render() })
+      srWrap.appendChild(srBtn)
+    } else {
+      const srInner = document.createElement('div')
+      srInner.style.cssText = 'margin-top:12px;animation:fadeUp 0.2s ease-out'
+      srInner.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600">Series y repeticiones</div>
+          <button class="sr-remove" style="background:transparent;border:0;cursor:pointer;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:10.5px;padding:2px 4px">× quitar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="mini-stepper" data-key="sets" style="background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 8px 8px 11px;display:flex;align-items:center;gap:5px">
+            <div style="flex:1;min-width:0">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Series</div>
+              <div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;color:#fafafa;line-height:1;letter-spacing:-0.5px">${pendingSets}</div>
+              <div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:0.4px;white-space:nowrap">plan · ${exercise.sets}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <button class="mini-inc" style="width:28px;height:24px;border-radius:6px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);color:#fafafa;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1">+</button>
+              <button class="mini-dec" style="width:28px;height:24px;border-radius:6px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);color:#fafafa;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1">−</button>
+            </div>
+          </div>
+          <div class="mini-stepper" data-key="reps" style="background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 8px 8px 11px;display:flex;align-items:center;gap:5px">
+            <div style="flex:1;min-width:0">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.45)">Reps</div>
+              <div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;color:#fafafa;line-height:1;letter-spacing:-0.5px">${pendingReps}</div>
+              <div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:0.4px;white-space:nowrap">plan · ${exercise.reps}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <button class="mini-inc" style="width:28px;height:24px;border-radius:6px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);color:#fafafa;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1">+</button>
+              <button class="mini-dec" style="width:28px;height:24px;border-radius:6px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);color:#fafafa;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1">−</button>
+            </div>
+          </div>
+        </div>`
+      srWrap.appendChild(srInner)
+
+      srInner.querySelector('.sr-remove').addEventListener('click', () => { trackSR = false; render() })
+      srInner.querySelectorAll('.mini-stepper').forEach((el) => {
+        const key = el.dataset.key
+        const inc = el.querySelector('.mini-inc')
+        const dec = el.querySelector('.mini-dec')
+        inc.addEventListener('click', () => {
+          if (key === 'sets') { pendingSets = Math.min(20, pendingSets + 1) }
+          else { pendingReps = Math.min(50, pendingReps + 1) }
+          updateLogBtn()
+          el.querySelector('div:nth-child(1) div:nth-child(2)').textContent = key === 'sets' ? pendingSets : pendingReps
+        })
+        dec.addEventListener('click', () => {
+          if (key === 'sets') { pendingSets = Math.max(1, pendingSets - 1) }
+          else { pendingReps = Math.max(1, pendingReps - 1) }
+          updateLogBtn()
+          el.querySelector('div:nth-child(1) div:nth-child(2)').textContent = key === 'sets' ? pendingSets : pendingReps
+        })
+      })
+    }
+
+    wrap.appendChild(card)
+
+    // Log + Clear buttons
+    const logBtn = document.createElement('button')
+    logBtn.style.cssText = `margin-top:14px;width:100%;padding:14px 18px;border-radius:11px;border:0;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:-0.1px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;position:relative;z-index:1`
+    card.appendChild(logBtn)
+
     const clearBtn = document.createElement('button')
-    clearBtn.style.cssText = `margin:8px auto 0;display:${loggedToday ? 'block' : 'none'};padding:10px 14px;background:transparent;border:0;cursor:pointer;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:0.2px;touch-action:manipulation`
-    clearBtn.textContent = 'Borrar registro de hoy'
-    scrollEl.appendChild(clearBtn)
+    clearBtn.style.cssText = `margin-top:4px;width:100%;padding:5px;background:transparent;border:0;cursor:pointer;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:10.5px;letter-spacing:0.2px;position:relative;z-index:1`
+
+    async function handleSave() {
+      if (pendingWeight === 0) return
+      const savedLog = await onLog(exercise.id, pendingWeight, trackSR ? pendingSets : undefined, trackSR ? pendingReps : undefined)
+      if (savedLog) {
+        savedWeight = pendingWeight
+        loggedToday = true
+        exercise.logs = [...(exercise.logs || []), savedLog]
+      }
+      updateLogBtn()
+      if (!nextExercise && onClose) {
+        setTimeout(() => onClose(), 600)
+      }
+    }
 
     function updateLogBtn() {
-      const dirty = isDirty()
-      if (loggedToday && !dirty) {
+      const dirty = loggedToday && pendingWeight !== savedWeight
+      const sr = trackSR ? `${pendingSets}×${pendingReps} @ ` : ''
+      if (loggedToday && !dirty && nextExercise) {
+        logBtn.style.background = accent
+        logBtn.style.color = '#0a0a0a'
+        logBtn.style.boxShadow = `0 8px 24px ${accent}44`
+        logBtn.innerHTML = `Ir al siguiente ejercicio <svg width="14" height="12" viewBox="0 0 14 12" fill="none" style="flex-shrink:0"><path d="M1 6h11M8 1l5 5-5 5" stroke="#0a0a0a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        logBtn.onclick = (e) => { e.preventDefault(); if (onNext) onNext() }
+        clearBtn.style.display = 'block'
+      } else if (loggedToday && !dirty && !nextExercise) {
         logBtn.style.background = `${accent}22`
         logBtn.style.color = accent
         logBtn.style.boxShadow = 'none'
-        logBtn.innerHTML = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Guardado · ${pending}${units}`
-      } else if (loggedToday && dirty) {
-        logBtn.style.background = accent
-        logBtn.style.color = '#0a0a0a'
-        logBtn.style.boxShadow = `0 6px 20px ${accent}33`
-        logBtn.innerHTML = `Actualizar · ${pending}${units}`
+        logBtn.innerHTML = `<svg width="13" height="10" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Guardado · ${sr}${pendingWeight}${units}`
+        logBtn.onclick = null
+        clearBtn.style.display = 'block'
       } else {
         logBtn.style.background = accent
         logBtn.style.color = '#0a0a0a'
         logBtn.style.boxShadow = `0 6px 20px ${accent}33`
-        logBtn.innerHTML = `Registrar · ${pending}${units}`
+        logBtn.innerHTML = `Registrar · ${sr}${pendingWeight}${units}`
+        logBtn.onclick = handleSave
+        clearBtn.style.display = loggedToday ? 'block' : 'none'
       }
-      clearBtn.style.display = loggedToday ? 'block' : 'none'
     }
     updateLogBtn()
+    card.appendChild(clearBtn)
 
-    // Stepper button events
-    const decBtn = stepperRow.querySelectorAll('.stepper-btn')[0]
-    const incBtn = stepperRow.querySelectorAll('.stepper-btn')[1]
+    // Events
     const input = stepperRow.querySelector('input')
+    const decBtn = stepperRow.querySelector('.stepper-dec')
+    const incBtn = stepperRow.querySelector('.stepper-inc')
 
     decBtn.addEventListener('click', () => {
-      pending = Math.max(0, +(pending - STEP).toFixed(1))
-      input.value = pending || ''
+      pendingWeight = Math.max(0, +(pendingWeight - STEP).toFixed(1))
+      input.value = pendingWeight || ''
       updateLogBtn()
     })
     incBtn.addEventListener('click', () => {
-      pending = +(pending + STEP).toFixed(1)
-      input.value = pending
+      pendingWeight = +(pendingWeight + STEP).toFixed(1)
+      input.value = pendingWeight
       updateLogBtn()
     })
     input.addEventListener('input', (e) => {
       const v = e.target.value.replace(/[^0-9.]/g, '')
-      pending = v === '' ? 0 : parseFloat(v)
-      updateLogBtn()
-    })
-    logBtn.addEventListener('click', async () => {
-      if (pending === 0) return
-      const savedLog = await onLog(exercise.id, pending)
-      pendingWeight = pending
-      loggedToday = true
-      if (savedLog) {
-        exercise.logs = [...(exercise.logs || []), savedLog]
-      }
+      pendingWeight = v === '' ? 0 : parseFloat(v)
       updateLogBtn()
     })
     clearBtn.addEventListener('click', async () => {
-      pendingWeight = null
       loggedToday = false
-      pending = 0
-      input.value = ''
+      savedWeight = null
+      pendingWeight = lastLog ? lastLog.weight : 0
+      input.value = pendingWeight || ''
+      trackSR = false
       updateLogBtn()
     })
+  }
 
-    // Tips
-    const tipsLabel = document.createElement('div')
-    tipsLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-    tipsLabel.appendChild(SectionLabel({ children: 'Consejos de técnica', accent }))
-    scrollEl.appendChild(tipsLabel)
+  function renderCuesTab(scrollEl) {
+    const tips = exercise.tips && exercise.tips.length ? exercise.tips : []
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'padding:18px 20px 30px'
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:14px">
+        <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
+        Consejos de técnica
+        ${tips.length > 0 ? `<span style="margin-left:auto;color:rgba(255,255,255,0.3);letter-spacing:0.4px">${tips.length} consejos</span>` : ''}
+      </div>`
+    if (tips.length === 0) {
+      wrap.innerHTML += `<div style="padding:16px 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center">No hay consejos registrados para este ejercicio.</div>`
+    } else {
+      const ol = document.createElement('ol')
+      ol.style.cssText = 'margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0'
+      tips.forEach((tip, i) => {
+        const li = document.createElement('li')
+        li.style.cssText = `display:flex;gap:14px;align-items:flex-start;padding:14px 0;${i === 0 ? '' : 'border-top:0.5px solid rgba(255,255,255,0.06)'}`
+        li.innerHTML = `
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:${accent};opacity:0.6;min-width:32px;flex-shrink:0;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums">${String(i + 1).padStart(2, '0')}</div>
+          <div style="flex:1;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.88);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px">${tip}</div>`
+        ol.appendChild(li)
+      })
+      wrap.appendChild(ol)
 
-    const tipsCard = document.createElement('div')
-    tipsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06)'
-    const tips = exercise.tips && exercise.tips.length ? exercise.tips : ['Controla la fase excéntrica (bajada) — mínimo 2 segundos', 'El rango completo de movimiento supera a las parciales pesadas', 'Exhala en el esfuerzo, inhala al regresar']
-    tipsCard.innerHTML = tips.map((tip, i) => `
-      <div style="display:flex;gap:12px;padding:8px 4px;${i < tips.length - 1 ? 'border-bottom:0.5px solid rgba(255,255,255,0.04)' : ''}">
-        <div style="width:18px;height:18px;border-radius:50%;background:rgba(212,255,58,0.12);color:${accent};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i + 1}</div>
-        <div style="flex:1;font-size:13px;color:rgba(255,255,255,0.78);line-height:1.45">${tip}</div>
-      </div>`).join('')
-    scrollEl.appendChild(tipsCard)
-
-    // Alternatives
-    const alts = exercise.alternatives && exercise.alternatives.length ? exercise.alternatives : []
-    if (alts.length > 0) {
-      const altLabel = document.createElement('div')
-      altLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-      altLabel.appendChild(SectionLabel({ children: '¿No puedes hacerlo? Prueba con', accent }))
-      scrollEl.appendChild(altLabel)
-
-      const altScroll = document.createElement('div')
-      altScroll.style.cssText = 'display:flex;gap:10px;padding:0 20px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:6px'
-      altScroll.innerHTML = alts.map((alt, i) => `
-        <div style="flex-shrink:0;width:200px;scroll-snap-align:start;background:#141414;border-radius:18px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">
-          <div style="height:90px;position:relative;background:#1a1a1a;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 16px,rgba(255,255,255,0.045) 16px 32px);display:flex;align-items:center;justify-content:center"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;color:rgba(255,255,255,0.4);text-transform:uppercase;position:absolute;top:8px;left:10px">ALT ${i + 1}</div><svg width="64" height="64" viewBox="0 0 512 512" fill="#000000"><g><g><rect x="205.135" y="126.02" style="fill:#EBEBEB" width="77.82" height="41.194"/><path style="fill:#EBEBEB" d="M255.924,144.219v4.797c0,10.051-8.148,18.198-18.275,18.198H18.275C8.148,167.214,0,159.067,0,149.016v-4.797c0-10.051,8.148-18.199,18.275-18.199h219.374C247.776,126.02,255.924,134.168,255.924,144.219z"/><path style="fill:#424242" d="M112.009,146.275c0,7.158-0.152,14.163-0.304,20.94c-1.066,31.448-4.492,58.404-9.137,75.003c-1.675,5.787-3.502,10.279-5.406,13.325c-1.599,2.589-3.198,4.112-4.95,4.416c-0.304,0.152-0.533,0.152-0.838,0.152H44.925c-3.274,0-6.396-4.34-9.213-12.031c-5.635-15.686-9.823-45.382-11.041-80.866c-0.153-6.777-0.304-13.782-0.304-20.94c0-6.929,0.076-13.706,0.304-20.254c1.447-42.794,7.158-77.288,14.62-89.09c1.295-2.056,2.665-3.503,4.036-4.035c0.533-0.229,1.066-0.381,1.599-0.381h46.449c0.304,0,0.533,0,0.838,0.152c1.751,0.304,3.35,1.827,4.95,4.417c1.904,3.046,3.731,7.615,5.406,13.402c4.645,16.752,8.071,43.859,9.137,75.536C111.933,132.568,112.009,139.346,112.009,146.275z"/><path style="fill:#222323" d="M110.791,146.275c0,7.158-0.076,14.163-0.304,20.94c-0.914,31.448-3.883,58.404-7.919,75.003c-1.599,6.396-3.35,11.269-5.178,14.315c-1.447,2.36-2.97,3.579-4.492,3.579c-0.229,0-0.457,0-0.686-0.152c-8.452-1.979-15.382-41.27-16.904-92.745c-0.229-6.777-0.305-13.782-0.305-20.94c0-6.929,0.076-13.706,0.305-20.254c1.447-51.779,8.376-91.374,16.904-93.354c0.229-0.152,0.457-0.152,0.686-0.152c1.522,0,3.046,1.219,4.492,3.579c1.827,3.046,3.579,7.919,5.178,14.392c4.112,16.752,7.081,43.859,7.919,75.536C110.715,132.568,110.791,139.346,110.791,146.275z"/><g><path style="fill:#424242" d="M188.459,146.275c0,7.081-0.076,14.087-0.305,20.94c0,4.188-0.152,8.376-0.304,12.488c-2.284,61.602-10.736,108.202-21.092,112.543c-0.533,0.304-1.066,0.381-1.599,0.381h-52.54c-5.863,0-11.193-13.63-15.229-36.093c-0.152-0.305-0.152-0.686-0.228-0.99c-3.96-22.387-6.777-53.378-7.463-88.329c-0.228-6.853-0.304-13.858-0.304-20.94c0-6.853,0.076-13.63,0.228-20.254c0.762-35.179,3.503-66.399,7.539-88.938c0.076-0.305,0.076-0.686,0.228-0.99C101.425,13.63,106.755,0,112.618,0h52.54c0.533,0,1.066,0.076,1.599,0.381c10.356,4.34,18.884,51.246,21.092,113.075c0.152,4.112,0.304,8.3,0.381,12.564C188.383,132.645,188.459,139.422,188.459,146.275z"/><path style="fill:#222323" d="M191.581,146.275c0,7.081-0.076,14.087-0.304,20.94c0,4.112-0.152,8.148-0.304,12.107c-2.361,64.952-11.574,113.304-22.615,113.304c-0.533,0-1.066-0.076-1.599-0.381c-11.041-4.645-19.95-57.338-21.397-125.031c-0.228-6.853-0.305-13.858-0.305-20.94c0-6.853,0.076-13.63,0.229-20.254c1.523-67.998,10.432-120.995,21.473-125.64C167.291,0.076,167.824,0,168.357,0c11.117,0,20.331,48.656,22.615,113.837c0.152,3.96,0.304,8.072,0.381,12.184C191.505,132.645,191.581,139.422,191.581,146.275z"/></g><rect x="200.795" y="126.02" style="opacity:0.1;fill:#040000" width="14.772" height="41.194"/><path style="fill:#EBEBEB" d="M204.678,125.716v41.804c0,6.168-3.96,11.269-8.833,11.269l-4.873,0.533l-3.122,0.381l-23.224,2.741c-0.076,0-0.076,0-0.076,0c-0.304,0-0.457-0.228-0.457-0.609c0,0-1.294-4.036-2.132-14.62c-0.381-5.178-0.685-11.955-0.685-20.635c0-7.843,0.381-14.848,0.914-20.559c0.837-8.985,1.904-14.696,1.904-14.696c0-0.305,0.152-0.533,0.457-0.533c0-0.076,0-0.076,0.076-0.076l23.224,2.741l3.122,0.381l4.873,0.609C200.718,114.446,204.678,119.548,204.678,125.716z"/></g><g><rect x="229.045" y="126.02" style="fill:#EBEBEB" width="77.82" height="41.194"/><path style="fill:#EBEBEB" d="M512,144.219v4.797c0,10.051-8.148,18.198-18.275,18.198H274.351c-0.99,0-1.98-0.076-2.894-0.228c-8.756-1.371-15.381-8.909-15.381-17.97v-4.797c0-10.051,8.148-18.199,18.275-18.199h219.374C503.852,126.02,512,134.168,512,144.219z"/><path style="fill:#424242" d="M487.633,146.275c0,7.158-0.152,14.163-0.304,20.94c-0.076,1.675-0.152,3.274-0.229,4.95c0,1.599-0.076,3.198-0.228,4.797c-0.229,4.797-0.533,9.442-0.837,14.01c-0.229,2.285-0.381,4.493-0.609,6.625c-0.152,2.056-0.381,4.112-0.609,6.092c-0.914,8.985-2.132,17.209-3.427,24.366c-0.304,1.752-0.685,3.503-0.99,5.102c-2.741,12.64-6.015,21.473-9.67,25.128c-0.305,0.304-0.609,0.533-0.914,0.761c-0.838,0.685-1.828,1.066-2.741,1.066h-46.448c-0.152,0-0.304-0.076-0.457-0.076c-0.152,0-0.229,0-0.381-0.076c-0.076,0.076-0.152,0-0.229,0c-1.675-0.457-3.198-1.979-4.721-4.416c-1.904-3.046-3.731-7.538-5.33-13.325c-4.721-16.6-8.148-43.555-9.213-75.003c-0.152-6.777-0.305-13.782-0.305-20.94c0-6.929,0.076-13.706,0.305-20.254c1.066-31.677,4.492-58.784,9.213-75.536c1.599-5.787,3.427-10.356,5.33-13.402c1.523-2.437,3.046-3.96,4.721-4.417c0.076,0,0.152-0.076,0.229,0c0.152-0.076,0.228-0.076,0.381-0.076c0.152-0.076,0.304-0.076,0.457-0.076h46.448c0.305,0,0.609,0.076,0.914,0.152c0.229,0,0.381,0.076,0.533,0.152c1.295,0.457,2.513,1.599,3.655,3.274c0.381,0.457,0.685,0.99,0.99,1.523c1.218,2.132,2.436,4.797,3.502,8.071c0.305,0.761,0.533,1.522,0.762,2.361c1.904,6.091,3.579,13.63,4.949,22.463c0.229,1.142,0.381,2.284,0.533,3.426c0.229,1.37,0.457,2.817,0.609,4.264c0.533,3.427,0.914,7.081,1.294,10.813c0.152,1.371,0.304,2.817,0.457,4.264c0.304,2.894,0.533,5.863,0.762,8.833c0.228,3.046,0.457,6.092,0.609,9.29c0.305,4.797,0.533,9.67,0.686,14.62C487.557,132.568,487.633,139.346,487.633,146.275z"/><path style="fill:#222323" d="M436.997,146.275c0,7.158-0.076,14.163-0.305,20.94c-1.523,51.017-8.3,90.08-16.676,92.745c-0.076,0-0.152,0.076-0.228,0c-0.152,0.076-0.229,0.152-0.381,0.076c-0.076,0-0.152,0.076-0.305,0.076c-0.457,0-0.914-0.152-1.371-0.381c-0.304-0.152-0.609-0.304-0.914-0.609c-0.761-0.533-1.447-1.371-2.132-2.513l-0.076-0.076c-1.828-3.046-3.579-7.919-5.102-14.315c-4.112-16.6-7.081-43.555-7.995-75.003c-0.228-6.777-0.304-13.782-0.304-20.94c0-6.929,0.076-13.706,0.304-20.254c0.838-31.677,3.807-58.784,7.995-75.536c1.523-6.473,3.274-11.346,5.102-14.392l0.076-0.076c0.686-1.142,1.371-1.98,2.132-2.513c0.304-0.304,0.609-0.457,0.914-0.609c0.457-0.229,0.914-0.381,1.371-0.381c0.152,0,0.229,0,0.305,0.076c0.152-0.076,0.228,0,0.381,0.076c0.076-0.076,0.152,0,0.228,0c8.376,2.665,15.229,42.032,16.676,93.354C436.921,132.568,436.997,139.346,436.997,146.275z"/><g><path style="fill:#424242" d="M422.606,146.275c0,7.081-0.076,14.087-0.305,20.94c-0.685,34.951-3.502,65.942-7.462,88.329c0,0.304-0.076,0.609-0.152,0.914c0,0.076-0.076,0.076-0.076,0.076c-0.076,0.914-0.229,1.827-0.457,2.665c-0.305,1.827-0.686,3.579-1.066,5.254c-0.305,1.218-0.533,2.437-0.837,3.655c-0.533,2.36-1.142,4.645-1.752,6.701c0,0,0,0.076,0,0.153c-0.609,1.98-1.218,3.807-1.751,5.482c-0.686,1.752-1.371,3.35-2.056,4.721c-0.609,1.371-1.294,2.589-1.98,3.579c-0.381,0.533-0.685,0.99-1.066,1.371c-0.305,0.457-0.686,0.761-0.99,1.066c-0.305,0.304-0.609,0.533-0.914,0.685c-0.229,0.152-0.457,0.305-0.685,0.381c-0.152,0.076-0.381,0.152-0.609,0.228c-0.304,0.076-0.685,0.152-1.066,0.152h-52.54c-0.533,0-1.066-0.076-1.599-0.381c-0.076,0-0.076,0-0.152-0.076c-10.28-4.721-18.656-51.17-20.94-112.467c-0.152-4.112-0.305-8.3-0.305-12.488c-0.228-6.853-0.304-13.858-0.304-20.94c0-6.853,0.076-13.63,0.228-20.254c0.076-3.96,0.152-7.843,0.305-11.651c0-0.304,0.076-0.609,0.076-0.914c2.208-61.83,10.736-108.735,21.092-113.075C345.775,0.076,346.308,0,346.841,0h52.54c5.635,0,10.812,12.564,14.772,33.427c0.076,0.381,0.152,0.838,0.228,1.219c0.153,0.457,0.229,0.914,0.229,1.447c0,0,0.076,0,0.076,0.076c0.076,0.304,0.152,0.609,0.152,0.914c4.036,22.539,6.777,53.758,7.538,88.938C422.529,132.645,422.606,139.422,422.606,146.275z"/><path style="fill:#222323" d="M366.943,146.275c0,7.081-0.076,14.087-0.305,20.94c-1.447,67.389-10.279,119.929-21.244,124.955c-0.076,0.076-0.076,0.076-0.152,0.076c-0.533,0.304-1.066,0.381-1.599,0.381c-0.381,0-0.686-0.076-1.066-0.152c-0.152-0.076-0.304-0.076-0.533-0.228c-0.304-0.076-0.533-0.229-0.761-0.381c-2.589-1.599-5.026-5.939-7.31-12.412c-1.142-3.35-2.284-7.31-3.35-11.802c0,0,0-0.076,0-0.152c-0.533-2.208-1.066-4.645-1.523-7.158c-0.761-3.807-1.447-7.919-2.132-12.184c-0.914-5.787-1.752-12.031-2.437-18.731c0-0.381-0.076-0.838-0.152-1.295c-0.228-2.893-0.533-5.863-0.838-8.909c-0.685-7.005-1.218-14.392-1.675-22.082c-0.076-1.979-0.228-3.883-0.304-5.863c-0.228-3.883-0.381-7.919-0.533-11.955c-0.152-3.96-0.304-7.995-0.304-12.107c-0.229-6.853-0.304-13.858-0.304-20.94c0-6.853,0.076-13.63,0.228-20.254c0.076-2.817,0.152-5.635,0.229-8.376c0-1.294,0.076-2.589,0.152-3.807C323.312,48.656,332.526,0,343.643,0c0.533,0,1.066,0.076,1.599,0.381c8.071,3.35,14.925,32.438,18.732,74.165c1.371,15.61,2.361,32.971,2.741,51.474C366.867,132.645,366.943,139.422,366.943,146.275z"/></g><rect x="296.433" y="126.02" style="opacity:0.1;fill:#040000" width="14.772" height="41.194"/><path style="fill:#EBEBEB" d="M350.725,146.579c0,8.68-0.305,15.457-0.685,20.635c-0.837,10.584-2.132,14.62-2.132,14.62c0,0.381-0.152,0.609-0.457,0.609c0,0,0,0-0.076,0l-23.224-2.741l-3.122-0.381l-4.873-0.533c-4.873,0-8.833-5.102-8.833-11.269v-41.804c0-6.168,3.96-11.27,8.833-11.27l4.873-0.609l3.122-0.381l0.914-0.076l22.31-2.665c0.076,0,0.076,0,0.076,0.076c0.304,0,0.457,0.228,0.457,0.533c0,0,1.066,5.711,1.904,14.696C350.344,131.731,350.725,138.736,350.725,146.579z"/></g></g><path style="opacity:0.1;fill:#040000" d="M512,144.219v4.797c0,10.051-8.148,18.198-18.275,18.198h-6.396c-0.076,1.675-0.152,3.274-0.229,4.95c0,1.599-0.076,3.198-0.228,4.797c-0.229,4.797-0.533,9.442-0.837,14.01c-0.229,2.209-0.381,4.417-0.609,6.625c-0.152,2.056-0.381,4.112-0.609,6.092c-0.914,8.985-2.132,17.209-3.427,24.366c-0.304,1.752-0.685,3.503-0.99,5.102c-2.741,12.64-6.015,21.473-9.67,25.128c-0.305,0.304-0.609,0.533-0.914,0.761c-0.838,0.685-1.828,1.066-2.741,1.066h-46.448c-0.152,0-0.304-0.076-0.457-0.076c0,0-0.076-0.076-0.152-0.076s-0.152-0.076-0.228-0.076s-0.152,0.076-0.229,0.076c0,0-0.076,0.076-0.152,0.076c-0.076,0-0.152,0.076-0.305,0.076c-0.457,0-0.914-0.152-1.371-0.381c-0.304-0.152-0.609-0.304-0.914-0.609c-0.761-0.609-1.447-1.523-2.132-2.665c0,0.076,0,0.076,0,0.152c-0.228,0.914-0.381,1.752-0.533,2.589c-0.305,1.827-0.686,3.579-1.066,5.254c-0.305,1.218-0.533,2.437-0.837,3.655c-0.533,2.36-1.142,4.569-1.752,6.701c0,0,0,0.076,0,0.153c-0.609,1.98-1.218,3.807-1.751,5.482c-0.686,1.752-1.371,3.35-2.056,4.721c-0.609,1.371-1.294,2.589-1.98,3.579c-0.381,0.533-0.685,0.99-1.066,1.371c-0.305,0.457-0.686,0.761-0.99,1.066c-0.305,0.304-0.609,0.533-0.914,0.685c-0.229,0.152-0.457,0.305-0.685,0.381c-0.152,0.076-0.381,0.152-0.609,0.228c-0.304,0.076-0.685,0.152-1.066,0.152h-52.54c-0.457,0-0.99-0.229-1.447-0.457c-0.076,0-0.076-0.076-0.152-0.076c-0.076,0-0.076,0.076-0.152,0.076c-0.457,0.228-0.99,0.457-1.447,0.457c-0.381,0-0.686-0.076-1.066-0.152c-0.152-0.076-0.304-0.076-0.533-0.228c-0.304-0.076-0.533-0.229-0.761-0.381c-2.589-1.599-5.026-5.939-7.31-12.412c-1.142-3.35-2.284-7.31-3.35-11.802c0,0,0-0.076,0-0.152c-0.533-2.208-1.066-4.645-1.523-7.158c-0.761-3.807-1.447-7.919-2.132-12.184c-0.837-5.787-1.675-12.031-2.437-18.731c0-0.381-0.076-0.838-0.152-1.295c-0.228-2.893-0.533-5.863-0.838-8.909c-0.685-7.005-1.218-14.392-1.675-22.082c-0.076-1.979-0.228-3.883-0.304-5.863c-0.228-3.883-0.381-7.919-0.533-11.955l-4.873-0.533c-4.873,0-8.833-5.102-8.833-11.269v-0.305h-36.093l41.194-41.194l8.453-8.376l3.198-3.274l0.99-0.99l38.91-38.834l48.581-48.581c0.533,2.361,1.066,4.873,1.599,7.462c0.076,0.381,0.152,0.838,0.228,1.219c0.076,0.457,0.153,0.914,0.304,1.37c0,0.076,0,0.076,0,0.153c0.686-1.142,1.371-2.056,2.132-2.665c0.304-0.304,0.609-0.457,0.914-0.609c0.457-0.229,0.914-0.381,1.371-0.381c0.152,0,0.229,0,0.305,0.076c0.076,0,0.152,0.076,0.152,0.076c0.076,0,0.152,0.076,0.229,0.076s0.152-0.076,0.228-0.076s0.152-0.076,0.152-0.076c0.152-0.076,0.304-0.076,0.457-0.076h46.448c0.305,0,0.609,0.076,0.914,0.152c0.229,0,0.381,0.076,0.533,0.152c1.295,0.457,2.513,1.599,3.655,3.274c0.381,0.457,0.685,0.99,0.99,1.523c1.218,2.132,2.436,4.797,3.502,8.071c0.305,0.761,0.533,1.522,0.762,2.361c1.904,6.091,3.579,13.63,4.949,22.463c0.229,1.142,0.381,2.284,0.533,3.426c0.229,1.37,0.457,2.817,0.609,4.264c0.533,3.427,0.914,7.081,1.294,10.813c0.152,1.371,0.304,2.817,0.457,4.264c0.304,2.894,0.533,5.863,0.762,8.833c0.228,3.046,0.457,6.168,0.609,9.29c0.305,4.797,0.533,9.67,0.686,14.62h6.396C503.852,126.02,512,134.168,512,144.219z"/></svg><div style="width:28px;height:28px;border-radius:8px;background:rgba(212,255,58,0.14);color:${accent};display:flex;align-items:center;justify-content:center;position:absolute;top:8px;right:8px;font-size:13px;font-weight:700">↺</div>
-          </div>
-          <div style="padding:12px">
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.2">${alt.name}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px;line-height:1.4">${alt.reason}</div>
-          </div>
-        </div>`).join('')
-      scrollEl.appendChild(altScroll)
+      const hint = document.createElement('div')
+      hint.style.cssText = `margin-top:18px;padding:14px;background:rgba(255,255,255,0.025);border-radius:12px;border:0.5px dashed rgba(255,255,255,0.1);display:flex;gap:10px;align-items:center`
+      hint.innerHTML = `
+        <div style="font-size:18px">💡</div>
+        <div style="flex:1;font-size:11.5px;line-height:1.45;color:rgba(255,255,255,0.55)">¿Necesitas verlo? Toca el botón <strong style="color:rgba(255,255,255,0.85)">Google</strong> o <strong style="color:rgba(255,255,255,0.85)">TikTok</strong> en la foto del ejercicio arriba.</div>`
+      wrap.appendChild(hint)
     }
+    scrollEl.appendChild(wrap)
+  }
+
+  function renderSwapTab(scrollEl) {
+    const alts = exercise.alternatives && exercise.alternatives.length ? exercise.alternatives : []
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'padding:18px 20px 30px'
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:14px">
+        <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
+        ¿No puedes hacerlo? Cambia por
+        ${alts.length > 0 ? `<span style="margin-left:auto;color:rgba(255,255,255,0.3);letter-spacing:0.4px">${alts.length} opciones</span>` : ''}
+      </div>`
+    if (alts.length === 0) {
+      wrap.innerHTML += `<div style="padding:16px 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center">No hay alternativas registradas para este ejercicio.</div>`
+    } else {
+      const list = document.createElement('div')
+      list.style.cssText = 'display:flex;flex-direction:column;gap:10px'
+      alts.forEach((alt, i) => {
+        const card = document.createElement('div')
+        card.style.cssText = 'background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden;display:flex;gap:0'
+        card.innerHTML = `
+          <div style="width:120px;flex-shrink:0;background:#1a1a1a;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 14px,rgba(255,255,255,0.045) 14px 28px);position:relative;display:flex;align-items:center;justify-content:center">
+            <div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.06);color:${accent};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;border:0.5px solid ${accent}33">↺</div>
+            <div style="position:absolute;bottom:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.45)">ALT ${String(i + 1).padStart(2, '0')}</div>
+          </div>
+          <div style="flex:1;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;min-width:0">
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.3;overflow-wrap:break-word">${alt.name}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5">${alt.reason}</div>
+            <div style="display:flex;gap:6px;margin-top:12px">
+              <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${encodeURIComponent(alt.name + ' exercise')}','_blank','noopener,noreferrer')" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0" aria-label="Buscar en Google">
+                <svg width="13" height="13" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
+              </button>
+              <button onclick="window.open('https://www.tiktok.com/search?q=${encodeURIComponent(alt.name + ' exercise')}','_blank','noopener,noreferrer')" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0" aria-label="Buscar en TikTok">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+              </button>
+            </div>
+          </div>`
+        list.appendChild(card)
+      })
+      wrap.appendChild(list)
+    }
+    scrollEl.appendChild(wrap)
   }
 
   function renderHistoryTab(scrollEl) {
@@ -197,6 +392,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     const totalGain = first && last ? last.weight - first.weight : 0
     const pct = first ? ((totalGain / first.weight) * 100).toFixed(1) : '0'
 
+    // Include pending today log if logged this session
     const data = exercise.logs || []
 
     // Stats grid
@@ -245,12 +441,16 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
         const prev = idx > 0 ? data[idx - 1] : null
         const delta = prev ? +(sess.weight - prev.weight).toFixed(1) : null
         const isPR = sess.weight === allTime
-        const isToday = sess.date === new Date().toISOString().slice(0, 10)
+        const isToday = sess.date === todayStr
+        const srText = isToday && sess.sets && sess.reps ? `${sess.sets}×${sess.reps}` : null
         return `
           <div style="background:#141414;border-radius:14px;padding:12px 14px;border:${isToday ? `0.5px solid ${accent}55` : '0.5px solid rgba(255,255,255,0.06)'};display:flex;align-items:center;gap:14px;position:relative;overflow:hidden">
             ${isToday ? `<div style="position:absolute;top:0;bottom:0;left:0;width:2px;background:${accent}"></div>` : ''}
             <div style="flex:1;min-width:0">
-              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${isToday ? accent : 'rgba(255,255,255,0.7)'};letter-spacing:0.4px;${isToday ? 'text-transform:uppercase;font-weight:600' : ''}">${sess.date}</div>
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${isToday ? accent : 'rgba(255,255,255,0.7)'};letter-spacing:0.4px;${isToday ? 'text-transform:uppercase;font-weight:600' : ''}">${sess.date}</div>
+                ${srText ? `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.4px">${srText}</div>` : ''}
+              </div>
               ${delta !== null && delta !== 0 ? `<div style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.4px;color:${delta > 0 ? accent : '#ff6b6b'};background:${delta > 0 ? `${accent}14` : 'rgba(255,107,107,0.12)'};padding:2px 7px;border-radius:6px"><span>${delta > 0 ? '▲' : '▼'}</span><span>${delta > 0 ? '+' : ''}${delta}${units}</span></div>` : ''}
               ${delta === 0 ? `<div style="display:inline-block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.6px;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:6px">— mantén</div>` : ''}
             </div>

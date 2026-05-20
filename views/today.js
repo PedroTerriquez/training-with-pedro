@@ -8,9 +8,11 @@ let _endedAt = null
 let _phaseCardOpen = null
 let _todayExDone = 0
 let _timerInterval = null
+let _completionToastShown = false
 
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises }) {
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
+  _completionToastShown = false
   container.innerHTML = ''
   const page = document.createElement('div')
   page.className = 'page'
@@ -85,7 +87,6 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     <div style="display:flex;align-items:center;gap:14px">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:${accent};text-transform:uppercase;font-weight:600;white-space:nowrap">
-          <div style="width:6px;height:6px;border-radius:50%;background:${accent};box-shadow:0 0 8px ${accent};animation:pulse 2s infinite"></div>
           Sesión de hoy
         </div>
         <div style="margin-top:6px;font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;color:#fafafa;letter-spacing:-1.2px;line-height:1.02">${day.name}</div>
@@ -151,7 +152,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       title: 'Termina el calentamiento primero',
       detail: 'Tus ejercicios aparecerán aquí cuando marques la Fase 01 como hecha.',
     }))
-  } else if (_exercisesSkipped) {
+  } else if (_exercisesSkipped || exDone >= exercisesTotal) {
     const doneBanner = document.createElement('div')
     doneBanner.style.cssText = `margin:0 20px;background:#141414;border-radius:18px;padding:14px 16px;border:0.5px solid ${accent}55;display:flex;align-items:center;gap:12px`
     doneBanner.innerHTML = `
@@ -177,9 +178,15 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     skipBtn.addEventListener('click', () => {
       _exercisesSkipped = true
       _todayExDone = exercisesTotal
+      const start = _startedAt || Date.now()
+      const sec = Math.floor((Date.now() - start) / 1000)
+      const mm = Math.floor(sec / 60)
+      const ss = sec % 60
+      const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
       showCenterToast({
         svg: TOAST_IMG_TRAINER,
-        message: 'Pedro te felicita, estira ya no tienes 20 años',
+        message: 'Pedro te felicita',
+        subtitle: `Ya no tienes 20 bb<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
         duration: 3000,
         accent,
         onDone: refreshView,
@@ -251,11 +258,29 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
     const done = _exercisesSkipped ? exercisesTotal : day.exercises.filter(ex => logs.some(l => l.exerciseId === (ex.exerciseId || ex.id))).length
     if (done !== _todayExDone) {
+      const prev = _todayExDone
       _todayExDone = done
       refreshView()
+      if (done >= exercisesTotal && prev < exercisesTotal && !_exercisesSkipped && !_completionToastShown) {
+        _completionToastShown = true
+        const start = _startedAt || Date.now()
+        const sec = Math.floor((Date.now() - start) / 1000)
+        const mm = Math.floor(sec / 60)
+        const ss = sec % 60
+        const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
+        showCenterToast({
+          svg: TOAST_IMG_TRAINER,
+          message: 'Pedro te felicita',
+          subtitle: `Ya no tienes 20 bb<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
+          duration: 3000,
+          accent,
+          onDone: () => {
+            _phaseCardOpen = 'stretch'
+            refreshView()
+          },
+        })
+      }
     }
-    // Auto-advance: if all exercises logged and warmup done, mark stretch ready
-    // (stretch already renders correctly via exDone; no refreshView needed here)
   })
 }
 
@@ -316,7 +341,6 @@ function TimerRing({ startedAt, endedAt, accent, complete, onReset, size = 64 })
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${complete && endedAt ? `${accent}33` : 'rgba(255,255,255,0.08)'}" stroke-width="${stroke}" fill="none"/>
       <circle data-timer-sweep="" data-timer-c="${c}" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${ringColor}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${complete && endedAt ? `${c} 0` : `${dash} ${c}`}" style="transition:stroke-dasharray 0.6s linear"/>
     </svg>
-    ${!endedAt ? `<div style="position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:${accent};box-shadow:0 0 6px ${accent};animation:pulse 1.4s infinite"></div>` : ''}
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
       <div data-timer-display="" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:#fafafa;letter-spacing:-0.4px;line-height:1;font-variant-numeric:tabular-nums">${display}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:${labelColor};margin-top:3px">${labelText}</div>
@@ -446,7 +470,10 @@ function createExerciseRow(ex, accent, units, onOpen) {
   weightEl.id = `weight-${ex.exerciseId || ex.id}`
   btn.querySelector('div:last-child').appendChild(weightEl)
 
-  btn.addEventListener('click', () => onOpen(ex))
+  btn.addEventListener('click', () => {
+    if (!_startedAt) _startedAt = Date.now()
+    onOpen(ex)
+  })
 
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
     if (_exercisesSkipped) {

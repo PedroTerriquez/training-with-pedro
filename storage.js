@@ -134,7 +134,7 @@ const Storage = {
     return getByIndex('exerciseLogs', 'exerciseId', exerciseId)
   },
 
-  async logWeight(exerciseId, weight, units) {
+  async logWeight(exerciseId, weight, units, sets, reps) {
     const dateStr = new Date().toISOString().slice(0, 10)
     const log = {
       id: await generateId(),
@@ -143,6 +143,8 @@ const Storage = {
       weight,
       units,
     }
+    if (sets !== undefined) log.sets = sets
+    if (reps !== undefined) log.reps = reps
     return put('exerciseLogs', log)
   },
 

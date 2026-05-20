@@ -168,13 +168,29 @@ async function openDetailSheet(exercise) {
 
   const logs = await Storage.getLogsForExercise(exercise.id)
 
-  // Find the program exercise config (sets/reps/rest)
+  // Find the program exercise config (sets/reps/rest) and next exercise
   let progEx = null
+  let nextExercise = null
   if (_state.activeProgram) {
     for (const week of _state.activeProgram.weeks) {
       for (const day of week.days) {
-        progEx = day.exercises.find((e) => e.exerciseId === exercise.id)
-        if (progEx) break
+        const idx = day.exercises.findIndex((e) => e.exerciseId === exercise.id)
+        if (idx !== -1) {
+          progEx = day.exercises[idx]
+          const nextProgEx = day.exercises[idx + 1]
+          if (nextProgEx) {
+            const resolved = _state.exercises.find((e) => e.id === nextProgEx.exerciseId)
+            if (resolved) {
+              nextExercise = {
+                ...nextProgEx,
+                name: resolved.name,
+                muscle: resolved.muscle,
+                imgUrl: resolved.imgUrl,
+              }
+            }
+          }
+          break
+        }
       }
       if (progEx) break
     }
@@ -202,15 +218,23 @@ async function openDetailSheet(exercise) {
         exercise: detailEx,
         accent,
         units,
+        nextExercise,
+        onNext: () => {
+          document.body.style.overflow = ''
+          _state.sheetOpen = false
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
+          const nextBase = _state.exercises.find(e => e.id === nextExercise.exerciseId)
+          if (nextBase) openDetailSheet(nextBase)
+        },
         onClose: () => {
           _state.sheetOpen = false
           window.location.hash = _state.route
           refresh()
         },
-        onLog: async (exerciseId, weight) => {
+        onLog: async (exerciseId, weight, sets, reps) => {
           const savedUnits = _state.settings?.units || 'kg'
-          const log = await Storage.logWeight(exerciseId, weight, savedUnits)
-          return log ? { id: log, exerciseId, date: new Date().toISOString().slice(0, 10), weight, units: savedUnits } : null
+          const log = await Storage.logWeight(exerciseId, weight, savedUnits, sets, reps)
+          return log ? { id: log, exerciseId, date: new Date().toISOString().slice(0, 10), weight, units: savedUnits, sets, reps } : null
         },
       })
       return div
