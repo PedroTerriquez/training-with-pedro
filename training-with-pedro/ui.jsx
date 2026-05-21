@@ -8,7 +8,7 @@
 function ExercisePlaceholder({
   name, muscle, sets, reps,
   accent = "#d4ff3a", size = "lg",
-  isPR = false, showActions = false,
+  isPR = false, isDone = false, showActions = false,
   style,
 }) {
   const heights = { compact: 130, sm: 80, md: 140, lg: 165, xl: 240 };
@@ -30,16 +30,19 @@ function ExercisePlaceholder({
       height: h, borderRadius: 18, overflow: 'hidden', position: 'relative',
       background: '#161616',
       backgroundImage: stripe,
-      border: '0.5px solid rgba(255,255,255,0.06)',
+      border: isDone ? `1px solid ${accent}` : '0.5px solid rgba(255,255,255,0.06)',
       padding: 16, boxSizing: 'border-box',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      boxShadow: isDone ? `0 0 0 4px ${accent}1a, 0 8px 32px ${accent}22` : 'none',
+      transition: 'border-color 0.3s, box-shadow 0.3s',
       ...style,
     }}>
-      {/* Soft glow blob */}
+      {/* Soft glow blob — lime when done, accent otherwise */}
       <div style={{
         position: 'absolute', width: 240, height: 240, borderRadius: '50%',
-        background: accent, opacity: 0.07, filter: 'blur(70px)',
+        background: accent, opacity: isDone ? 0.14 : 0.07, filter: 'blur(70px)',
         top: -80, right: -60, pointerEvents: 'none',
+        transition: 'opacity 0.3s',
       }} />
 
       {/* Top row */}
@@ -74,12 +77,32 @@ function ExercisePlaceholder({
               whiteSpace: 'nowrap',
             }}>★ PR</span>
           )}
+          {isDone && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px 4px 8px', borderRadius: 9999,
+              background: accent,
+              fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              fontSize: 10, letterSpacing: 1.2, fontWeight: 700,
+              color: '#0a0a0a', textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              boxShadow: `0 4px 12px ${accent}55`,
+              animation: 'fadeUp 0.3s ease-out',
+            }}>
+              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                <path d="M1 4.5l3 3L10 1" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Hecho hoy
+            </span>
+          )}
         </div>
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%', background: accent,
-          boxShadow: `0 0 10px ${accent}`,
-          flexShrink: 0, marginTop: 6,
-        }} />
+        {!isDone && (
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%', background: accent,
+            boxShadow: `0 0 10px ${accent}`,
+            flexShrink: 0, marginTop: 6,
+          }} />
+        )}
       </div>
 
       {/* Bottom — title, sets×reps, and action buttons */}

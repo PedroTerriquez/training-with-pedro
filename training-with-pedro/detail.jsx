@@ -8,8 +8,12 @@
 //   • Dense prescription strip below the hero replaces the orphan stats row
 //     with a 4-cell dashboard (sets / reps / rest / last).
 
-function ExerciseDetail({ exercise, accent, units, onClose, logState, setLogState, nextExercise, onNext }) {
+function ExerciseDetail({ exercise, accent, units, onClose, logState, setLogState, prevExercise, nextExercise, onNavigate }) {
   const [tab, setTab] = React.useState("workout");
+  // Reset tab to "workout" whenever the displayed exercise changes (e.g. via nav arrows).
+  // MUST be declared before any early-return so hook order stays stable.
+  React.useEffect(() => { setTab("workout"); }, [exercise?.id]);
+
   if (!exercise) return null;
 
   const log = logState[exercise.id] || { weight: undefined, sets: undefined, reps: undefined, loggedAt: null };
@@ -21,6 +25,14 @@ function ExerciseDetail({ exercise, accent, units, onClose, logState, setLogStat
 
   return (
     <div style={{ color: '#fafafa', paddingBottom: 40 }}>
+      {/* NAVIGATION — prev / next exercise pills */}
+      <ExerciseNav
+        prev={prevExercise}
+        next={nextExercise}
+        onNavigate={onNavigate}
+        accent={accent}
+      />
+
       {/* HERO — compact identity card */}
       <div style={{ padding: '12px 14px 0' }}>
         <ExercisePlaceholder
@@ -29,6 +41,7 @@ function ExerciseDetail({ exercise, accent, units, onClose, logState, setLogStat
           accent={accent}
           size="lg"
           isPR={isPR}
+          isDone={log.weight !== undefined}
           showActions
         />
       </div>
@@ -87,8 +100,6 @@ function ExerciseDetail({ exercise, accent, units, onClose, logState, setLogStat
           accent={accent}
           units={units}
           lastTop={lastTop}
-          nextExercise={nextExercise}
-          onNext={onNext}
         />
       )}
       {tab === 'cues' && <CuesTab exercise={exercise} accent={accent} />}
@@ -153,7 +164,7 @@ function parseRepsDefault(rep) {
   return parseInt(m[2] || m[1], 10);
 }
 
-function WorkoutTab({ exercise, log, setLog, accent, units, lastTop, nextExercise, onNext }) {
+function WorkoutTab({ exercise, log, setLog, accent, units, lastTop }) {
   const WEIGHT_STEP = 5;
   const defaultReps = parseRepsDefault(exercise.reps);
   const defaultSets = exercise.sets;
@@ -329,79 +340,37 @@ function WorkoutTab({ exercise, log, setLog, accent, units, lastTop, nextExercis
             </div>
           )}
 
-          {/* Log button — shifts to "Siguiente ejercicio" once saved cleanly */}
-          {isLogged && !isDirty && nextExercise ? (
-            <button
-              onClick={() => onNext(nextExercise)}
-              style={{
-                marginTop: 14, width: '100%', padding: '14px 18px',
-                borderRadius: 11, border: 0,
-                cursor: 'pointer',
-                background: accent,
-                color: '#0a0a0a',
-                fontFamily: 'Space Grotesk, system-ui',
-                fontSize: 14, fontWeight: 700, letterSpacing: -0.1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                transition: 'all 0.2s',
-                boxShadow: `0 8px 24px ${accent}44`,
-                position: 'relative', zIndex: 1,
-              }}
-            >
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                maxWidth: '100%',
-              }}>
-                Siguiente · {nextExercise.name}
-              </span>
-              <svg width="14" height="12" viewBox="0 0 14 12" fill="none" style={{ flexShrink: 0 }}>
-                <path d="M1 6h11M8 1l5 5-5 5" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          ) : isLogged && !isDirty && !nextExercise ? (
-            <button
-              disabled
-              style={{
-                marginTop: 14, width: '100%', padding: '14px 18px',
-                borderRadius: 11, border: 0,
-                cursor: 'default',
-                background: `${accent}22`,
-                color: accent,
-                fontFamily: 'Space Grotesk, system-ui',
-                fontSize: 14, fontWeight: 700, letterSpacing: -0.1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                position: 'relative', zIndex: 1,
-              }}
-            >
-              <svg width="13" height="10" viewBox="0 0 14 11" fill="none">
-                <path d="M1 5.5l4 4 8-8.5" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              ¡Último ejercicio! · {srInLog ? `${log.sets}×${log.reps} @ ` : ''}{log.weight}{units}
-            </button>
-          ) : (
-            <button
-              onClick={save}
-              style={{
-                marginTop: 14, width: '100%', padding: '14px 18px',
-                borderRadius: 11, border: 0,
-                cursor: 'pointer',
-                background: accent,
-                color: '#0a0a0a',
-                fontFamily: 'Space Grotesk, system-ui',
-                fontSize: 14, fontWeight: 700, letterSpacing: -0.1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                transition: 'all 0.2s',
-                boxShadow: `0 6px 20px ${accent}33`,
-                position: 'relative', zIndex: 1,
-              }}
-            >
-              {isLogged && isDirty ? (
-                <>Actualizar · {trackSR ? `${pendingSets}×${pendingReps} @ ` : ''}{pendingWeight}{units}</>
-              ) : (
-                <>Registrar · {trackSR ? `${pendingSets}×${pendingReps} @ ` : ''}{pendingWeight}{units}</>
-              )}
-            </button>
-          )}
+          {/* Log button — single behavior: save / update / saved confirmation */}
+          <button
+            onClick={save}
+            disabled={isLogged && !isDirty}
+            style={{
+              marginTop: 14, width: '100%', padding: '14px 18px',
+              borderRadius: 11, border: 0,
+              cursor: (isLogged && !isDirty) ? 'default' : 'pointer',
+              background: (isLogged && !isDirty) ? `${accent}22` : accent,
+              color: (isLogged && !isDirty) ? accent : '#0a0a0a',
+              fontFamily: 'Space Grotesk, system-ui',
+              fontSize: 14, fontWeight: 700, letterSpacing: -0.1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.2s',
+              boxShadow: (!isLogged || isDirty) ? `0 6px 20px ${accent}33` : 'none',
+              position: 'relative', zIndex: 1,
+            }}
+          >
+            {isLogged && !isDirty ? (
+              <>
+                <svg width="13" height="10" viewBox="0 0 14 11" fill="none">
+                  <path d="M1 5.5l4 4 8-8.5" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Guardado · {srInLog ? `${log.sets}×${log.reps} @ ` : ''}{log.weight}{units}
+              </>
+            ) : isLogged && isDirty ? (
+              <>Actualizar · {trackSR ? `${pendingSets}×${pendingReps} @ ` : ''}{pendingWeight}{units}</>
+            ) : (
+              <>Registrar · {trackSR ? `${pendingSets}×${pendingReps} @ ` : ''}{pendingWeight}{units}</>
+            )}
+          </button>
 
           {isLogged && (
             <button onClick={clear} style={{
@@ -953,4 +922,90 @@ function HistoryTab({ exercise, accent, units, todayLog }) {
   );
 }
 
-Object.assign(window, { ExerciseDetail });
+// ─────────────────────────────────────────────────────────────
+// Exercise navigation — prev / next pills shown at the top of the sheet
+// ─────────────────────────────────────────────────────────────
+function ExerciseNav({ prev, next, onNavigate, accent }) {
+  return (
+    <div style={{
+      padding: '10px 14px 0',
+      display: 'flex', gap: 8,
+    }}>
+      <NavPill direction="prev" exercise={prev} onClick={() => prev && onNavigate(prev)} />
+      <NavPill direction="next" exercise={next} onClick={() => next && onNavigate(next)} />
+    </div>
+  );
+}
+
+function NavPill({ direction, exercise, onClick }) {
+  const disabled = !exercise;
+  const isPrev = direction === 'prev';
+  const label = isPrev ? 'Anterior' : 'Siguiente';
+  const arrowColor = disabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)';
+  const arrow = (
+    <svg width="11" height="10" viewBox="0 0 11 10" fill="none" style={{ flexShrink: 0 }}>
+      {isPrev ? (
+        <path d="M10 5H1m0 0l4-4M1 5l4 4" stroke={arrowColor}
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M1 5h9m0 0L6 1m4 4L6 9" stroke={arrowColor}
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        flex: 1, minWidth: 0,
+        background: disabled ? 'rgba(255,255,255,0.02)' : '#141414',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        borderRadius: 12, padding: '8px 12px',
+        cursor: disabled ? 'default' : 'pointer',
+        color: 'inherit', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: 9,
+        flexDirection: isPrev ? 'row' : 'row-reverse',
+        opacity: disabled ? 0.45 : 1,
+        transition: 'background 0.15s, transform 0.08s',
+      }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = 'scale(0.98)'; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      <div style={{
+        width: 26, height: 26, borderRadius: 8,
+        background: disabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
+        border: '0.5px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>{arrow}</div>
+      <div style={{
+        flex: 1, minWidth: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: isPrev ? 'flex-start' : 'flex-end',
+        gap: 1,
+      }}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 9, letterSpacing: 1.3, textTransform: 'uppercase',
+          color: disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.45)',
+          fontWeight: 600, lineHeight: 1,
+        }}>{label}</div>
+        <div style={{
+          fontFamily: 'Space Grotesk, system-ui',
+          fontSize: 12, fontWeight: 600, color: disabled ? 'rgba(255,255,255,0.3)' : '#fafafa',
+          letterSpacing: -0.1, lineHeight: 1.25,
+          width: '100%',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          textAlign: isPrev ? 'left' : 'right',
+        }}>
+          {exercise ? exercise.name : (isPrev ? 'Primero' : 'Último')}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+Object.assign(window, { ExerciseDetail, ExerciseNav });

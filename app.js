@@ -168,8 +168,9 @@ async function openDetailSheet(exercise) {
 
   const logs = await Storage.getLogsForExercise(exercise.id)
 
-  // Find the program exercise config (sets/reps/rest) and next exercise
+  // Find the program exercise config (sets/reps/rest) and prev/next exercise
   let progEx = null
+  let prevExercise = null
   let nextExercise = null
   if (_state.activeProgram) {
     for (const week of _state.activeProgram.weeks) {
@@ -177,6 +178,18 @@ async function openDetailSheet(exercise) {
         const idx = day.exercises.findIndex((e) => e.exerciseId === exercise.id)
         if (idx !== -1) {
           progEx = day.exercises[idx]
+          const prevProgEx = day.exercises[idx - 1]
+          if (prevProgEx) {
+            const resolved = _state.exercises.find((e) => e.id === prevProgEx.exerciseId)
+            if (resolved) {
+              prevExercise = {
+                ...prevProgEx,
+                name: resolved.name,
+                muscle: resolved.muscle,
+                imgUrl: resolved.imgUrl,
+              }
+            }
+          }
           const nextProgEx = day.exercises[idx + 1]
           if (nextProgEx) {
             const resolved = _state.exercises.find((e) => e.id === nextProgEx.exerciseId)
@@ -218,7 +231,15 @@ async function openDetailSheet(exercise) {
         exercise: detailEx,
         accent,
         units,
+        prevExercise,
         nextExercise,
+        onPrev: () => {
+          document.body.style.overflow = ''
+          _state.sheetOpen = false
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
+          const prevBase = _state.exercises.find(e => e.id === prevExercise.exerciseId)
+          if (prevBase) openDetailSheet(prevBase)
+        },
         onNext: () => {
           document.body.style.overflow = ''
           _state.sheetOpen = false

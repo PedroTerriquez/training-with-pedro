@@ -41,14 +41,17 @@ function App() {
     logState, dayState, setDayState,
   };
 
-  // Compute next exercise in the day's flow (for "Next exercise" CTA)
-  const computeNext = (current) => {
-    if (!current || !day.exercises) return null;
+  // Compute prev/next exercise in the day's flow
+  const computeNeighbors = (current) => {
+    if (!current || !day.exercises) return { prev: null, next: null };
     const idx = day.exercises.findIndex(e => e.id === current.id);
-    if (idx === -1 || idx >= day.exercises.length - 1) return null;
-    return day.exercises[idx + 1];
+    if (idx === -1) return { prev: null, next: null };
+    return {
+      prev: idx > 0 ? day.exercises[idx - 1] : null,
+      next: idx < day.exercises.length - 1 ? day.exercises[idx + 1] : null,
+    };
   };
-  const nextExercise = computeNext(sheetExercise);
+  const { prev: prevExercise, next: nextExercise } = computeNeighbors(sheetExercise);
 
   const openExercise = (e) => setSheetExercise(e);
 
@@ -83,8 +86,9 @@ function App() {
             onClose={() => setSheetExercise(null)}
             logState={logState}
             setLogState={setLogState}
+            prevExercise={prevExercise}
             nextExercise={nextExercise}
-            onNext={(ex) => setSheetExercise(ex)}
+            onNavigate={(ex) => setSheetExercise(ex)}
           />
         </Sheet>
       </div>

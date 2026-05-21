@@ -8,7 +8,7 @@ function parseRepsDefault(rep) {
   return parseInt(m[2] || m[1], 10)
 }
 
-function mountExerciseDetail(container, { exercise, accent, units, onClose, onLog, nextExercise, onNext }) {
+function mountExerciseDetail(container, { exercise, accent, units, onClose, onLog, prevExercise, onPrev, nextExercise, onNext }) {
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayLog = exercise.logs?.find(l => l.date === todayStr) || null
   const lastLog = exercise.logs?.length ? exercise.logs[exercise.logs.length - 1] : null
@@ -21,11 +21,51 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
   let pendingSets = trackSR ? todayLog.sets : exercise.sets
   let pendingReps = trackSR ? todayLog.reps : parseRepsDefault(exercise.reps)
 
+  // ── Exercise Navigation — prev/next pills ──
+  function renderNavPills() {
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'padding:10px 14px 0;display:flex;gap:8px'
+
+    function navPill(dir) {
+      const isPrev = dir === 'prev'
+      const exercise = isPrev ? prevExercise : nextExercise
+      const onClick = isPrev ? onPrev : onNext
+      const disabled = !exercise
+      const label = isPrev ? 'Anterior' : 'Siguiente'
+      const fallback = isPrev ? 'Primero' : 'Último'
+      const arrowColor = disabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)'
+
+      const arrow = isPrev
+        ? `<path d="M10 5H1m0 0l4-4M1 5l4 4" stroke="${arrowColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+        : `<path d="M1 5h9m0 0L6 1m4 4L6 9" stroke="${arrowColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+
+      const btn = document.createElement('button')
+      btn.style.cssText = `flex:1;min-width:0;background:${disabled ? 'rgba(255,255,255,0.02)' : '#141414'};border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 12px;cursor:${disabled ? 'default' : 'pointer'};color:inherit;text-align:left;display:flex;align-items:center;gap:9px;flex-direction:${isPrev ? 'row' : 'row-reverse'};opacity:${disabled ? 0.45 : 1};transition:background 0.15s`
+      if (!disabled) btn.addEventListener('click', onClick)
+      btn.innerHTML = `
+        <div style="width:26px;height:26px;border-radius:8px;background:${disabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)'};border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="11" height="10" viewBox="0 0 11 10" fill="none" style="flex-shrink:0">${arrow}</svg>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:${isPrev ? 'flex-start' : 'flex-end'};gap:1px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:${disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.45)'};font-weight:600;line-height:1">${label}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:${disabled ? 'rgba(255,255,255,0.3)' : '#fafafa'};letter-spacing:-0.1px;line-height:1.25;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:${isPrev ? 'left' : 'right'}">${exercise ? exercise.name : fallback}</div>
+        </div>`
+      return btn
+    }
+
+    wrap.appendChild(navPill('prev'))
+    wrap.appendChild(navPill('next'))
+    return wrap
+  }
+
   function render() {
     container.innerHTML = ''
     const scrollEl = document.createElement('div')
     scrollEl.style.cssText = `color:#fafafa;padding-bottom:40px`
     container.appendChild(scrollEl)
+
+    // Navigation prev/next pills
+    scrollEl.appendChild(renderNavPills())
 
     // Hero — matching design prototype (ui.jsx)
     const heroWrap = document.createElement('div')
@@ -33,21 +73,27 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     const searchUrl = encodeURIComponent(exercise.name + ' exercise')
     const h = 240
     const hero = document.createElement('div')
-    hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);padding:16px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between`
+    hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;${loggedToday ? `border:1px solid ${accent};box-shadow:0 0 0 4px ${accent}1a, 0 8px 32px ${accent}22` : 'border:0.5px solid rgba(255,255,255,0.06)'};padding:16px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s,box-shadow 0.3s`
     if (exercise.imgUrl) {
       hero.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
     } else {
       hero.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)'
       const blob = document.createElement('div')
-      blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:0.07;filter:blur(70px);top:-80px;right:-60px;pointer-events:none`
+      blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:${loggedToday ? 0.14 : 0.07};filter:blur(70px);top:-80px;right:-60px;pointer-events:none;transition:opacity 0.3s`
       hero.appendChild(blob)
     }
-    // Top row: muscle pill + accent dot
+    // Top row: muscle pill + accent dot or HECHO HOY badge
     const topRow = document.createElement('div')
     topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1'
     topRow.innerHTML = `
       <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:9999px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;font-weight:500;color:rgba(255,255,255,0.85);text-transform:uppercase;white-space:nowrap">${exercise.muscle}</span>
-      <div style="width:8px;height:8px;border-radius:50%;background:${accent};box-shadow:0 0 10px ${accent};flex-shrink:0;margin-top:6px"></div>`
+      ${loggedToday
+        ? `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:9999px;background:${accent};font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;font-weight:700;color:#0a0a0a;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 12px ${accent}55;animation:fadeUp 0.3s ease-out">
+            <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3L10 1" stroke="#0a0a0a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            HECHO HOY
+          </span>`
+        : `<div style="width:8px;height:8px;border-radius:50%;background:${accent};box-shadow:0 0 10px ${accent};flex-shrink:0;margin-top:6px"></div>`
+      }`
     hero.appendChild(topRow)
     // Bottom row: name + sets/reps pill + search buttons
     const bottomRow = document.createElement('div')
@@ -66,7 +112,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
         <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${searchUrl}','_blank','noopener,noreferrer')" style="width:38px;height:38px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 4px 12px rgba(0,0,0,0.3)" aria-label="Buscar en Google">
           <svg width="15" height="15" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
         </button>
-        <button onclick="window.open('https://www.tiktok.com/search?q=${searchUrl}','_blank','noopener,noreferrer')" style="width:38px;height:38px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 4px 12px rgba(0,0,0,0.3)" aria-label="Buscar en TikTok">
+        <button onclick="location.href='tiktok://search?q=${searchUrl}'" style="width:38px;height:38px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 4px 12px rgba(0,0,0,0.3)" aria-label="Buscar en TikTok">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
         </button>
       </div>`
@@ -103,7 +149,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
     const seg = document.createElement('div')
     seg.style.cssText = `margin:14px 20px 0;display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.06)`
     const tabs = [
-      { id: 'workout', label: 'Registrar' },
+      { id: 'workout', label: 'Registrar', dot: loggedToday },
       { id: 'cues', label: 'Consejos', badge: (exercise.tips || []).length },
       { id: 'swap', label: 'Alternativas', badge: (exercise.alternatives || []).length },
       { id: 'history', label: 'Historial' },
@@ -112,7 +158,10 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       const btn = document.createElement('button')
       const on = tab === t.id
       btn.style.cssText = `flex:1;padding:9px 0;border:0;cursor:pointer;background:${on ? '#262626' : 'transparent'};color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;letter-spacing:-0.1px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.15s`
-      btn.innerHTML = t.label + (t.badge !== undefined && !on ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:9999px;letter-spacing:0">${t.badge}</span>` : '')
+      let inner = t.label
+      if (t.dot) inner += `<span style="width:6px;height:6px;border-radius:50%;background:${accent};box-shadow:0 0 6px ${accent};display:inline-block;margin-left:4px"></span>`
+      else if (t.badge !== undefined && !on) inner += `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:9999px;letter-spacing:0">${t.badge}</span>`
+      btn.innerHTML = inner
       btn.addEventListener('click', () => { tab = t.id; render() })
       seg.appendChild(btn)
     })
@@ -243,34 +292,23 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
         loggedToday = true
         exercise.logs = [...(exercise.logs || []), savedLog]
       }
-      updateLogBtn()
-      if (!nextExercise && onClose) {
-        setTimeout(() => onClose(), 600)
-      }
+      render()
     }
 
     function updateLogBtn() {
       const dirty = loggedToday && pendingWeight !== savedWeight
-      const sr = trackSR ? `${pendingSets}×${pendingReps} @ ` : ''
-      if (loggedToday && !dirty && nextExercise) {
-        logBtn.style.background = accent
-        logBtn.style.color = '#0a0a0a'
-        logBtn.style.boxShadow = `0 8px 24px ${accent}44`
-        logBtn.innerHTML = `Ir al siguiente ejercicio <svg width="14" height="12" viewBox="0 0 14 12" fill="none" style="flex-shrink:0"><path d="M1 6h11M8 1l5 5-5 5" stroke="#0a0a0a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-        logBtn.onclick = (e) => { e.preventDefault(); if (onNext) onNext() }
-        clearBtn.style.display = 'block'
-      } else if (loggedToday && !dirty && !nextExercise) {
+      if (loggedToday && !dirty) {
         logBtn.style.background = `${accent}22`
         logBtn.style.color = accent
         logBtn.style.boxShadow = 'none'
-        logBtn.innerHTML = `<svg width="13" height="10" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Guardado · ${sr}${pendingWeight}${units}`
+        logBtn.innerHTML = `<svg width="13" height="10" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4 8-8.5" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Guardado · ${pendingWeight}${units}`
         logBtn.onclick = null
         clearBtn.style.display = 'block'
       } else {
         logBtn.style.background = accent
         logBtn.style.color = '#0a0a0a'
         logBtn.style.boxShadow = `0 6px 20px ${accent}33`
-        logBtn.innerHTML = `Registrar · ${sr}${pendingWeight}${units}`
+        logBtn.innerHTML = `Registrar · ${pendingWeight}${units}`
         logBtn.onclick = handleSave
         clearBtn.style.display = loggedToday ? 'block' : 'none'
       }
@@ -302,9 +340,8 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
       loggedToday = false
       savedWeight = null
       pendingWeight = lastLog ? lastLog.weight : 0
-      input.value = pendingWeight || ''
       trackSR = false
-      updateLogBtn()
+      render()
     })
   }
 
@@ -373,7 +410,7 @@ function mountExerciseDetail(container, { exercise, accent, units, onClose, onLo
               <button onclick="window.open('https://www.google.com/search?tbm=vid&q=${encodeURIComponent(alt.name + ' exercise')}','_blank','noopener,noreferrer')" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0" aria-label="Buscar en Google">
                 <svg width="13" height="13" viewBox="0 0 48 48" fill="none"><path d="M43.6 24.5c0-1.6-.1-3.1-.4-4.6H24v8.7h11c-.5 2.6-1.9 4.9-4 6.4v5.3h6.5c3.8-3.5 6-8.7 6-15.8z" fill="#4285F4"/><path d="M24 44c5.4 0 10-1.8 13.3-4.9l-6.5-5.3c-1.8 1.2-4.1 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5v5.5C8.3 39.8 15.7 44 24 44z" fill="#34A853"/><path d="M12.6 27.4c-.8-2.4-.8-4.9 0-7.2v-5.5H5c-2.7 5.4-2.7 11.8 0 17.2l7.6-6.5z" fill="#FBBC05"/><path d="M24 10.3c2.9 0 5.5 1 7.5 3l5.6-5.6C33.8 4.6 29.4 3 24 3 15.7 3 8.3 7.2 5 13.7l7.6 6c1.6-4.8 6.1-8.4 11.4-8.4z" fill="#EA4335"/></svg>
               </button>
-              <button onclick="window.open('https://www.tiktok.com/search?q=${encodeURIComponent(alt.name + ' exercise')}','_blank','noopener,noreferrer')" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0" aria-label="Buscar en TikTok">
+              <button onclick="location.href='tiktok://search?q=${encodeURIComponent(alt.name + ' exercise')}'" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0" aria-label="Buscar en TikTok">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
               </button>
             </div>

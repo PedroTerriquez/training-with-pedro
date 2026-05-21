@@ -125,7 +125,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
           showCenterToast({
             svg: TOAST_SVG_WATCH,
             message: 'Inicia tu Smart Watch',
-            duration: 2000,
+            duration: 1500,
             accent,
             onDone: refreshView,
           })
