@@ -10,7 +10,8 @@ let _todayExDone = 0
 let _timerInterval = null
 let _completionToastShown = false
 
-function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises }) {
+function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps }) {
+  swaps = swaps || {}
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
   _completionToastShown = false
   container.innerHTML = ''
@@ -23,6 +24,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const detectedDayIdx = (jsDay + 6) % 7
   const dayIdx = dayIndex >= 0 ? dayIndex : detectedDayIdx
   const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
+  function resolveExId(exerciseId) { return swaps[exerciseId] || exerciseId }
   const weekObj = program?.weeks[weekIdx]
   const day = weekObj?.days[dayIdx]
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -36,7 +38,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   }
 
   const warmupMuscles = day.exercises.map((ex) => {
-    const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+    const resolved = { ...ex, ...(exercisesById[resolveExId(ex.exerciseId)] || {}) }
     return resolved.muscle
   }).filter(Boolean)
 
@@ -66,7 +68,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   }
 
   function refreshView() {
-    mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises })
+    mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps })
   }
 
   // Header
@@ -196,7 +198,8 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     exList.appendChild(topRow)
 
     day.exercises.forEach((ex) => {
-      const resolved = { ...ex, ...(exercisesById[ex.exerciseId] || {}) }
+      const altId = resolveExId(ex.exerciseId)
+      const resolved = { ...ex, exerciseId: altId, ...(exercisesById[altId] || {}) }
       exList.appendChild(createExerciseRow(resolved, accent, settings?.units || 'kg', onOpenExercise))
     })
   }
@@ -256,7 +259,10 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   // Async load today's logs to update counts
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
-    const done = _exercisesSkipped ? exercisesTotal : day.exercises.filter(ex => logs.some(l => l.exerciseId === (ex.exerciseId || ex.id))).length
+    const done = _exercisesSkipped ? exercisesTotal : day.exercises.filter(ex => {
+      const displayedId = resolveExId(ex.exerciseId || ex.id)
+      return logs.some(l => l.exerciseId === displayedId)
+    }).length
     if (done !== _todayExDone) {
       const prev = _todayExDone
       _todayExDone = done

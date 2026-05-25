@@ -19,7 +19,7 @@ function mountHistory(container, { accent, units, onOpenExercise }) {
 
   // Load exercises
   Storage.getExercises().then(async (exercises) => {
-    const muscles = ['Todos', ...new Set(exercises.map((e) => e.muscle.split('/')[0].split(' ')[0]))]
+    const muscles = ['Todos', ...new Set(exercises.map((e) => e.muscle.split('/')[0].split(/[,\s]+/)[0]))]
 
     // Filter chips
     const chips = document.createElement('div')

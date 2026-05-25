@@ -122,6 +122,19 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     </div>`
   container.appendChild(csvExSection)
 
+  // Export exercises as CSV (copy to clipboard)
+  const exportSection = document.createElement('div')
+  exportSection.style.cssText = 'margin:12px 20px 0'
+  exportSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Exportar ejercicios</strong> — descarga todos los ejercicios como CSV
+      </div>
+      <button id="csv-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Descargar CSV</button>
+      <div id="csv-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(exportSection)
+
   // Events
   setTimeout(() => {
     const unitsBtn = document.getElementById('units-btn')
@@ -226,6 +239,54 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+
+    const csvExportBtn = document.getElementById('csv-export-btn')
+    const csvExportStatus = document.getElementById('csv-export-status')
+    if (csvExportBtn) {
+      csvExportBtn.addEventListener('click', async () => {
+        try {
+          const exercises = await Storage.getExercises()
+          const esc = (v) => {
+            const s = String(v == null ? '' : v)
+            return s.includes(',') || s.includes('"') || s.includes('\n')
+              ? '"' + s.replace(/"/g, '""') + '"'
+              : s
+          }
+          const rows = ['nombre,musculo,series,reps,descanso_seg,url_imagen,consejos,alternativas']
+          exercises.forEach((e) => {
+            const tips = (e.tips || []).join(' | ')
+            const alts = (e.alternatives || []).map((a) => `${a.name} (${a.reason || ''})`).join(' | ')
+            rows.push([e.name, e.muscle, e.sets || 3, e.reps || '10', e.rest || 60, e.imgUrl || '', tips, alts].map(esc).join(','))
+          })
+          const csv = '\uFEFF' + rows.join('\n')
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'ejercicios.csv'
+          a.click()
+          URL.revokeObjectURL(url)
+          csvExportStatus.textContent = `✅ Descargados ${exercises.length} ejercicios`
+          csvExportStatus.style.color = accent
+          const orig = csvExportBtn.textContent
+          csvExportBtn.textContent = '✅ Descargado'
+          csvExportBtn.style.background = '#0a0a0a'
+          csvExportBtn.style.color = accent
+          csvExportBtn.style.border = `0.5px solid ${accent}55`
+          setTimeout(() => {
+            csvExportBtn.textContent = orig
+            csvExportBtn.style.background = accent
+            csvExportBtn.style.color = '#0a0a0a'
+            csvExportBtn.style.border = '0'
+          }, 1500)
+        } catch (err) {
+          csvExportStatus.textContent = `❌ ${err.message}`
+          csvExportStatus.style.color = '#ff6b6b'
+          csvExportBtn.textContent = '❌ Error'
+          setTimeout(() => { csvExportBtn.textContent = 'Copiar CSV' }, 1500)
         }
       })
     }

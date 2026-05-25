@@ -10,6 +10,7 @@ let _state = {
   activeProgram: null,
   detailExercise: null,
   sheetOpen: false,
+  tempSwaps: {}, // exerciseId → alternativeExerciseId (today-only)
 }
 
 let _rootEl = null
@@ -112,6 +113,7 @@ async function renderScreen() {
         settings: _state.settings,
         exercises: _state.exercises,
         accent,
+        swaps: _state.tempSwaps,
         onOpenExercise: openDetailSheet,
       })
       break
@@ -152,6 +154,7 @@ async function renderScreen() {
         settings: _state.settings,
         exercises: _state.exercises,
         accent,
+        swaps: _state.tempSwaps,
         onOpenExercise: openDetailSheet,
       })
   }
@@ -163,6 +166,7 @@ function getTodayDayIndex() {
 }
 
 async function openDetailSheet(exercise) {
+  if (_state.sheetOpen) return
   const accent = _state.settings?.accentColor || '#d4ff3a'
   const units = _state.settings?.units || 'kg'
 
@@ -231,8 +235,18 @@ async function openDetailSheet(exercise) {
         exercise: detailEx,
         accent,
         units,
+        exercises: _state.exercises,
         prevExercise,
         nextExercise,
+        onOpenExercise: openDetailSheet,
+        onSwapExercise: async (originalId, altId) => {
+          _state.tempSwaps[originalId] = altId
+          document.body.style.overflow = ''
+          _state.sheetOpen = false
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
+          window.location.hash = _state.route
+          await refresh()
+        },
         onPrev: () => {
           document.body.style.overflow = ''
           _state.sheetOpen = false
