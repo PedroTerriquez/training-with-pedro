@@ -135,6 +135,24 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     </div>`
   container.appendChild(exportSection)
 
+  // Export program as CSV
+  const exportProgSection = document.createElement('div')
+  exportProgSection.style.cssText = 'margin:12px 20px 0'
+  exportProgSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Exportar programa</strong> — descarga tu programa como CSV
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="prog-export-select" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;font-family:'Space Grotesk',sans-serif;cursor:pointer">
+          <option value="">Seleccionar programa</option>
+        </select>
+        <button id="prog-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;white-space:nowrap">Descargar CSV</button>
+      </div>
+      <div id="prog-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(exportProgSection)
+
   // Events
   setTimeout(() => {
     const unitsBtn = document.getElementById('units-btn')
@@ -287,6 +305,35 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           csvExportStatus.style.color = '#ff6b6b'
           csvExportBtn.textContent = '❌ Error'
           setTimeout(() => { csvExportBtn.textContent = 'Copiar CSV' }, 1500)
+        }
+      })
+    }
+
+    const progSelect = document.getElementById('prog-export-select')
+    const progExportBtn = document.getElementById('prog-export-btn')
+    const progExportStatus = document.getElementById('prog-export-status')
+    if (progSelect && progExportBtn) {
+      Storage.getPrograms().then((programs) => {
+        programs.forEach((p) => {
+          const opt = document.createElement('option')
+          opt.value = p.id
+          opt.textContent = p.name
+          progSelect.appendChild(opt)
+        })
+      })
+      progExportBtn.addEventListener('click', async () => {
+        const id = progSelect.value
+        if (!id) { progExportStatus.textContent = '⚠️ Selecciona un programa'; progExportStatus.style.color = '#ff6b6b'; return }
+        try {
+          const programs = await Storage.getPrograms()
+          const program = programs.find(p => p.id === id)
+          if (!program) throw new Error('Programa no encontrado')
+          await exportProgram(program)
+          progExportStatus.textContent = `✅ Exportado "${program.name}"`
+          progExportStatus.style.color = accent
+        } catch (err) {
+          progExportStatus.textContent = `❌ ${err.message}`
+          progExportStatus.style.color = '#ff6b6b'
         }
       })
     }
@@ -571,14 +618,12 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${p.weeks.length} semana(s) · ${p.weeks.reduce((s, w) => s + w.days.reduce((sd, d) => sd + d.exercises.length, 0), 0)} ejercicios totales</div>
         </div>
         ${!isActive ? `<button class="activate-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:13px;touch-action:manipulation">Activar</button>` : ''}
-        <button class="export-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">CSV</button>
         <button class="edit-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
         <button class="del-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.activate-btn')) activateProgram(p.id)
         else if (ev.target.closest('.edit-prog-btn')) showProgramEdit(p, accent, onRefresh)
         else if (ev.target.closest('.del-prog-btn')) deleteProgram(p, onRefresh)
-        else if (ev.target.closest('.export-prog-btn')) exportProgram(p)
       })
       list.appendChild(card)
     })
