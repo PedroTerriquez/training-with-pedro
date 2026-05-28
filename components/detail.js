@@ -81,7 +81,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     if (exercise.gifUrl) slides.push({ type: 'gif', url: exercise.gifUrl })
 
     const track = document.createElement('div')
-    track.style.cssText = 'position:absolute;inset:0;display:flex;transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);will-change:transform'
+    track.style.cssText = 'position:absolute;inset:0;display:flex;transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);will-change:transform;pointer-events:none'
 
     function renderTrack() {
       track.innerHTML = ''
