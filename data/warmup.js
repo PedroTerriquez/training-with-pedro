@@ -1,6 +1,11 @@
 const IMG_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/'
 const img = (p) => IMG_BASE + p
 
+// Secondary image source: ExerciseGymGifsDB (jsDelivr CDN)
+// 1323 exercises, bilingual (EN/ES), free, no API key
+const EX_GIF_BASE = 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/'
+const _GIF = (path) => EX_GIF_BASE + path + '.gif'
+
 const WARMUP_DATA = {
   chest: {
     warmup: [
