@@ -153,25 +153,22 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     heroWrap.appendChild(hero)
     scrollEl.appendChild(heroWrap)
 
-    // TikTok: try snssdk1233:// first, fall back to tiktok://, then web
+    // TikTok: try snssdk1233 internal scheme first, fall back to tiktok:// after 350ms
+    // if the app didn't take over. The anchor href is the no-JS fallback.
     const heroTiktok = heroWrap.querySelector('.hero-tiktok-btn')
     if (heroTiktok) {
       heroTiktok.addEventListener('click', (e) => {
         e.preventDefault()
         const primary = `snssdk1233://search/trending?keyword=${searchUrl}`
         const fallback = `tiktok://search?keyword=${searchUrl}`
-        const web = `https://www.tiktok.com/search?q=${searchUrl}`
-        let opened = false
-        document.addEventListener('visibilitychange', () => { opened = true }, { once: true })
+        let switched = false
+        const onHide = () => { switched = true }
+        document.addEventListener('visibilitychange', onHide, { once: true })
         window.location.href = primary
         setTimeout(() => {
-          if (!opened) {
-            window.location.href = fallback
-            setTimeout(() => {
-              if (!opened) window.location.href = web
-            }, 400)
-          }
-        }, 400)
+          document.removeEventListener('visibilitychange', onHide)
+          if (!switched) window.location.href = fallback
+        }, 350)
       })
     }
 
@@ -484,18 +481,14 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
             const q = a.dataset.q
             const primary = `snssdk1233://search/trending?keyword=${q}`
             const fallback = `tiktok://search?keyword=${q}`
-            const web = `https://www.tiktok.com/search?q=${q}`
-            let opened = false
-            document.addEventListener('visibilitychange', () => { opened = true }, { once: true })
+            let switched = false
+            const onHide = () => { switched = true }
+            document.addEventListener('visibilitychange', onHide, { once: true })
             window.location.href = primary
             setTimeout(() => {
-              if (!opened) {
-                window.location.href = fallback
-                setTimeout(() => {
-                  if (!opened) window.location.href = web
-                }, 400)
-              }
-            }, 400)
+              document.removeEventListener('visibilitychange', onHide)
+              if (!switched) window.location.href = fallback
+            }, 350)
           })
         })
 
