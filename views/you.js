@@ -88,112 +88,100 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     </div>`
   container.appendChild(settingsCard)
 
-  // Data Import
-  const importLabel = document.createElement('div')
-  importLabel.style.cssText = 'margin-top:26px;margin-bottom:10px'
-  importLabel.appendChild(SectionLabel({ children: 'Importar datos', accent }))
-  container.appendChild(importLabel)
+  // ── Data Management ──
+  const card = (content) => `<div style="margin:0 20px;background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">${content}</div>`
+  const row = (inner) => `<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">${inner}</div>`
+  const divider = () => `<div style="height:0.5px;background:rgba(255,255,255,0.04);margin:0 16px"></div>`
+  const btn = (id, label, style = '') => `<button id="${id}" style="padding:7px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;touch-action:manipulation${style}">${label}</button>`
+  const statusEl = (id) => `<div id="${id}" style="margin-top:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.35);letter-spacing:0.2px"></div>`
 
-  // CSV import (program)
-  const csvSection = document.createElement('div')
-  csvSection.style.cssText = 'margin:0 20px 12px'
-  csvSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Importar programa desde CSV</strong> — formato: semana, día, nombre_ejercicio, músculo, series, reps, descanso_seg
-      </div>
-      <input type="file" id="csv-input" accept=".csv" style="display:none">
-      <button id="csv-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Seleccionar archivo CSV</button>
-      <div id="csv-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(csvSection)
+  const section = (label) => {
+    const el = document.createElement('div')
+    el.style.cssText = 'margin-top:24px;margin-bottom:10px'
+    el.appendChild(SectionLabel({ children: label, accent }))
+    container.appendChild(el)
+  }
 
-  // CSV import (exercises)
-  const csvExSection = document.createElement('div')
-  csvExSection.style.cssText = 'margin:0 20px 0'
-  csvExSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Importar ejercicios desde CSV</strong> — formato: nombre, músculo, url_imagen, consejos, alternativas (salta existentes)
-      </div>
-      <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
-      <button id="csv-ex-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Seleccionar archivo CSV</button>
-      <div id="csv-ex-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(csvExSection)
+  // ── Importar ──
+  section('Importar')
+  const impCard = document.createElement('div')
+  impCard.innerHTML = card(
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Programa</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">semana, día, ejercicio, músculo, series, reps, descanso</div>
+      ${statusEl('csv-status')}
+    </div>
+    <input type="file" id="csv-input" accept=".csv" style="display:none">
+    ${btn('csv-btn', 'Subir CSV')}`) +
+    divider() +
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Ejercicios</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">nombre, músculo, url_imagen, consejos, alternativas</div>
+      ${statusEl('csv-ex-status')}
+    </div>
+    <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
+    ${btn('csv-ex-btn', 'Subir CSV')}`) +
+    divider() +
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Logs + ajustes</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Restaura historial de pesos desde un JSON</div>
+      ${statusEl('json-import-status')}
+    </div>
+    <input type="file" id="json-import-input" accept=".json" style="display:none">
+    ${btn('json-import-btn', 'Importar')}`)
+  )
+  container.appendChild(impCard)
 
-  // Manual dictionary migration
-  const migrateSection = document.createElement('div')
-  migrateSection.style.cssText = 'margin:12px 20px 0'
-  migrateSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Normalizar ejercicios con el diccionario</strong> — renombra al canónico en español y rellena imagen/músculo/tips/alternativas.
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="dict-migrate-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Aplicar diccionario</button>
-        <button id="dict-force-btn" style="padding:8px 16px;font-size:12px;border-radius:8px;border:0.5px solid ${accent};background:transparent;color:${accent};cursor:pointer">Sobreescribir todo</button>
-      </div>
-      <div id="dict-migrate-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(migrateSection)
+  // ── Exportar ──
+  section('Exportar')
+  const expCard = document.createElement('div')
+  expCard.innerHTML = card(
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Ejercicios</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga todos los ejercicios como CSV</div>
+      ${statusEl('csv-export-status')}
+    </div>
+    ${btn('csv-export-btn', 'Descargar')}`) +
+    divider() +
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Programa</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Selecciona un programa y descárgalo como CSV</div>
+    </div>
+    <select id="prog-export-select" style="padding:7px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0e0e0e;color:#fafafa;font-size:12px;outline:none;font-family:'Space Grotesk',sans-serif;cursor:pointer;max-width:140px">
+      <option value="">Programa...</option>
+    </select>
+    ${btn('prog-export-btn', 'Descargar')}`) +
+    divider() +
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Logs + ajustes</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga historial de pesos como JSON</div>
+      ${statusEl('json-export-status')}
+    </div>
+    ${btn('json-export-btn', 'Exportar')}`)
+  )
+  expCard.innerHTML += statusEl('prog-export-status')
+  container.appendChild(expCard)
 
-  // Export exercises as CSV (copy to clipboard)
-  const exportSection = document.createElement('div')
-  exportSection.style.cssText = 'margin:12px 20px 0'
-  exportSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Exportar ejercicios</strong> — descarga todos los ejercicios como CSV
-      </div>
-      <button id="csv-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Descargar CSV</button>
-      <div id="csv-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(exportSection)
+  // ── Mantenimiento ──
+  section('Mantenimiento')
+  const maintCard = document.createElement('div')
+  maintCard.innerHTML = card(
+    row(`<div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Normalizar ejercicios</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Renombra al canónico en español, rellena imágenes y músculo desde el diccionario</div>
+      ${statusEl('dict-migrate-status')}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+      ${btn('dict-migrate-btn', 'Aplicar', ';background:transparent;color:' + accent + ';border:0.5px solid ' + accent + '55')}
+      ${btn('dict-force-btn', 'Forzar', ';background:transparent;color:rgba(255,255,255,0.5);border:0.5px solid rgba(255,255,255,0.1)')}
+    </div>`)
+  )
+  container.appendChild(maintCard)
 
-  // Export program as CSV
-  const exportProgSection = document.createElement('div')
-  exportProgSection.style.cssText = 'margin:12px 20px 0'
-  exportProgSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Exportar programa</strong> — descarga tu programa como CSV
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="prog-export-select" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;font-family:'Space Grotesk',sans-serif;cursor:pointer">
-          <option value="">Seleccionar programa</option>
-        </select>
-        <button id="prog-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;white-space:nowrap">Descargar CSV</button>
-      </div>
-      <div id="prog-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(exportProgSection)
-
-  // ── JSON Export/Import (cross-PWA migration) ──
-  const jsonExportSection = document.createElement('div')
-  jsonExportSection.style.cssText = 'margin:12px 20px 0'
-  jsonExportSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Exportar logs + ajustes</strong> — descarga solo el historial de pesos y configuración. Úsalo para migrar entre Safari y la PWA (ejercicios y programas se comparten recargando).
-      </div>
-      <button id="json-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Descargar JSON</button>
-      <div id="json-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(jsonExportSection)
-
-  const jsonImportSection = document.createElement('div')
-  jsonImportSection.style.cssText = 'margin:12px 20px 18px'
-  jsonImportSection.innerHTML = `
-    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
-      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Importar logs + ajustes</strong> — sube un JSON exportado desde el otro lado. Agrega logs y reemplaza ajustes (no toca ejercicios ni programas).
-      </div>
-      <input type="file" id="json-import-input" accept=".json" style="display:none">
-      <button id="json-import-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Subir JSON</button>
-      <div id="json-import-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
-    </div>`
-  container.appendChild(jsonImportSection)
+  // Bottom spacer
+  const spacer = document.createElement('div')
+  spacer.style.height = '20px'
+  container.appendChild(spacer)
 
   // Events
   setTimeout(() => {

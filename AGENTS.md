@@ -23,7 +23,7 @@
   today.js           → mountToday() — auto-detects day, shows session or rest day
   plan.js            → mountPlan() — week selector + day grid
   history.js         → mountHistory() — exercise list with muscle filter + sparklines
-  you.js             → mountYou() — stats, settings, exercise CRUD, program CRUD, CSV import
+  you.js             → mountYou() — stats, settings, exercise CRUD, program CRUD, CSV/JSON import/export
 /AGENTS.md           ← This file
 ```
 
