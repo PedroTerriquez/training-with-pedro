@@ -248,6 +248,37 @@ const Storage = {
     }
   },
 
+  // ── CSV Export (Program) ──
+  async exportProgramToCSV(programId) {
+    const program = await Storage.getProgram(programId)
+    if (!program) throw new Error('Programa no encontrado')
+    const exercises = await Storage.getExercises()
+    const exMap = {}
+    exercises.forEach(e => { exMap[e.id] = e })
+
+    const esc = (v) => {
+      const s = String(v == null ? '' : v)
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s
+    }
+
+    const rows = ['week,day,day_subtitle,duration_min,exercise_name,muscle,sets,reps,rest_sec']
+
+    program.weeks.forEach((week) => {
+      week.days.forEach((day) => {
+        day.exercises.forEach((ex) => {
+          const exData = exMap[ex.exerciseId] || {}
+          const name = exData.name || ex.exerciseId || 'Unknown'
+          const muscle = exData.muscle || ''
+          rows.push([week.name, day.name, day.subtitle || '', day.duration || '', name, muscle, ex.sets, ex.reps, ex.rest].map(esc).join(','))
+        })
+      })
+    })
+
+    return '\uFEFF' + rows.join('\n')
+  },
+
   // ── CSV Import (Exercises) ──
   async importExercisesFromCSV(text) {
     try {

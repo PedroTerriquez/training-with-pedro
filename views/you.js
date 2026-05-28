@@ -571,12 +571,14 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${p.weeks.length} semana(s) · ${p.weeks.reduce((s, w) => s + w.days.reduce((sd, d) => sd + d.exercises.length, 0), 0)} ejercicios totales</div>
         </div>
         ${!isActive ? `<button class="activate-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent}22;color:${accent};font-size:13px;touch-action:manipulation">Activar</button>` : ''}
+        <button class="export-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">CSV</button>
         <button class="edit-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
         <button class="del-prog-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.activate-btn')) activateProgram(p.id)
         else if (ev.target.closest('.edit-prog-btn')) showProgramEdit(p, accent, onRefresh)
         else if (ev.target.closest('.del-prog-btn')) deleteProgram(p, onRefresh)
+        else if (ev.target.closest('.export-prog-btn')) exportProgram(p)
       })
       list.appendChild(card)
     })
@@ -790,4 +792,20 @@ function deleteProgram(program, onRefresh) {
   Storage.deleteProgram(program.id).then(() => {
     if (onRefresh) onRefresh()
   })
+}
+
+async function exportProgram(program) {
+  try {
+    const csv = await Storage.exportProgramToCSV(program.id)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${program.name.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g, '_')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(`✅ Exportado "${program.name}"`)
+  } catch (err) {
+    showToast('❌ ' + err.message, true)
+  }
 }
