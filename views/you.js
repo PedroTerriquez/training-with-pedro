@@ -561,7 +561,7 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
     programs.forEach((p) => {
       const isActive = settings.activeProgramId === p.id
       const card = document.createElement('div')
-      card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:${isActive ? `0.5px solid ${accent}55` : '0.5px solid rgba(255,255,255,0.06)'};display:flex;align-items:center;gap:12px`
+      card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:${isActive ? `0.5px solid ${accent}55` : '0.5px solid rgba(255,255,255,0.06)'};display:flex;flex-wrap:wrap;align-items:center;gap:8px`
       card.innerHTML = `
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
