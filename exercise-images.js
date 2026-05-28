@@ -46,6 +46,12 @@ function matchScore(queryTokens, dbName) {
   return (matches / queryTokens.length) * 0.8
 }
 
+function getExerciseGifUrl(exerciseName) {
+  if (!exerciseName) return null
+  const e = findExerciseEntry(exerciseName) || findExerciseEntryFuzzy(exerciseName)
+  return e && e.gif ? e.gif : null
+}
+
 async function findExerciseImageUrl(exerciseName) {
   if (!exerciseName) return null
 
@@ -86,3 +92,5 @@ async function findExerciseImageUrl(exerciseName) {
     return null
   }
 }
+
+window.getExerciseGifUrl = getExerciseGifUrl

@@ -191,6 +191,7 @@ async function openDetailSheet(exercise) {
                 name: resolved.name,
                 muscle: resolved.muscle,
                 imgUrl: resolved.imgUrl,
+                gifUrl: getExerciseGifUrl(resolved.name) || null,
               }
             }
           }
@@ -203,6 +204,7 @@ async function openDetailSheet(exercise) {
                 name: resolved.name,
                 muscle: resolved.muscle,
                 imgUrl: resolved.imgUrl,
+                gifUrl: getExerciseGifUrl(resolved.name) || null,
               }
             }
           }
@@ -213,12 +215,15 @@ async function openDetailSheet(exercise) {
     }
   }
 
+  const gifUrl = getExerciseGifUrl(exercise.name) || null
+
   const detailEx = {
     ...exercise,
     sets: progEx?.sets || exercise.sets || 3,
     reps: progEx?.reps || exercise.reps || '10',
     rest: progEx?.rest || exercise.rest || 60,
     logs: logs.sort((a, b) => a.date.localeCompare(b.date)),
+    gifUrl,
   }
 
   const overlay = Sheet({

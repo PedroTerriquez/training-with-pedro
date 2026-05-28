@@ -74,13 +74,46 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     const h = 240
     const hero = document.createElement('div')
     hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;${loggedToday ? `border:1px solid ${accent};box-shadow:0 0 0 4px ${accent}1a, 0 8px 32px ${accent}22` : 'border:0.5px solid rgba(255,255,255,0.06)'};padding:16px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s,box-shadow 0.3s`
+    const hasGif = !!exercise.gifUrl
+    let showingGif = hasGif
+    let gifImg = null
+    if (hasGif) {
+      gifImg = document.createElement('img')
+      gifImg.src = exercise.gifUrl
+      gifImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none'
+      hero.appendChild(gifImg)
+    }
     if (exercise.imgUrl) {
       hero.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
+      if (hasGif) hero.style.background = '#161616'
     } else {
       hero.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)'
       const blob = document.createElement('div')
       blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:${loggedToday ? 0.14 : 0.07};filter:blur(70px);top:-80px;right:-60px;pointer-events:none;transition:opacity 0.3s`
       hero.appendChild(blob)
+    }
+    // GIF toggle pill
+    if (hasGif) {
+      const pill = document.createElement('button')
+      pill.style.cssText = `position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:2;padding:3px 12px;border-radius:9999px;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.12);color:#fafafa;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;gap:5px`
+      pill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0"></span> GIF`
+      function toggle() {
+        showingGif = !showingGif
+        gifImg.style.display = showingGif ? 'block' : 'none'
+        if (exercise.imgUrl) {
+          hero.style.background = showingGif ? '#161616' : `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
+        }
+        pill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0"></span> ${showingGif ? 'GIF' : 'IMG'}`
+      }
+      pill.addEventListener('click', toggle)
+      // Swipe gesture
+      let startX = 0
+      hero.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX }, { passive: true })
+      hero.addEventListener('touchend', (e) => {
+        const endX = e.changedTouches[0].clientX
+        if (Math.abs(endX - startX) > 50) toggle()
+      }, { passive: true })
+      hero.appendChild(pill)
     }
     // Top row: muscle pill + accent dot or HECHO HOY badge
     const topRow = document.createElement('div')
