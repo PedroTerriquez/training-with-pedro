@@ -122,6 +122,19 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     </div>`
   container.appendChild(csvExSection)
 
+  // Manual dictionary migration
+  const migrateSection = document.createElement('div')
+  migrateSection.style.cssText = 'margin:12px 20px 0'
+  migrateSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Normalizar ejercicios con el diccionario</strong> — renombra al canónico en español y rellena imagen/músculo/tips/alternativas cuando falten.
+      </div>
+      <button id="dict-migrate-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Aplicar diccionario</button>
+      <div id="dict-migrate-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(migrateSection)
+
   // Export exercises as CSV (copy to clipboard)
   const exportSection = document.createElement('div')
   exportSection.style.cssText = 'margin:12px 20px 0'
@@ -257,6 +270,38 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+
+    const dictMigrateBtn = document.getElementById('dict-migrate-btn')
+    const dictMigrateStatus = document.getElementById('dict-migrate-status')
+    if (dictMigrateBtn && dictMigrateStatus) {
+      dictMigrateBtn.addEventListener('click', async () => {
+        dictMigrateBtn.disabled = true
+        const originalText = dictMigrateBtn.textContent
+        dictMigrateBtn.textContent = '⏳ Aplicando…'
+        try {
+          const result = await Storage.migrateExercisesToDictionary({ force: true })
+          if (result.dictMissing) {
+            dictMigrateStatus.textContent = '❌ Diccionario no cargado'
+            dictMigrateStatus.style.color = '#ff6b6b'
+          } else {
+            dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · sin match ${result.skipped} · total ${result.total}`
+            dictMigrateStatus.style.color = accent
+            if (result.migrated > 0) {
+              setTimeout(async () => {
+                _youTab = 'exercises'
+                if (onRefresh) await onRefresh()
+              }, 1500)
+            }
+          }
+        } catch (err) {
+          dictMigrateStatus.textContent = `❌ ${err.message}`
+          dictMigrateStatus.style.color = '#ff6b6b'
+        } finally {
+          dictMigrateBtn.disabled = false
+          dictMigrateBtn.textContent = originalText
         }
       })
     }

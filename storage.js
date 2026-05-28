@@ -354,9 +354,9 @@ const Storage = {
   // ── One-time migration: apply dictionary to existing IndexedDB exercises ──
   // Name: always rewrite to canonical ES when dict has a match.
   // All other fields: only fill when empty (conservative — never overwrite user data).
-  async migrateExercisesToDictionary() {
+  async migrateExercisesToDictionary({ force = false } = {}) {
     const FLAG = 'dict_migration_v1'
-    if (localStorage.getItem(FLAG) === 'done') return { migrated: 0, skipped: 0, total: 0, alreadyDone: true }
+    if (!force && localStorage.getItem(FLAG) === 'done') return { migrated: 0, skipped: 0, total: 0, alreadyDone: true }
     if (typeof findExerciseEntry !== 'function') return { migrated: 0, skipped: 0, total: 0, dictMissing: true }
 
     const exercises = await getAll('exercises')
