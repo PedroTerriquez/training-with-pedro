@@ -104,14 +104,13 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     const hasBoth = exercise.imgUrl && exercise.gifUrl
     if (hasBoth) {
       const pill = document.createElement('button')
-      pill.style.cssText = `position:absolute;top:10px;left:10px;z-index:5;padding:2px 8px;border-radius:9999px;border:0.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;font-weight:500;color:rgba(255,255,255,0.7);text-transform:uppercase;line-height:1.6`
-      pill.textContent = 'GIF'
+      pill.style.cssText = `position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0`
+      pill.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M2.5 12a9 9 0 0 1 15.5-5L21.5 8"/><path d="M2.5 22v-6h6"/><path d="M21.5 12a9 9 0 0 1-15.5 5L2.5 16"/></svg>`
       pill.addEventListener('click', (e) => {
         e.stopPropagation()
         showGif = !showGif
         gifLayer.style.opacity = showGif ? '1' : '0'
         imgLayer.style.opacity = showGif ? '0' : '1'
-        pill.textContent = showGif ? 'GIF' : 'IMG'
       })
       hero.appendChild(pill)
     }
