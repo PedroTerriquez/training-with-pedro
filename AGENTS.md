@@ -95,7 +95,7 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 | `#today` (default) | Auto-detect day, show session or rest day | views/today.js |
 | `#plan` | Week tabs + day cards | views/plan.js |
 | `#history` | Exercise list + muscle filter + sparklines | views/history.js |
-| `#you` | Stats + settings + CRUD + CSV | views/you.js |
+| `#you` | Stats + settings + CRUD + CSV/JSON import/export | views/you.js |
 | (bottom sheet) | Exercise detail (Workout + History tabs) | components/detail.js |
 
 ## Design Tokens
@@ -114,6 +114,22 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 3. `window.appRefresh()` exposed for external re-render triggers
 4. Weight logging: Detail sheet → `onLog()` → `Storage.logWeight()` → append to exerciseLogs
 
+## PWA & Notifications
+- PWA configured via `manifest.json` (display standalone, icons, theme #0a0a0a)
+- Service Worker (`sw.js`): network-first strategy with cache fallback; deletes old caches on activate
+- Notifications: local via `postMessage` → SW → `showNotification()`. Works on iPhone but NOT on Apple Watch
+- **Apple Watch limitation**: Without Web Push API (server-sent via PushManager.subscribe()), the PWA never appears in iOS Notification Settings → Watch app → Notifications. Local `showNotification()` can't be mirrored to Watch
+- ⌚ button on Today screen requests permission, notifications fire sequentially: warmup done → next exercise → ... → complete
+- To deploy: push to `main`. Open PWA twice to activate new SW (installs in background, takes control on next launch)
+
+## Data Management (You screen)
+Three grouped sections under Perfil → Datos tab:
+- **Importar**: 3 rows (Programa CSV, Ejercicios CSV, Logs+ajustes JSON)
+- **Exportar**: 3 rows (Ejercicios CSV, Programa CSV, Logs+ajustes JSON)
+- **Mantenimiento**: Normalizar ejercicios con diccionario (Aplicar / Forzar)
+
+Previously had a separate "Migrar datos" section — removed and merged JSON import into Importar, JSON export into Exportar.
+
 ## Prior Art
 Design prototype in `training-with-pedro/project/` — use for visual reference only
 IndexedDB is the source of truth at runtime
@@ -121,3 +137,4 @@ IndexedDB is the source of truth at runtime
 ## Build/Deploy
 No build step. Open `index.html` directly in browser or deploy to any static host.
 GitHub Pages: push repo, enable Pages from main branch, root directory.
+On deploy: bump CACHE version in sw.js if changing cached assets; network-first strategy auto-serves fresh content.
