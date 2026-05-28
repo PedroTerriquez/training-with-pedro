@@ -93,9 +93,9 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       gifLayer.appendChild(gifImg)
     } else gifLayer.style.display = 'none'
 
-    let showGif = !!exercise.gifUrl
-    gifLayer.style.opacity = showGif ? '1' : '0'
-    imgLayer.style.opacity = showGif ? '0' : '1'
+    let showGif = false
+    gifLayer.style.opacity = '0'
+    imgLayer.style.opacity = '1'
     media.appendChild(imgLayer)
     media.appendChild(gifLayer)
     hero.appendChild(media)
