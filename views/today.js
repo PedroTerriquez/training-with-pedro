@@ -102,6 +102,40 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const ringsContainer = hero.querySelector('#hero-rings')
   const timerRingEl = TimerRing({ startedAt: _startedAt, endedAt: _endedAt, accent, complete: totalSteps > 0 && doneSteps === totalSteps, onReset: () => { _startedAt = null; _endedAt = null; refreshView() } })
   ringsContainer.appendChild(timerRingEl)
+
+  // Enviar al Watch button
+  const watchBtn = document.createElement('button')
+  watchBtn.style.cssText = 'display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.5);font-family:\'Space Grotesk\',sans-serif;font-size:11px;font-weight:500;touch-action:manipulation;transition:all 0.2s'
+  watchBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ⌚'
+  watchBtn.title = 'Enviar al Watch'
+  watchBtn.addEventListener('click', async () => {
+    if (Notification.permission === 'denied') {
+      showToast('Permiso denegado. Actívalo en Ajustes.', true)
+      return
+    }
+    if (Notification.permission === 'default') {
+      const result = await Notification.requestPermission()
+      if (result !== 'granted') {
+        showToast('Permiso necesario', true)
+        return
+      }
+    }
+    const firstEx = day.exercises[0]
+    if (!firstEx) return
+    const aId = resolveExId(firstEx.exerciseId)
+    const rEx = { ...firstEx, ...(exercisesById[aId] || {}) }
+    if (window.notifyWatch) {
+      window.notifyWatch(`🏋️ ${day.name}`, `${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+      showCenterToast({
+        svg: '<span style="font-size:24px">⌚</span>',
+        message: 'Enviado al Watch',
+        duration: 1500,
+        accent,
+        onDone: () => {},
+      })
+    }
+  })
+  ringsContainer.appendChild(watchBtn)
   const timerDisplayEl = timerRingEl.querySelector('[data-timer-display]')
   const timerSweepEl = timerRingEl.querySelector('[data-timer-sweep]')
   page.appendChild(hero)
@@ -124,6 +158,12 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         _warmupDone = !_warmupDone
         _phaseCardOpen = null
         if (!wasDone) {
+          if (day.exercises.length > 0 && typeof window.notifyWatch === 'function') {
+            const firstEx = day.exercises[0]
+            const altId = resolveExId(firstEx.exerciseId)
+            const rEx = { ...firstEx, ...(exercisesById[altId] || {}) }
+            window.notifyWatch(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+          }
           showCenterToast({
             svg: TOAST_SVG_WATCH,
             message: 'Inicia tu Smart Watch',
@@ -187,8 +227,8 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
       showCenterToast({
         svg: TOAST_IMG_TRAINER,
-        message: 'Pedro te felicita',
-        subtitle: `Ya no tienes 20 bb<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
+        message: 'Enfría bb',
+        subtitle: `Ya no tienes 20 añitos<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
         duration: 3000,
         accent,
         onDone: refreshView,
@@ -266,6 +306,17 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     if (done !== _todayExDone) {
       const prev = _todayExDone
       _todayExDone = done
+      if (!_exercisesSkipped && typeof window.notifyWatch === 'function') {
+        const nextIdx = _todayExDone
+        if (nextIdx < day.exercises.length) {
+          const nextEx = day.exercises[nextIdx]
+          const altId = resolveExId(nextEx.exerciseId)
+          const rEx = { ...nextEx, ...(exercisesById[altId] || {}) }
+          window.notifyWatch(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+        } else {
+          window.notifyWatch(`✅ ${day.name}`, '¡Entrenamiento completo!')
+        }
+      }
       refreshView()
       if (done >= exercisesTotal && prev < exercisesTotal && !_exercisesSkipped && !_completionToastShown) {
         _completionToastShown = true
@@ -276,8 +327,8 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
         showCenterToast({
           svg: TOAST_IMG_TRAINER,
-          message: 'Pedro te felicita',
-          subtitle: `Ya no tienes 20 bb<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
+          message: 'Enfría bb',
+          subtitle: `Ya no tienes 20 añitos<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
           duration: 3000,
           accent,
           onDone: () => {

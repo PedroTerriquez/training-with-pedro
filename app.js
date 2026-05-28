@@ -33,6 +33,10 @@ async function init() {
     }
   }
 
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {})
+  }
+
   renderShell()
 
   window.addEventListener('hashchange', handleRoute)
@@ -303,6 +307,14 @@ async function refresh() {
   }
 
   renderShell()
+}
+
+window.notifyWatch = async (title, body) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: 'workout' })
+  } catch (_) {}
 }
 
 document.addEventListener('DOMContentLoaded', init)
