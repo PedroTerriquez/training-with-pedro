@@ -124,7 +124,10 @@ const Storage = {
     const all = await getAll('exercises')
     const match = all.find((e) => e.name.toLowerCase() === name.toLowerCase())
     if (match) return match
-    const exercise = { id: await generateId(), name, muscle: muscle || '', imgUrl: '', tips: [], alternatives: [] }
+    const dictEntry = typeof findExerciseEntry === 'function' ? (findExerciseEntry(name) || findExerciseEntryFuzzy(name)) : null
+    const imgUrl = dictEntry?.image || ''
+    const gifUrl = dictEntry?.gif || ''
+    const exercise = { id: await generateId(), name, muscle: muscle || dictEntry?.muscle || '', imgUrl, gifUrl, tips: dictEntry?.tips ? [...dictEntry.tips] : [], alternatives: dictEntry?.alternatives ? dictEntry.alternatives.map(a => ({...a})) : [] }
     await put('exercises', exercise)
     return exercise
   },
@@ -238,7 +241,7 @@ const Storage = {
 
     const program = {
       id: await generateId(),
-      name: 'Imported Program',
+      name: 'Programa ' + new Date().toISOString().slice(0, 10),
       weeks,
     }
     await put('programs', program)
@@ -353,8 +356,8 @@ const Storage = {
   },
 
   // ── One-time migration: apply dictionary to existing IndexedDB exercises ──
-  // Name: always rewrite to canonical ES when dict has a match.
-  // All other fields: only fill when empty (conservative — never overwrite user data).
+  // Normal mode (force=false): only fill empty fields, never overwrite user data.
+  // Force mode   (force=true): overwrite ALL fields from dictionary entry.
   async migrateExercisesToDictionary({ force = false } = {}) {
     const FLAG = 'dict_migration_v1'
     if (!force && localStorage.getItem(FLAG) === 'done') return { migrated: 0, skipped: 0, total: 0, alreadyDone: true }
@@ -370,32 +373,29 @@ const Storage = {
 
       let changed = false
 
-      if (ex.name !== dictEntry.es) {
-        ex.name = dictEntry.es
-        changed = true
+      if (force || ex.name !== dictEntry.es) {
+        if (ex.name !== dictEntry.es) { ex.name = dictEntry.es; changed = true }
       }
-      if (!ex.imgUrl && dictEntry.image) {
-        ex.imgUrl = dictEntry.image
-        changed = true
+      if ((force || !ex.imgUrl) && dictEntry.image) {
+        ex.imgUrl = dictEntry.image; changed = true
       }
-      if (!ex.muscle && dictEntry.muscle) {
-        ex.muscle = dictEntry.muscle
-        changed = true
+      if ((force || !ex.gifUrl) && dictEntry.gif) {
+        ex.gifUrl = dictEntry.gif; changed = true
       }
-      if ((!ex.tips || ex.tips.length === 0) && dictEntry.tips && dictEntry.tips.length > 0) {
-        ex.tips = [...dictEntry.tips]
-        changed = true
+      if ((force || !ex.muscle) && dictEntry.muscle) {
+        ex.muscle = dictEntry.muscle; changed = true
       }
-      if ((!ex.alternatives || ex.alternatives.length === 0) && dictEntry.alternatives && dictEntry.alternatives.length > 0) {
-        ex.alternatives = dictEntry.alternatives.map((a) => ({ ...a }))
-        changed = true
+      if ((force || !ex.tips || ex.tips.length === 0) && dictEntry.tips && dictEntry.tips.length > 0) {
+        ex.tips = [...dictEntry.tips]; changed = true
+      }
+      if ((force || !ex.alternatives || ex.alternatives.length === 0) && dictEntry.alternatives && dictEntry.alternatives.length > 0) {
+        ex.alternatives = dictEntry.alternatives.map((a) => ({ ...a })); changed = true
       }
       if (ex.alternatives && ex.alternatives.length > 0) {
         for (const alt of ex.alternatives) {
           const altDict = findExerciseEntry(alt.name)
           if (altDict && alt.name !== altDict.es) {
-            alt.name = altDict.es
-            changed = true
+            alt.name = altDict.es; changed = true
           }
         }
       }

@@ -460,15 +460,15 @@ function createExerciseRow(ex, accent, units, onOpen) {
   btn.className = 'exercise-row'
   btn.style.cssText = `background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;text-align:left;display:flex;align-items:stretch;gap:14px;color:inherit;position:relative;transition:border-color 0.2s`
 
-  const hasImg = ex.imgUrl
+  const imgUrl = ex.imgUrl || (typeof getExerciseImageFromDictionary === 'function' ? getExerciseImageFromDictionary(ex.name || '') : '') || ''
   btn.innerHTML = `
-    <div style="width:64px;height:64px;flex-shrink:0;border-radius:12px;position:relative;overflow:hidden;background:#1c1c1c;border:0.5px solid rgba(255,255,255,0.04)">${hasImg ? `<img src="${ex.imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px)"></div>`}</div>
+    <div style="width:64px;height:64px;flex-shrink:0;border-radius:12px;position:relative;overflow:hidden;background:#1c1c1c;border:0.5px solid rgba(255,255,255,0.04)">${imgUrl ? `<img src="${imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px)"></div>`}</div>
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.3;overflow-wrap:break-word">${ex.name}</div>
       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:3px">${ex.muscle}</div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:4px;flex-shrink:0;padding-top:6px">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:#fafafa;letter-spacing:-0.8px;line-height:1;white-space:nowrap">${ex.sets}<span style="color:rgba(255,255,255,0.35);margin:0 3px">×</span>${ex.reps}</div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:4px;max-width:40%;padding-top:6px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:#fafafa;letter-spacing:-0.8px;line-height:1;text-align:right;overflow-wrap:break-word">${ex.sets}<span style="color:rgba(255,255,255,0.35);margin:0 3px">×</span>${ex.reps}</div>
     </div>`
 
   const weightEl = document.createElement('div')

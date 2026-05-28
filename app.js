@@ -190,7 +190,7 @@ async function openDetailSheet(exercise) {
                 ...prevProgEx,
                 name: resolved.name,
                 muscle: resolved.muscle,
-                imgUrl: resolved.imgUrl,
+                imgUrl: resolved.imgUrl || getExerciseImageFromDictionary(resolved.name) || '',
                 gifUrl: getExerciseGifUrl(resolved.name) || null,
               }
             }
@@ -203,7 +203,7 @@ async function openDetailSheet(exercise) {
                 ...nextProgEx,
                 name: resolved.name,
                 muscle: resolved.muscle,
-                imgUrl: resolved.imgUrl,
+                imgUrl: resolved.imgUrl || getExerciseImageFromDictionary(resolved.name) || '',
                 gifUrl: getExerciseGifUrl(resolved.name) || null,
               }
             }
@@ -222,6 +222,7 @@ async function openDetailSheet(exercise) {
     sets: progEx?.sets || exercise.sets || 3,
     reps: progEx?.reps || exercise.reps || '10',
     rest: progEx?.rest || exercise.rest || 60,
+    imgUrl: exercise.imgUrl || getExerciseImageFromDictionary(exercise.name) || '',
     logs: logs.sort((a, b) => a.date.localeCompare(b.date)),
     gifUrl,
   }

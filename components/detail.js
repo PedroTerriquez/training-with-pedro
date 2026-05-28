@@ -20,6 +20,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
   let trackSR = todayLog?.sets !== undefined && todayLog?.reps !== undefined
   let pendingSets = trackSR ? todayLog.sets : exercise.sets
   let pendingReps = trackSR ? todayLog.reps : parseRepsDefault(exercise.reps)
+  let currentSlide = 0
 
   // ── Exercise Navigation — prev/next pills ──
   function renderNavPills() {
@@ -67,54 +68,93 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     // Navigation prev/next pills
     scrollEl.appendChild(renderNavPills())
 
-    // Hero — matching design prototype (ui.jsx)
+    // Hero — IMG ↔ GIF carousel with swipe
     const heroWrap = document.createElement('div')
     heroWrap.style.padding = '12px 14px 0'
     const searchUrl = encodeURIComponent(exercise.name + ' exercise')
     const h = 240
     const hero = document.createElement('div')
-    hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;${loggedToday ? `border:1px solid ${accent};box-shadow:0 0 0 4px ${accent}1a, 0 8px 32px ${accent}22` : 'border:0.5px solid rgba(255,255,255,0.06)'};padding:16px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s,box-shadow 0.3s`
-    const hasGif = !!exercise.gifUrl
-    let showingGif = hasGif
-    let gifImg = null
-    if (hasGif) {
-      gifImg = document.createElement('img')
-      gifImg.src = exercise.gifUrl
-      gifImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none'
-      hero.appendChild(gifImg)
-    }
-    if (exercise.imgUrl) {
-      hero.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
-      if (hasGif) hero.style.background = '#161616'
-    } else {
-      hero.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 24px, rgba(255,255,255,0.04) 24px 48px)'
-      const blob = document.createElement('div')
-      blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:${loggedToday ? 0.14 : 0.07};filter:blur(70px);top:-80px;right:-60px;pointer-events:none;transition:opacity 0.3s`
-      hero.appendChild(blob)
-    }
-    // GIF toggle pill
-    if (hasGif) {
-      const pill = document.createElement('button')
-      pill.style.cssText = `position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:2;padding:3px 12px;border-radius:9999px;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.12);color:#fafafa;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;gap:5px`
-      pill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0"></span> GIF`
-      function toggle() {
-        showingGif = !showingGif
-        gifImg.style.display = showingGif ? 'block' : 'none'
-        if (exercise.imgUrl) {
-          hero.style.background = showingGif ? '#161616' : `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
-        }
-        pill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0"></span> ${showingGif ? 'GIF' : 'IMG'}`
+    hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;${loggedToday ? `border:1px solid ${accent};box-shadow:0 0 0 4px ${accent}1a, 0 8px 32px ${accent}22` : 'border:0.5px solid rgba(255,255,255,0.06)'};box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s,box-shadow 0.3s`
+
+    const slides = []
+    if (exercise.imgUrl) slides.push({ type: 'img', url: exercise.imgUrl })
+    if (exercise.gifUrl) slides.push({ type: 'gif', url: exercise.gifUrl })
+
+    const track = document.createElement('div')
+    track.style.cssText = 'position:absolute;inset:0;display:flex;transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);will-change:transform'
+
+    function renderTrack() {
+      track.innerHTML = ''
+      track.style.transform = `translateX(${-currentSlide * 100}%)`
+      if (slides.length === 0) {
+        const p = document.createElement('div')
+        p.style.cssText = 'flex:0 0 100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 24px,rgba(255,255,255,0.04) 24px 48px);position:relative'
+        const blob = document.createElement('div')
+        blob.style.cssText = `position:absolute;width:240px;height:240px;border-radius:50%;background:${accent};opacity:${loggedToday ? 0.14 : 0.07};filter:blur(70px);top:-80px;right:-60px;pointer-events:none;transition:opacity 0.3s`
+        p.appendChild(blob)
+        track.appendChild(p)
+        return
       }
-      pill.addEventListener('click', toggle)
-      // Swipe gesture
-      let startX = 0
-      hero.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX }, { passive: true })
-      hero.addEventListener('touchend', (e) => {
-        const endX = e.changedTouches[0].clientX
-        if (Math.abs(endX - startX) > 50) toggle()
-      }, { passive: true })
-      hero.appendChild(pill)
+      slides.forEach((s) => {
+        const el = document.createElement('div')
+        el.style.cssText = 'flex:0 0 100%;height:100%;position:relative'
+        if (s.type === 'img') {
+          el.style.background = `#161616 url(${s.url}) center/cover no-repeat`
+        } else {
+          const img = document.createElement('img')
+          img.src = s.url
+          img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none'
+          el.appendChild(img)
+        }
+        track.appendChild(el)
+      })
     }
+    renderTrack()
+    hero.appendChild(track)
+
+    // Dot indicators
+    let dotsEl = null
+    function renderDots() {
+      if (dotsEl) dotsEl.remove()
+      if (slides.length < 2) return
+      dotsEl = document.createElement('div')
+      dotsEl.style.cssText = 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:2;display:flex;gap:6px;align-items:center'
+      slides.forEach((s, i) => {
+        const dot = document.createElement('button')
+        const on = i === currentSlide
+        dot.style.cssText = `width:${on ? 20 : 6}px;height:6px;border-radius:3px;border:0;cursor:pointer;background:${on ? accent : 'rgba(255,255,255,0.35)'};transition:all 0.2s;padding:0`
+        dot.addEventListener('click', () => { currentSlide = i; renderTrack(); renderDots() })
+        dotsEl.appendChild(dot)
+      })
+      hero.appendChild(dotsEl)
+    }
+    renderDots()
+
+    // Swipe gesture
+    let touchStartX = 0
+    let touchDeltaX = 0
+    hero.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX
+      track.style.transition = 'none'
+    }, { passive: true })
+    hero.addEventListener('touchmove', (e) => {
+      if (slides.length < 2) return
+      touchDeltaX = e.touches[0].clientX - touchStartX
+      const w = hero.getBoundingClientRect().width
+      const pct = (-currentSlide * 100) + (touchDeltaX / w * 100)
+      track.style.transform = `translateX(${Math.max(-(slides.length-1)*100, Math.min(0, pct))}%)`
+    }, { passive: true })
+    hero.addEventListener('touchend', () => {
+      if (slides.length < 2) return
+      track.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1)'
+      const th = 50
+      if (touchDeltaX < -th && currentSlide < slides.length - 1) currentSlide++
+      else if (touchDeltaX > th && currentSlide > 0) currentSlide--
+      touchDeltaX = 0
+      renderTrack()
+      renderDots()
+    }, { passive: true })
+
     // Top row: muscle pill + accent dot or HECHO HOY badge
     const topRow = document.createElement('div')
     topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1'

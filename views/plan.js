@@ -119,9 +119,10 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
 function createPlanExerciseRow(ex, accent, onOpen) {
   const btn = document.createElement('button')
   btn.style.cssText = 'width:100%;background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;border:0;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;margin-bottom:8px'
+  const imgUrl = ex.imgUrl || (typeof getExerciseImageFromDictionary === 'function' ? getExerciseImageFromDictionary(ex.name || '') : '') || ''
   btn.innerHTML = `
     <div style="width:44px;height:44px;flex-shrink:0;border-radius:10px;background:#1c1c1c;border:0.5px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden">
-      ${ex.imgUrl ? `<img src="${ex.imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 10px,rgba(255,255,255,0.05) 10px 20px)"></div>`}
+      ${imgUrl ? `<img src="${imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 10px,rgba(255,255,255,0.05) 10px 20px)"></div>`}
     </div>
     <div style="flex:1;min-width:0">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px;overflow-wrap:break-word">${ex.name || 'Desconocido'}</div>

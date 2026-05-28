@@ -128,9 +128,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   migrateSection.innerHTML = `
     <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
       <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
-        <strong style="color:#fafafa">Normalizar ejercicios con el diccionario</strong> — renombra al canónico en español y rellena imagen/músculo/tips/alternativas cuando falten.
+        <strong style="color:#fafafa">Normalizar ejercicios con el diccionario</strong> — renombra al canónico en español y rellena imagen/músculo/tips/alternativas.
       </div>
-      <button id="dict-migrate-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Aplicar diccionario</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="dict-migrate-btn" class="btn btn-primary" style="padding:8px 16px;font-size:12px">Aplicar diccionario</button>
+        <button id="dict-force-btn" style="padding:8px 16px;font-size:12px;border-radius:8px;border:0.5px solid ${accent};background:transparent;color:${accent};cursor:pointer">Sobreescribir todo</button>
+      </div>
       <div id="dict-migrate-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
     </div>`
   container.appendChild(migrateSection)
@@ -239,10 +242,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const prog = await Storage.importProgramFromCSV(text)
           csvStatus.textContent = `✅ Importado "${prog.name}" con ${prog.weeks.length} semana(s)`
           csvStatus.style.color = accent
-          setTimeout(async () => {
-            _youTab = 'programs'
-            if (onRefresh) await onRefresh()
-          }, 2000)
         } catch (err) {
           csvStatus.textContent = `❌ ${err.message}`
           csvStatus.style.color = '#ff6b6b'
@@ -263,10 +262,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const result = await Storage.importExercisesFromCSV(text)
           csvExStatus.textContent = `✅ Creados ${result.created}, actualizados ${result.updated}`
           csvExStatus.style.color = accent
-          setTimeout(async () => {
-            _youTab = 'exercises'
-            if (onRefresh) await onRefresh()
-          }, 2000)
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
@@ -275,35 +270,44 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     }
 
     const dictMigrateBtn = document.getElementById('dict-migrate-btn')
+    const dictForceBtn = document.getElementById('dict-force-btn')
     const dictMigrateStatus = document.getElementById('dict-migrate-status')
-    if (dictMigrateBtn && dictMigrateStatus) {
-      dictMigrateBtn.addEventListener('click', async () => {
-        dictMigrateBtn.disabled = true
-        const originalText = dictMigrateBtn.textContent
-        dictMigrateBtn.textContent = '⏳ Aplicando…'
-        try {
-          const result = await Storage.migrateExercisesToDictionary({ force: true })
-          if (result.dictMissing) {
-            dictMigrateStatus.textContent = '❌ Diccionario no cargado'
-            dictMigrateStatus.style.color = '#ff6b6b'
-          } else {
-            dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · sin match ${result.skipped} · total ${result.total}`
-            dictMigrateStatus.style.color = accent
-            if (result.migrated > 0) {
-              setTimeout(async () => {
-                _youTab = 'exercises'
-                if (onRefresh) await onRefresh()
-              }, 1500)
-            }
-          }
-        } catch (err) {
-          dictMigrateStatus.textContent = `❌ ${err.message}`
+
+    async function runMigration(force) {
+      dictMigrateBtn.disabled = true
+      if (dictForceBtn) dictForceBtn.disabled = true
+      const originalText = dictMigrateBtn.textContent
+      dictMigrateBtn.textContent = '⏳ Aplicando…'
+      try {
+        const result = await Storage.migrateExercisesToDictionary({ force })
+        if (result.dictMissing) {
+          dictMigrateStatus.textContent = '❌ Diccionario no cargado'
           dictMigrateStatus.style.color = '#ff6b6b'
-        } finally {
-          dictMigrateBtn.disabled = false
-          dictMigrateBtn.textContent = originalText
+        } else {
+          dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · sin match ${result.skipped} · total ${result.total}`
+          dictMigrateStatus.style.color = accent
+          if (result.migrated > 0) {
+            setTimeout(async () => {
+              _youTab = 'exercises'
+              if (onRefresh) await onRefresh()
+            }, 1500)
+          }
         }
-      })
+      } catch (err) {
+        dictMigrateStatus.textContent = `❌ ${err.message}`
+        dictMigrateStatus.style.color = '#ff6b6b'
+      } finally {
+        dictMigrateBtn.disabled = false
+        if (dictForceBtn) dictForceBtn.disabled = false
+        dictMigrateBtn.textContent = originalText
+      }
+    }
+
+    if (dictMigrateBtn && dictMigrateStatus) {
+      dictMigrateBtn.addEventListener('click', () => runMigration(false))
+    }
+    if (dictForceBtn && dictMigrateStatus) {
+      dictForceBtn.addEventListener('click', () => runMigration(true))
     }
 
     const csvExportBtn = document.getElementById('csv-export-btn')
@@ -391,7 +395,7 @@ function renderExercises(container, { accent, units, onRefresh }) {
     // Header + add btn
     const toolbar = document.createElement('div')
     toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 20px 12px'
-    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500">${exercises.length} ejercicios</div>`
+    toolbar.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500" class="ex-count">${exercises.length} ejercicios</div>`
     const addBtn = document.createElement('button')
     addBtn.style.cssText = `padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation`
     addBtn.textContent = '+ Nuevo'
@@ -399,30 +403,57 @@ function renderExercises(container, { accent, units, onRefresh }) {
     toolbar.appendChild(addBtn)
     container.appendChild(toolbar)
 
-    if (exercises.length === 0) {
-      container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay ejercicios todavía. Crea tu primero.</div>`
-      return
+    // Search bar
+    const searchInput = document.createElement('input')
+    searchInput.type = 'text'
+    searchInput.placeholder = 'Buscar ejercicio…'
+    searchInput.style.cssText = `margin:0 20px 10px;padding:10px 14px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#fafafa;font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;width:calc(100% - 40px);box-sizing:border-box`
+    container.appendChild(searchInput)
+
+    const listWrap = document.createElement('div')
+    listWrap.style.cssText = 'display:flex;flex-direction:column;gap:8px'
+    container.appendChild(listWrap)
+
+    function renderList(filtered) {
+      listWrap.innerHTML = ''
+      if (exercises.length === 0) {
+        listWrap.innerHTML = `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay ejercicios todavía. Crea tu primero.</div>`
+        return
+      }
+      if (filtered.length === 0) {
+        listWrap.innerHTML = `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">Ningún ejercicio coincide con la búsqueda.</div>`
+        return
+      }
+      filtered.forEach((e) => {
+        const card = document.createElement('div')
+        card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:12px`
+        card.innerHTML = `
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${e.name}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
+          </div>
+          <button class="edit-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
+          <button class="del-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
+        card.addEventListener('click', (ev) => {
+          if (ev.target.closest('.edit-ex-btn')) showExerciseEdit(e, accent, onRefresh)
+          else if (ev.target.closest('.del-ex-btn')) deleteExercise(e, accent, onRefresh)
+        })
+        listWrap.appendChild(card)
+      })
     }
 
-    const list = document.createElement('div')
-    list.style.cssText = 'padding:0 20px;display:flex;flex-direction:column;gap:8px'
-    exercises.forEach((e) => {
-      const card = document.createElement('div')
-      card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:12px`
-      card.innerHTML = `
-        <div style="flex:1;min-width:0">
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${e.name}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
-        </div>
-        <button class="edit-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:13px;touch-action:manipulation">Editar</button>
-        <button class="del-ex-btn" style="padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:rgba(255,107,107,0.12);color:#ff6b6b;font-size:13px;touch-action:manipulation">Eliminar</button>`
-      card.addEventListener('click', (ev) => {
-        if (ev.target.closest('.edit-ex-btn')) showExerciseEdit(e, accent, onRefresh)
-        else if (ev.target.closest('.del-ex-btn')) deleteExercise(e, accent, onRefresh)
-      })
-      list.appendChild(card)
+    let currentQuery = ''
+    searchInput.addEventListener('input', (e) => {
+      currentQuery = e.target.value.toLowerCase().trim()
+      const filtered = exercises.filter((ex) =>
+        !currentQuery ||
+        ex.name.toLowerCase().includes(currentQuery) ||
+        (ex.muscle || '').toLowerCase().includes(currentQuery)
+      )
+      renderList(filtered)
     })
-    container.appendChild(list)
+
+    renderList(exercises)
   })
 }
 
