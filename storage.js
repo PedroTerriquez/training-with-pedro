@@ -296,26 +296,37 @@ const Storage = {
     const existing = await getAll('exercises')
     let created = 0, updated = 0
 
+    const dictReady = typeof findExerciseEntry === 'function'
+
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i])
-      const name = cols[nameIdx]
-      if (!name) continue
+      const rawName = cols[nameIdx]
+      if (!rawName) continue
 
-      const muscle = muscleIdx !== -1 ? (cols[muscleIdx] || '') : ''
-      const imgUrl = imageUrlIdx !== -1 ? (cols[imageUrlIdx] || '') : ''
+      const csvMuscle = muscleIdx !== -1 ? (cols[muscleIdx] || '') : ''
+      const csvImgUrl = imageUrlIdx !== -1 ? (cols[imageUrlIdx] || '') : ''
 
-      let tips = []
+      let csvTips = []
       if (tipsIdx !== -1 && cols[tipsIdx]) {
-        tips = cols[tipsIdx].split('|').map((t) => t.trim()).filter(Boolean)
+        csvTips = cols[tipsIdx].split('|').map((t) => t.trim()).filter(Boolean)
       }
 
-      let alternatives = []
+      let csvAlts = []
       if (alternativesIdx !== -1 && cols[alternativesIdx]) {
-        alternatives = cols[alternativesIdx].split('||').map((pair) => {
+        csvAlts = cols[alternativesIdx].split('||').map((pair) => {
           const [altName = '', altReason = ''] = pair.split('::').map((s) => s.trim())
           return altName ? { name: altName, reason: altReason } : null
         }).filter(Boolean)
       }
+
+      const dictEntry = dictReady ? (findExerciseEntry(rawName) || findExerciseEntryFuzzy(rawName)) : null
+      const name = dictEntry ? dictEntry.es : rawName
+      const imgUrl = dictEntry ? dictEntry.image : csvImgUrl
+      const muscle = csvMuscle || (dictEntry?.muscle || '')
+      const tips = csvTips.length > 0 ? csvTips : (dictEntry?.tips ? [...dictEntry.tips] : [])
+      const alternatives = csvAlts.length > 0
+        ? csvAlts
+        : (dictEntry?.alternatives ? dictEntry.alternatives.map((a) => ({ ...a })) : [])
 
       const match = existing.find((e) => e.name.toLowerCase() === name.toLowerCase())
       if (match) {
@@ -338,5 +349,64 @@ const Storage = {
       showToast('❌ ' + err.message, true)
       throw err
     }
+  },
+
+  // ── One-time migration: apply dictionary to existing IndexedDB exercises ──
+  // Name: always rewrite to canonical ES when dict has a match.
+  // All other fields: only fill when empty (conservative — never overwrite user data).
+  async migrateExercisesToDictionary() {
+    const FLAG = 'dict_migration_v1'
+    if (localStorage.getItem(FLAG) === 'done') return { migrated: 0, skipped: 0, total: 0, alreadyDone: true }
+    if (typeof findExerciseEntry !== 'function') return { migrated: 0, skipped: 0, total: 0, dictMissing: true }
+
+    const exercises = await getAll('exercises')
+    let migrated = 0
+    let skipped = 0
+
+    for (const ex of exercises) {
+      const dictEntry = findExerciseEntry(ex.name) || findExerciseEntryFuzzy(ex.name)
+      if (!dictEntry) { skipped++; continue }
+
+      let changed = false
+
+      if (ex.name !== dictEntry.es) {
+        ex.name = dictEntry.es
+        changed = true
+      }
+      if (!ex.imgUrl && dictEntry.image) {
+        ex.imgUrl = dictEntry.image
+        changed = true
+      }
+      if (!ex.muscle && dictEntry.muscle) {
+        ex.muscle = dictEntry.muscle
+        changed = true
+      }
+      if ((!ex.tips || ex.tips.length === 0) && dictEntry.tips && dictEntry.tips.length > 0) {
+        ex.tips = [...dictEntry.tips]
+        changed = true
+      }
+      if ((!ex.alternatives || ex.alternatives.length === 0) && dictEntry.alternatives && dictEntry.alternatives.length > 0) {
+        ex.alternatives = dictEntry.alternatives.map((a) => ({ ...a }))
+        changed = true
+      }
+      if (ex.alternatives && ex.alternatives.length > 0) {
+        for (const alt of ex.alternatives) {
+          const altDict = findExerciseEntry(alt.name)
+          if (altDict && alt.name !== altDict.es) {
+            alt.name = altDict.es
+            changed = true
+          }
+        }
+      }
+
+      if (changed) {
+        await put('exercises', ex)
+        migrated++
+      }
+    }
+
+    localStorage.setItem(FLAG, 'done')
+    console.info(`[dictionary migration] migrated=${migrated} skipped=${skipped} total=${exercises.length}`)
+    return { migrated, skipped, total: exercises.length }
   },
 }

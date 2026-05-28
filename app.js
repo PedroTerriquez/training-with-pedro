@@ -33,6 +33,15 @@ async function init() {
     }
   }
 
+  try {
+    const result = await Storage.migrateExercisesToDictionary()
+    if (result.migrated > 0) {
+      await loadState()
+    }
+  } catch (e) {
+    console.warn('[dictionary migration] failed:', e)
+  }
+
   renderShell()
 
   window.addEventListener('hashchange', handleRoute)

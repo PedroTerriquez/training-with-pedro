@@ -48,10 +48,19 @@ function matchScore(queryTokens, dbName) {
 
 async function findExerciseImageUrl(exerciseName) {
   if (!exerciseName) return null
+
+  // 1. Local dictionary (exact match). Instant, offline.
+  const localUrl = getExerciseImageFromDictionary(exerciseName)
+  if (localUrl) return localUrl
+
+  // 2. Local dictionary fuzzy (token overlap over ~100 entries). Instant, offline.
+  const fuzzyEntry = findExerciseEntryFuzzy(exerciseName)
+  if (fuzzyEntry) return fuzzyEntry.image
+
+  // 3. Remote fuzzy fallback against free-exercise-db.
   try {
     const db = await loadExerciseDB()
-    const lookup = normalizeName(exerciseName)
-    const translated = EXERCISE_TRANSLATIONS[lookup]
+    const translated = translateExerciseToEnglish(exerciseName)
     const searchName = translated || exerciseName
 
     const queryTokens = tokenizeName(searchName)
