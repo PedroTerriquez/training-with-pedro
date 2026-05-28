@@ -410,4 +410,28 @@ const Storage = {
     console.info(`[dictionary migration] migrated=${migrated} skipped=${skipped} total=${exercises.length}`)
     return { migrated, skipped, total: exercises.length }
   },
+
+  // ── JSON Export/Import (cross-context migration) ──
+  async exportAllToJSON() {
+    const data = {
+      exercises: await getAll('exercises'),
+      exerciseLogs: await getAll('exerciseLogs'),
+      programs: await getAll('programs'),
+      settings: await get('settings', 'settings') || null,
+      exportedAt: new Date().toISOString(),
+    }
+    return JSON.stringify(data, null, 2)
+  },
+
+  async importAllFromJSON(jsonStr) {
+    const data = JSON.parse(jsonStr)
+    if (!data.exercises || !data.exerciseLogs || !data.programs) {
+      throw new Error('JSON inválido — faltan stores')
+    }
+    for (const item of data.exercises) await put('exercises', item)
+    for (const item of data.exerciseLogs) await put('exerciseLogs', item)
+    for (const item of data.programs) await put('programs', item)
+    if (data.settings) await put('settings', data.settings)
+    return { exercises: data.exercises.length, logs: data.exerciseLogs.length, programs: data.programs.length }
+  },
 }

@@ -169,6 +169,32 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     </div>`
   container.appendChild(exportProgSection)
 
+  // ── JSON Export/Import (cross-PWA migration) ──
+  const jsonExportSection = document.createElement('div')
+  jsonExportSection.style.cssText = 'margin:12px 20px 0'
+  jsonExportSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Exportar todos los datos</strong> — descarga todo (ejercicios, programas, logs, ajustes) como JSON. Úsalo para migrar entre Safari y la PWA.
+      </div>
+      <button id="json-export-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Descargar JSON</button>
+      <div id="json-export-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(jsonExportSection)
+
+  const jsonImportSection = document.createElement('div')
+  jsonImportSection.style.cssText = 'margin:12px 20px 18px'
+  jsonImportSection.innerHTML = `
+    <div style="padding:16px;background:rgba(212,255,58,0.04);border-radius:14px;border:0.5px solid ${accent}22">
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:10px">
+        <strong style="color:#fafafa">Importar todos los datos</strong> — sube un JSON exportado desde el otro lado (Safari o PWA). Reemplaza todos los datos actuales.
+      </div>
+      <input type="file" id="json-import-input" accept=".json" style="display:none">
+      <button id="json-import-btn" style="padding:8px 16px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700">Subir JSON</button>
+      <div id="json-import-status" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+    </div>`
+  container.appendChild(jsonImportSection)
+
   // Events
   setTimeout(() => {
     const unitsBtn = document.getElementById('units-btn')
@@ -383,6 +409,51 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (err) {
           progExportStatus.textContent = `❌ ${err.message}`
           progExportStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+
+    // JSON Export
+    const jsonExportBtn = document.getElementById('json-export-btn')
+    const jsonExportStatus = document.getElementById('json-export-status')
+    if (jsonExportBtn) {
+      jsonExportBtn.addEventListener('click', async () => {
+        try {
+          const json = await Storage.exportAllToJSON()
+          const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`
+          a.click()
+          URL.revokeObjectURL(url)
+          jsonExportStatus.textContent = '✅ Exportado'
+          jsonExportStatus.style.color = accent
+        } catch (err) {
+          jsonExportStatus.textContent = `❌ ${err.message}`
+          jsonExportStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+
+    // JSON Import
+    const jsonImportInput = document.getElementById('json-import-input')
+    const jsonImportBtn = document.getElementById('json-import-btn')
+    const jsonImportStatus = document.getElementById('json-import-status')
+    if (jsonImportBtn && jsonImportInput) {
+      jsonImportBtn.addEventListener('click', () => jsonImportInput.click())
+      jsonImportInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        try {
+          const text = await file.text()
+          const result = await Storage.importAllFromJSON(text)
+          jsonImportStatus.textContent = `✅ Importados ${result.exercises} ejercicios, ${result.logs} logs, ${result.programs} programas`
+          jsonImportStatus.style.color = accent
+          if (onRefresh) onRefresh()
+        } catch (err) {
+          jsonImportStatus.textContent = `❌ ${err.message}`
+          jsonImportStatus.style.color = '#ff6b6b'
         }
       })
     }
