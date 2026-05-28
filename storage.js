@@ -412,26 +412,22 @@ const Storage = {
   },
 
   // ── JSON Export/Import (cross-context migration) ──
-  async exportAllToJSON() {
+  async exportLogsAndSettings() {
     const data = {
-      exercises: await getAll('exercises'),
       exerciseLogs: await getAll('exerciseLogs'),
-      programs: await getAll('programs'),
       settings: await get('settings', 'settings') || null,
       exportedAt: new Date().toISOString(),
     }
     return JSON.stringify(data, null, 2)
   },
 
-  async importAllFromJSON(jsonStr) {
+  async importLogsAndSettings(jsonStr) {
     const data = JSON.parse(jsonStr)
-    if (!data.exercises || !data.exerciseLogs || !data.programs) {
-      throw new Error('JSON inválido — faltan stores')
+    if (!data.exerciseLogs) {
+      throw new Error('JSON inválido — faltan logs')
     }
-    for (const item of data.exercises) await put('exercises', item)
     for (const item of data.exerciseLogs) await put('exerciseLogs', item)
-    for (const item of data.programs) await put('programs', item)
     if (data.settings) await put('settings', data.settings)
-    return { exercises: data.exercises.length, logs: data.exerciseLogs.length, programs: data.programs.length }
+    return { logs: data.exerciseLogs.length }
   },
 }
