@@ -193,16 +193,26 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     heroWrap.appendChild(hero)
     scrollEl.appendChild(heroWrap)
 
-    // Hero search buttons — addEventListener for reliable iOS behavior
+    // Hero search buttons — touchstart on iOS (window.open may be blocked on click)
     const googleBtn = heroWrap.querySelector('.hero-google-btn')
     const tiktokBtn = heroWrap.querySelector('.hero-tiktok-btn')
     if (googleBtn) {
-      googleBtn.addEventListener('click', () => {
+      googleBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault()
+        window.open(`https://www.google.com/search?tbm=vid&q=${searchUrl}`, '_blank')
+      }, { passive: false })
+      googleBtn.addEventListener('click', (e) => {
+        e.preventDefault()
         window.open(`https://www.google.com/search?tbm=vid&q=${searchUrl}`, '_blank')
       })
     }
     if (tiktokBtn) {
-      tiktokBtn.addEventListener('click', () => {
+      tiktokBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault()
+        location.href = `tiktok://search?q=${searchUrl}`
+      }, { passive: false })
+      tiktokBtn.addEventListener('click', (e) => {
+        e.preventDefault()
         location.href = `tiktok://search?q=${searchUrl}`
       })
     }
@@ -505,18 +515,30 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
             </div>`
         list.appendChild(card)
 
-        // Alt search buttons
+        // Alt search buttons — touchstart on iOS
         const altGoogle = card.querySelector('.alt-google-btn')
         const altTiktok = card.querySelector('.alt-tiktok-btn')
         if (altGoogle) {
+          altGoogle.addEventListener('touchstart', (e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            window.open(`https://www.google.com/search?tbm=vid&q=${altGoogle.dataset.q}`, '_blank')
+          }, { passive: false })
           altGoogle.addEventListener('click', (e) => {
             e.stopPropagation()
+            e.preventDefault()
             window.open(`https://www.google.com/search?tbm=vid&q=${altGoogle.dataset.q}`, '_blank')
           })
         }
         if (altTiktok) {
+          altTiktok.addEventListener('touchstart', (e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            location.href = `tiktok://search?q=${altTiktok.dataset.q}`
+          }, { passive: false })
           altTiktok.addEventListener('click', (e) => {
             e.stopPropagation()
+            e.preventDefault()
             location.href = `tiktok://search?q=${altTiktok.dataset.q}`
           })
         }
