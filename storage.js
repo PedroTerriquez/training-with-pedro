@@ -163,7 +163,8 @@ const Storage = {
   },
 
   async saveProgram(program) {
-    return put('programs', program)
+    await put('programs', program)
+    backupAll()
   },
 
   async deleteProgram(id) {

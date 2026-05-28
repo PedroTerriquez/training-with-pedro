@@ -683,9 +683,16 @@ async function activateProgram(id) {
   window.appRefresh()
 }
 
-function showProgramEdit(program, accent, onRefresh) {
+async function showProgramEdit(program, accent, onRefresh) {
   const isNew = !program
   const p = program || { id: null, name: '', weeks: [{ name: 'Semana 1', subtitle: '', tag: '', days: [] }] }
+
+  // Load exercises upfront to build ID→name map and datalist
+  const allExercises = await Storage.getExercises()
+  const idToName = {}
+  for (const e of allExercises) {
+    idToName[e.id] = e.name
+  }
 
   const overlay = document.createElement('div')
   overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;padding:0'
@@ -694,22 +701,22 @@ function showProgramEdit(program, accent, onRefresh) {
   const modal = document.createElement('div')
   modal.style.cssText = `background:#141414;border-radius:20px 20px 0 0;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;border:0.5px solid rgba(255,255,255,0.08);box-sizing:border-box`
 
-  // Build weeks HTML
+  // Build weeks HTML (resolve exerciseId → name for display)
   let weeksHTML = ''
-  p.weeks.forEach((w, wi) => {
+  for (const w of p.weeks) {
+    let daysHTML = ''
+    for (const d of w.days) {
+      daysHTML += buildProgramDayHTML(d, idToName)
+    }
     weeksHTML += `<div class="prog-week-block" style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.03);border-radius:14px">
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
         <input class="prog-week-name" value="${w.name}" style="flex:1;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:14px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre semana">
         <input class="prog-week-tag" value="${w.tag || ''}" style="width:60px;padding:8px 6px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:10px;outline:none;text-transform:uppercase;box-sizing:border-box" placeholder="ETIQUETA">
       </div>
-      <div class="prog-days-in-week">`
-    w.days.forEach((d, di) => {
-      weeksHTML += buildProgramDayHTML(di, d)
-    })
-    weeksHTML += `</div>
+      <div class="prog-days-in-week">${daysHTML}</div>
       <button class="add-day-in-week" style="margin-top:6px;width:100%;padding:8px;border-radius:8px;border:0.5px dashed rgba(255,255,255,0.12);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-size:12px;touch-action:manipulation">+ Añadir día</button>
     </div>`
-  })
+  }
 
   modal.innerHTML = `
     <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;margin-bottom:14px">${isNew ? 'Nuevo programa' : 'Editar programa'}</div>
@@ -727,13 +734,11 @@ function showProgramEdit(program, accent, onRefresh) {
   // Add datalist for exercise names
   const datalist = document.createElement('datalist')
   datalist.id = 'prog-ex-list'
-  Storage.getExercises().then((exercises) => {
-    exercises.forEach((e) => {
-      const opt = document.createElement('option')
-      opt.value = e.name
-      datalist.appendChild(opt)
-    })
-  })
+  for (const e of allExercises) {
+    const opt = document.createElement('option')
+    opt.value = e.name
+    datalist.appendChild(opt)
+  }
   modal.appendChild(datalist)
 
   // ---- Event handlers ----
@@ -780,39 +785,41 @@ function showProgramEdit(program, accent, onRefresh) {
   document.getElementById('prog-save-btn').addEventListener('click', async () => {
     const name = document.getElementById('prog-name').value.trim() || 'Programa sin nombre'
 
-    const exerciseNameToId = {}
-    const allExercises = await Storage.getExercises()
-    allExercises.forEach((e) => { exerciseNameToId[e.name.toLowerCase()] = e.id })
+    // Fetch fresh in case exercises were created during editing
+    const freshExercises = await Storage.getExercises()
+    const exNameToId = {}
+    for (const e of freshExercises) {
+      exNameToId[e.name.toLowerCase()] = e.id
+    }
 
     const weeks = []
-    modal.querySelectorAll('.prog-week-block').forEach((wDiv) => {
+    for (const wDiv of modal.querySelectorAll('.prog-week-block')) {
       const wName = wDiv.querySelector('.prog-week-name')?.value || 'Semana'
       const wTag = wDiv.querySelector('.prog-week-tag')?.value || ''
       const days = []
-      wDiv.querySelectorAll('.prog-day-block').forEach((dDiv) => {
-        const name = dDiv.querySelector('.prog-day-name')?.value || 'Día'
+      for (const dDiv of wDiv.querySelectorAll('.prog-day-block')) {
+        const dayName = dDiv.querySelector('.prog-day-name')?.value || 'Día'
         const sub = dDiv.querySelector('.prog-day-sub')?.value || ''
         const dur = parseInt(dDiv.querySelector('.prog-day-dur')?.value) || 0
         const exercises = []
-        dDiv.querySelectorAll('.prog-ex-row').forEach((exRow) => {
+        for (const exRow of dDiv.querySelectorAll('.prog-ex-row')) {
           const exName = exRow.querySelector('.prog-ex-name')?.value.trim()
-          if (!exName) return
+          if (!exName) continue
           const sets = parseInt(exRow.querySelector('.prog-ex-sets')?.value) || 3
           const reps = exRow.querySelector('.prog-ex-reps')?.value || '10'
           const rest = parseInt(exRow.querySelector('.prog-ex-rest')?.value) || 60
-          // Resolve exercise name to ID
-          let exId = exerciseNameToId[exName.toLowerCase()]
+          let exId = exNameToId[exName.toLowerCase()]
           if (!exId) {
-            // Create exercise on the fly
-            exId = await (async () => { const ex = await Storage.findOrCreateExerciseByName(exName, ''); return ex.id })()
-            exerciseNameToId[exName.toLowerCase()] = exId
+            const ex = await Storage.findOrCreateExerciseByName(exName, '')
+            exId = ex.id
+            exNameToId[exName.toLowerCase()] = exId
           }
           exercises.push({ exerciseId: exId, sets, reps, rest })
-        })
-        days.push({ name, subtitle: sub, duration: dur, exercises })
-      })
+        }
+        days.push({ name: dayName, subtitle: sub, duration: dur, exercises })
+      }
       weeks.push({ name: wName, subtitle: '', tag: wTag, days })
-    })
+    }
 
     const prog = { id: isNew ? await generateId() : p.id, name, weeks }
     await Storage.saveProgram(prog)
@@ -821,15 +828,15 @@ function showProgramEdit(program, accent, onRefresh) {
   })
 }
 
-function buildProgramDayHTML(idx, day) {
+function buildProgramDayHTML(day, idToName) {
   const d = day || { name: 'Día', subtitle: '', duration: 60, exercises: [] }
   let exHTML = ''
-  ;(d.exercises || []).forEach((e) => {
-    exHTML += createProgExerciseRowHtml(e.exerciseId || '', e.sets || 3, e.reps || '10', e.rest || 60)
-  })
+  for (const e of (d.exercises || [])) {
+    const displayName = idToName[e.exerciseId] || e.exerciseId || ''
+    exHTML += createProgExerciseRowHtml(displayName, e.sets || 3, e.reps || '10', e.rest || 60)
+  }
   return `<div class="prog-day-block" style="margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px">
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-      <span style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;flex-shrink:0;text-align:center">${idx + 1}</span>
       <input class="prog-day-name" value="${d.name}" style="flex:1;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:12px;outline:none;font-weight:600;box-sizing:border-box" placeholder="Nombre día">
       <input class="prog-day-dur" type="number" value="${d.duration || 60}" style="width:44px;padding:6px 4px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);background:#0a0a0a;color:#fafafa;font-size:11px;text-align:center;outline:none;box-sizing:border-box" placeholder="min">
       <button class="del-day-prog" style="background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:14px;padding:4px;flex-shrink:0">✕</button>
