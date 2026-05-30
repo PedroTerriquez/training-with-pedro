@@ -1,7 +1,7 @@
 {
-  "name": "Entrenando con Pedro",
-  "short_name": "E. con Pedro",
-  "description": "App de entrenamiento personal",
+  "name": "Coach Pedro AI",
+  "short_name": "Coach AI",
+  "description": "App de entrenamiento personal con IA",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

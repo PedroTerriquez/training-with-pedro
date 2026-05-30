@@ -1,4 +1,4 @@
-const DB_NAME = 'training-with-pedro'
+const DB_NAME = 'coach-pedro-ai'
 const DB_VERSION = 1
 
 const STORES = ['exercises', 'exerciseLogs', 'programs', 'settings']

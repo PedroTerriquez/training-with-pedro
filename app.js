@@ -1,6 +1,10 @@
 // ── App Shell ──
 // Router, state management, event bus
 
+// ── Push Notification Config ──
+// PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
+// (loaded via <script> tag before this file in index.html)
+
 let _state = {
   route: 'today',
   settings: null,
@@ -35,6 +39,11 @@ async function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {})
+  }
+
+  // Auto-subscribe for push if permission already granted
+  if (PUSH_SERVER_URL && 'Notification' in window && Notification.permission === 'granted') {
+    subscribePush()
   }
 
   renderShell()
@@ -307,6 +316,139 @@ async function refresh() {
   }
 
   renderShell()
+}
+
+// ── Push Notification Management ──
+
+async function subscribePush() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false
+  if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) return false
+  try {
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: VAPID_PUBLIC_KEY,
+      })
+    }
+    await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub.toJSON()),
+    })
+    const s = await Storage.getSettings()
+    s.pushSubscribed = true
+    await Storage.saveSettings(s)
+    return true
+  } catch (_) { return false }
+}
+
+async function unsubscribePush() {
+  if (!('serviceWorker' in navigator)) return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (sub) await sub.unsubscribe()
+    if (PUSH_SERVER_URL) {
+      await fetch(`${PUSH_SERVER_URL}/api/push/unsubscribe`, { method: 'POST' })
+    }
+    const s = await Storage.getSettings()
+    s.pushSubscribed = false
+    await Storage.saveSettings(s)
+  } catch (_) {}
+}
+
+async function sendPushNotification(title, body, tag) {
+  const s = await Storage.getSettings()
+  if (!s.pushSubscribed || !PUSH_SERVER_URL) return
+  // 5-second delay so the user can ready the Apple Watch before the notification fires
+  await new Promise(r => setTimeout(r, 5000))
+  try {
+    await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, body, tag: tag || 'workout' }),
+    })
+  } catch (_) {}
+}
+
+// ── AI Import ──
+
+const AI_IMPORT_ENABLED = typeof PUSH_SERVER_URL !== 'undefined' && PUSH_SERVER_URL
+
+async function importWithAI(text) {
+  if (!AI_IMPORT_ENABLED) {
+    throw new Error('PUSH_SERVER_URL no configurado. Revisa push-config.js')
+  }
+
+  const res = await fetch(`${PUSH_SERVER_URL}/api/ai/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      systemPrompt: AI_SYSTEM_PROMPT || '',
+    }),
+  })
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Error del servidor')
+  }
+
+  if (data.error === true) {
+    throw new Error(data.message || 'La IA no pudo procesar la rutina')
+  }
+
+  if (!data.weeks || !data.weeks.length) {
+    throw new Error('La IA no pudo interpretar la rutina. Intenta con más detalles.')
+  }
+
+  const programName = data.program_name || 'Programa IA ' + new Date().toISOString().slice(0, 10)
+
+  const weeks = []
+  for (const w of data.weeks) {
+    const days = []
+    for (const d of (w.days || [])) {
+      const exercises = []
+      for (const ex of (d.exercises || [])) {
+        const exercise = await Storage.findOrCreateExerciseByName(ex.exercise_name, ex.muscle || '')
+        exercises.push({
+          exerciseId: exercise.id,
+          sets: ex.sets || 3,
+          reps: String(ex.reps || '10'),
+          rest: ex.rest_sec || 90,
+        })
+      }
+      days.push({
+        name: d.name || 'Día',
+        subtitle: d.subtitle || '',
+        duration: d.duration_min || 60,
+        exercises,
+      })
+    }
+    weeks.push({
+      name: w.name || 'Semana 1',
+      subtitle: w.subtitle || '',
+      tag: w.tag || '',
+      days,
+    })
+  }
+
+  const program = {
+    id: await generateId(),
+    name: programName,
+    weeks,
+  }
+
+  await Storage.saveProgram(program)
+
+  const settings = await Storage.getSettings()
+  settings.activeProgramId = program.id
+  await Storage.saveSettings(settings)
+
+  return program
 }
 
 window.notifyWatch = async (title, body) => {

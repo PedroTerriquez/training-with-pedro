@@ -77,7 +77,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         <span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">kg</span>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Sexo</div>
       <select id="sex-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
         <option value="" ${!settings.sex ? 'selected' : ''}>Seleccionar</option>
@@ -85,6 +85,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         <option value="Femenino" ${settings.sex === 'Femenino' ? 'selected' : ''}>Femenino</option>
         <option value="Otro" ${settings.sex === 'Otro' ? 'selected' : ''}>Otro</option>
       </select>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Notificaciones push</div>
+      <button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>
     </div>`
   container.appendChild(settingsCard)
 
@@ -101,6 +105,20 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     el.appendChild(SectionLabel({ children: label, accent }))
     container.appendChild(el)
   }
+
+  // ── Importar con IA ──
+  section('Importar con IA')
+  const aiCard = document.createElement('div')
+  aiCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden'
+  aiCard.innerHTML = `
+    <div style="padding:14px 16px">
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Pega tu rutina en texto</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Describe tu rutina como se la dirías a un entrenador. La IA creará el programa y los ejercicios automáticamente.</div>
+      <textarea id="ai-input" rows="8" placeholder="Ejemplo:&#10;Lunes - Pecho y Triceps&#10;Press banca 4x8-10&#10;Press inclinado 3x10&#10;Aperturas 3x12&#10;Fondos 3x10&#10;Patada triceps 3x12&#10;&#10;Martes - Espalda y Biceps&#10;Dominadas 4x8&#10;Remo con barra 4x10&#10;Jalón al pecho 3x12&#10;Curl biceps 3x12&#10;Curl martillo 3x12" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;font-family:'Space Grotesk',sans-serif;outline:none;resize:vertical;box-sizing:border-box;line-height:1.6"></textarea>
+      ${statusEl('ai-status')}
+    </div>
+    ${btn('ai-import-btn', 'Importar con IA', ';width:100%;margin:0 16px 14px;width:calc(100% - 32px)')}`
+  container.appendChild(aiCard)
 
   // ── Importar ──
   section('Importar')
@@ -228,6 +246,39 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         await Storage.saveSettings(s)
       })
     }
+    const pushToggleBtn = document.getElementById('push-toggle-btn')
+    if (pushToggleBtn) {
+      pushToggleBtn.addEventListener('click', async () => {
+        const s = await Storage.getSettings()
+        if (s.pushSubscribed) {
+          await unsubscribePush()
+          pushToggleBtn.textContent = 'Desactivadas'
+          pushToggleBtn.style.background = 'transparent'
+          pushToggleBtn.style.color = 'rgba(255,255,255,0.55)'
+        } else {
+          if (Notification.permission === 'denied') {
+            showToast('Permiso denegado. Actívalo en Ajustes del navegador.', true)
+            return
+          }
+          if (Notification.permission === 'default') {
+            const result = await Notification.requestPermission()
+            if (result !== 'granted') {
+              showToast('Permiso necesario para notificaciones', true)
+              return
+            }
+          }
+          const ok = await subscribePush()
+          if (ok) {
+            pushToggleBtn.textContent = 'Activadas'
+            pushToggleBtn.style.background = `${accent}22`
+            pushToggleBtn.style.color = accent
+            showToast('✅ Notificaciones push activadas')
+          } else {
+            showToast('❌ No se pudo activar. ¿Configuraste push-config.js?', true)
+          }
+        }
+      })
+    }
     const userNameEl = document.getElementById('user-name')
     if (userNameEl) {
       userNameEl.addEventListener('blur', async () => {
@@ -279,6 +330,52 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
+        }
+      })
+    }
+
+    const aiImportBtn = document.getElementById('ai-import-btn')
+    const aiInput = document.getElementById('ai-input')
+    const aiStatus = document.getElementById('ai-status')
+    if (aiImportBtn && aiInput && aiStatus) {
+      aiImportBtn.addEventListener('click', async () => {
+        const text = aiInput.value.trim()
+        if (!text) {
+          aiStatus.textContent = '⚠️ Pega tu rutina primero'
+          aiStatus.style.color = '#ff6b6b'
+          return
+        }
+        if (typeof importWithAI !== 'function') {
+          aiStatus.textContent = '❌ importWithAI no está definido'
+          aiStatus.style.color = '#ff6b6b'
+          return
+        }
+        aiImportBtn.disabled = true
+        const origText = aiImportBtn.textContent
+        aiImportBtn.textContent = '⏳ Procesando…'
+        aiStatus.textContent = 'Enviando a la IA…'
+        aiStatus.style.color = 'rgba(255,255,255,0.45)'
+        try {
+          const program = await importWithAI(text)
+          aiStatus.textContent = `✅ Importado "${program.name}" con ${program.weeks.length} semana(s)`
+          aiStatus.style.color = accent
+          aiImportBtn.textContent = '✅ Listo'
+          aiImportBtn.style.background = '#0a0a0a'
+          aiImportBtn.style.color = accent
+          aiImportBtn.style.border = `0.5px solid ${accent}55`
+          setTimeout(() => {
+            aiImportBtn.textContent = origText
+            aiImportBtn.style.background = accent
+            aiImportBtn.style.color = '#0a0a0a'
+            aiImportBtn.style.border = '0'
+          }, 2500)
+        } catch (err) {
+          aiStatus.textContent = `❌ ${err.message}`
+          aiStatus.style.color = '#ff6b6b'
+          aiImportBtn.textContent = '❌ Error'
+          setTimeout(() => { aiImportBtn.textContent = origText }, 2000)
+        } finally {
+          aiImportBtn.disabled = false
         }
       })
     }

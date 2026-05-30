@@ -120,21 +120,25 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         return
       }
     }
+    // Subscribe for push notifications after permission granted
+    await subscribePush()
     const firstEx = day.exercises[0]
     if (!firstEx) return
     const aId = resolveExId(firstEx.exerciseId)
     const rEx = { ...firstEx, ...(exercisesById[aId] || {}) }
+    sendPushNotification(`🏋️ ${day.name}`, `${rEx.name} · ${rEx.sets}×${rEx.reps}`)
     if (window.notifyWatch) {
       window.notifyWatch(`🏋️ ${day.name}`, `${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-      showCenterToast({
-        svg: '<span style="font-size:24px">⌚</span>',
-        message: 'Enviado al Watch',
-        duration: 1500,
-        accent,
-        onDone: () => {},
-      })
     }
+    showCenterToast({
+      svg: '<span style="font-size:24px">⌚</span>',
+      message: 'Enviado al Watch',
+      duration: 1500,
+      accent,
+      onDone: () => {},
+    })
   })
+  ringsContainer.appendChild(watchBtn)
   ringsContainer.appendChild(watchBtn)
   const timerDisplayEl = timerRingEl.querySelector('[data-timer-display]')
   const timerSweepEl = timerRingEl.querySelector('[data-timer-sweep]')
@@ -158,11 +162,14 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         _warmupDone = !_warmupDone
         _phaseCardOpen = null
         if (!wasDone) {
-          if (day.exercises.length > 0 && typeof window.notifyWatch === 'function') {
+          if (day.exercises.length > 0) {
             const firstEx = day.exercises[0]
             const altId = resolveExId(firstEx.exerciseId)
             const rEx = { ...firstEx, ...(exercisesById[altId] || {}) }
-            window.notifyWatch(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+            sendPushNotification(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+            if (typeof window.notifyWatch === 'function') {
+              window.notifyWatch(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+            }
           }
           showCenterToast({
             svg: TOAST_SVG_WATCH,
@@ -306,15 +313,21 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     if (done !== _todayExDone) {
       const prev = _todayExDone
       _todayExDone = done
-      if (!_exercisesSkipped && typeof window.notifyWatch === 'function') {
+      if (!_exercisesSkipped) {
         const nextIdx = _todayExDone
         if (nextIdx < day.exercises.length) {
           const nextEx = day.exercises[nextIdx]
           const altId = resolveExId(nextEx.exerciseId)
           const rEx = { ...nextEx, ...(exercisesById[altId] || {}) }
-          window.notifyWatch(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+          sendPushNotification(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+          if (typeof window.notifyWatch === 'function') {
+            window.notifyWatch(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
+          }
         } else {
-          window.notifyWatch(`✅ ${day.name}`, '¡Entrenamiento completo!')
+          sendPushNotification(`✅ ${day.name}`, '¡Entrenamiento completo!')
+          if (typeof window.notifyWatch === 'function') {
+            window.notifyWatch(`✅ ${day.name}`, '¡Entrenamiento completo!')
+          }
         }
       }
       refreshView()

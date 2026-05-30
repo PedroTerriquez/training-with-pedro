@@ -6,6 +6,7 @@ const ASSETS = [
   './data.js',
   './data/warmup.js',
   './data/exercise-dictionary.js',
+  './data/ai-prompt.js',
   './data/Gemini_Generated_Image_skjbz4skjbz4skjb.png',
   './db.js',
   './storage.js',
@@ -65,9 +66,21 @@ self.addEventListener('message', (e) => {
   }
 })
 
+self.addEventListener('push', (e) => {
+  const data = e.data?.json() || { title: 'Coach Pedro AI', body: '' }
+  // Each notification gets a unique tag so it persists until manually dismissed
+  self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: 'icons/icon-192.png',
+    tag: data.tag || `push-${Date.now()}`,
+    requireInteraction: true,
+    data: { url: data.url || './' },
+  })
+})
+
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = './'
+  const url = e.notification.data?.url || './'
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
       if (cls.length > 0) { cls[0].focus(); return }

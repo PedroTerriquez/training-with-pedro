@@ -1,0 +1,11 @@
+name = "coach-pedro-ai"
+main = "src/index.js"
+compatibility_date = "2025-05-30"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[vars]
+VAPID_EMAIL = "mailto:pedro@example.com"
