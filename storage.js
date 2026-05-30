@@ -414,6 +414,8 @@ const Storage = {
   // ── JSON Export/Import (cross-context migration) ──
   async exportLogsAndSettings() {
     const data = {
+      exercises: await getAll('exercises'),
+      programs: await getAll('programs'),
       exerciseLogs: await getAll('exerciseLogs'),
       settings: await get('settings', 'settings') || null,
       exportedAt: new Date().toISOString(),
@@ -423,11 +425,17 @@ const Storage = {
 
   async importLogsAndSettings(jsonStr) {
     const data = JSON.parse(jsonStr)
-    if (!data.exerciseLogs) {
-      throw new Error('JSON inválido — faltan logs')
+    if (!data.exerciseLogs && !data.exercises && !data.programs) {
+      throw new Error('JSON inválido — no contiene datos')
     }
-    for (const item of data.exerciseLogs) await put('exerciseLogs', item)
+    if (data.exercises) for (const item of data.exercises) await put('exercises', item)
+    if (data.programs) for (const item of data.programs) await put('programs', item)
+    if (data.exerciseLogs) for (const item of data.exerciseLogs) await put('exerciseLogs', item)
     if (data.settings) await put('settings', data.settings)
-    return { logs: data.exerciseLogs.length }
+    return {
+      exercises: (data.exercises || []).length,
+      programs: (data.programs || []).length,
+      logs: (data.exerciseLogs || []).length,
+    }
   },
 }

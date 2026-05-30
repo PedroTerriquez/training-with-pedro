@@ -141,8 +141,8 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     ${btn('csv-ex-btn', 'Subir CSV')}`) +
     divider() +
     row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Logs + ajustes</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Restaura historial de pesos desde un JSON</div>
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Restaura toda la base de datos desde un JSON</div>
       ${statusEl('json-import-status')}
     </div>
     <input type="file" id="json-import-input" accept=".json" style="display:none">
@@ -171,8 +171,8 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     ${btn('prog-export-btn', 'Descargar')}`) +
     divider() +
     row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Logs + ajustes</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga historial de pesos como JSON</div>
+      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga toda la base de datos como JSON</div>
       ${statusEl('json-export-status')}
     </div>
     ${btn('json-export-btn', 'Exportar')}`)
@@ -505,6 +505,11 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       jsonExportBtn.addEventListener('click', async () => {
         try {
           const json = await Storage.exportLogsAndSettings()
+          const parsed = JSON.parse(json)
+          const parts = []
+          if (parsed.exercises?.length) parts.push(`${parsed.exercises.length} ejercicios`)
+          if (parsed.programs?.length) parts.push(`${parsed.programs.length} programas`)
+          if (parsed.exerciseLogs?.length) parts.push(`${parsed.exerciseLogs.length} logs`)
           const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
@@ -512,7 +517,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`
           a.click()
           URL.revokeObjectURL(url)
-          jsonExportStatus.textContent = '✅ Exportado'
+          jsonExportStatus.textContent = `✅ Exportado (${parts.join(', ')})`
           jsonExportStatus.style.color = accent
         } catch (err) {
           jsonExportStatus.textContent = `❌ ${err.message}`
@@ -533,7 +538,11 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         try {
           const text = await file.text()
           const result = await Storage.importLogsAndSettings(text)
-          jsonImportStatus.textContent = `✅ Importados ${result.logs} logs`
+          const parts = []
+          if (result.exercises) parts.push(`${result.exercises} ejercicios`)
+          if (result.programs) parts.push(`${result.programs} programas`)
+          if (result.logs) parts.push(`${result.logs} logs`)
+          jsonImportStatus.textContent = `✅ Importados ${parts.join(', ')}`
           jsonImportStatus.style.color = accent
           if (onRefresh) onRefresh()
         } catch (err) {

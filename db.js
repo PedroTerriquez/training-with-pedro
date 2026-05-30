@@ -28,9 +28,10 @@ async function getAll(storeName) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly')
     const req = tx.objectStore(storeName).getAll()
-    req.onsuccess = () => resolve(req.result)
-    tx.oncomplete = () => db.close()
-    tx.onerror = () => { reject(tx.error); db.close() }
+    let result
+    req.onsuccess = () => { result = req.result }
+    tx.oncomplete = () => { db.close(); resolve(result || []) }
+    tx.onerror = () => { db.close(); reject(tx.error) }
   })
 }
 
@@ -39,9 +40,10 @@ async function get(storeName, id) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly')
     const req = tx.objectStore(storeName).get(id)
-    req.onsuccess = () => resolve(req.result)
-    tx.oncomplete = () => db.close()
-    tx.onerror = () => { reject(tx.error); db.close() }
+    let result
+    req.onsuccess = () => { result = req.result }
+    tx.oncomplete = () => { db.close(); resolve(result) }
+    tx.onerror = () => { db.close(); reject(tx.error) }
   })
 }
 
@@ -50,9 +52,10 @@ async function put(storeName, data) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite')
     const req = tx.objectStore(storeName).put(data)
-    req.onsuccess = () => resolve(req.result)
-    tx.oncomplete = () => db.close()
-    tx.onerror = () => { reject(tx.error); db.close() }
+    let result
+    req.onsuccess = () => { result = req.result }
+    tx.oncomplete = () => { db.close(); resolve(result) }
+    tx.onerror = () => { db.close(); reject(tx.error) }
   })
 }
 
@@ -71,9 +74,10 @@ async function getByIndex(storeName, indexName, value) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly')
     const req = tx.objectStore(storeName).index(indexName).getAll(value)
-    req.onsuccess = () => resolve(req.result)
-    tx.oncomplete = () => db.close()
-    tx.onerror = () => { reject(tx.error); db.close() }
+    let result
+    req.onsuccess = () => { result = req.result }
+    tx.oncomplete = () => { db.close(); resolve(result || []) }
+    tx.onerror = () => { db.close(); reject(tx.error) }
   })
 }
 
