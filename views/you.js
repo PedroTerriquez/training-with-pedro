@@ -307,6 +307,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const prog = await Storage.importProgramFromCSV(text)
           csvStatus.textContent = `✅ Importado "${prog.name}" con ${prog.weeks.length} semana(s)`
           csvStatus.style.color = accent
+          if (window.silentRefresh) await window.silentRefresh()
         } catch (err) {
           csvStatus.textContent = `❌ ${err.message}`
           csvStatus.style.color = '#ff6b6b'
@@ -327,6 +328,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const result = await Storage.importExercisesFromCSV(text)
           csvExStatus.textContent = `✅ Creados ${result.created}, actualizados ${result.updated}`
           csvExStatus.style.color = accent
+          if (window.silentRefresh) await window.silentRefresh()
         } catch (err) {
           csvExStatus.textContent = `❌ ${err.message}`
           csvExStatus.style.color = '#ff6b6b'
@@ -356,7 +358,9 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         aiStatus.textContent = 'Enviando a la IA…'
         aiStatus.style.color = 'rgba(255,255,255,0.45)'
         try {
-          const program = await importWithAI(text)
+          const program = await importWithAI(text, (current, total, name) => {
+            aiStatus.textContent = `⏳ Ejercicio ${current}/${total} (${name})…`
+          })
           aiStatus.textContent = `✅ Importado "${program.name}" con ${program.weeks.length} semana(s)`
           aiStatus.style.color = accent
           aiImportBtn.textContent = '✅ Listo'
@@ -397,12 +401,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } else {
           dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · sin match ${result.skipped} · total ${result.total}`
           dictMigrateStatus.style.color = accent
-          if (result.migrated > 0) {
-            setTimeout(async () => {
-              _youTab = 'exercises'
-              if (onRefresh) await onRefresh()
-            }, 1500)
-          }
+          if (window.silentRefresh) await window.silentRefresh()
         }
       } catch (err) {
         dictMigrateStatus.textContent = `❌ ${err.message}`
@@ -544,7 +543,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           if (result.logs) parts.push(`${result.logs} logs`)
           jsonImportStatus.textContent = `✅ Importados ${parts.join(', ')}`
           jsonImportStatus.style.color = accent
-          if (onRefresh) onRefresh()
+          if (window.silentRefresh) await window.silentRefresh()
         } catch (err) {
           jsonImportStatus.textContent = `❌ ${err.message}`
           jsonImportStatus.style.color = '#ff6b6b'

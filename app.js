@@ -50,6 +50,14 @@ async function init() {
 
   window.addEventListener('hashchange', handleRoute)
   window.appRefresh = refresh
+  window.silentRefresh = async () => {
+    _state.settings = await Storage.getSettings()
+    _state.programs = await Storage.getPrograms()
+    _state.exercises = await Storage.getExercises()
+    _state.activeProgram = _state.settings.activeProgramId
+      ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
+      : _state.programs[0] || null
+  }
 }
 
 async function loadState() {
@@ -315,7 +323,7 @@ async function refresh() {
     showToast('⚠️ Error al guardar: ' + e.message, true)
   }
 
-  renderShell()
+  renderScreen()
 }
 
 // ── Push Notification Management ──
@@ -377,7 +385,7 @@ async function sendPushNotification(title, body, tag) {
 
 const AI_IMPORT_ENABLED = typeof PUSH_SERVER_URL !== 'undefined' && PUSH_SERVER_URL
 
-async function importWithAI(text) {
+async function importWithAI(text, onProgress) {
   if (!AI_IMPORT_ENABLED) {
     throw new Error('PUSH_SERVER_URL no configurado. Revisa push-config.js')
   }
@@ -407,12 +415,22 @@ async function importWithAI(text) {
 
   const programName = data.program_name || 'Programa IA ' + new Date().toISOString().slice(0, 10)
 
+  let totalExercises = 0
+  for (const w of data.weeks) {
+    for (const d of (w.days || [])) {
+      totalExercises += (d.exercises || []).length
+    }
+  }
+
+  let processed = 0
   const weeks = []
   for (const w of data.weeks) {
     const days = []
     for (const d of (w.days || [])) {
       const exercises = []
       for (const ex of (d.exercises || [])) {
+        processed++
+        if (onProgress) onProgress(processed, totalExercises, ex.exercise_name)
         const exercise = await Storage.findOrCreateExerciseByName(ex.exercise_name, ex.muscle || '')
         exercises.push({
           exerciseId: exercise.id,
@@ -447,6 +465,11 @@ async function importWithAI(text) {
   const settings = await Storage.getSettings()
   settings.activeProgramId = program.id
   await Storage.saveSettings(settings)
+
+  _state.programs = await Storage.getPrograms()
+  _state.exercises = await Storage.getExercises()
+  _state.settings = await Storage.getSettings()
+  _state.activeProgram = program
 
   return program
 }
