@@ -196,6 +196,17 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   )
   container.appendChild(maintCard)
 
+  // ── Last Update + Refresh ──
+  const footerRow = document.createElement('div')
+  const fmt = settings.lastUpdate
+    ? new Date(settings.lastUpdate).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : ''
+  footerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:16px 20px 0'
+  footerRow.innerHTML = `
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace">${fmt ? 'Última actualización: ' + fmt : ''}</div>
+    <button id="refresh-btn" style="padding:5px 10px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:500;touch-action:manipulation">↻</button>`
+  container.appendChild(footerRow)
+
   // Bottom spacer
   const spacer = document.createElement('div')
   spacer.style.height = '20px'
@@ -292,6 +303,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           e.preventDefault()
           userNameEl.blur()
         }
+      })
+    }
+    const refreshBtn = document.getElementById('refresh-btn')
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        if (onRefresh) onRefresh()
       })
     }
     const csvBtn = document.getElementById('csv-btn')

@@ -57,6 +57,8 @@ async function init() {
     _state.activeProgram = _state.settings.activeProgramId
       ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
       : _state.programs[0] || null
+    _state.settings.lastUpdate = new Date().toISOString()
+    await Storage.saveSettings(_state.settings)
   }
 }
 
