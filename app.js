@@ -482,7 +482,8 @@ async function importWithAI(text, onProgress) {
 
 // ── Coach Analysis ──
 
-async function runCoachAnalysis(day, effort, durationMin, exercises) {
+async function runCoachAnalysis(day, effort, durationMin, exercises, settings) {
+  settings = settings || {}
   if (!PUSH_SERVER_URL) return { analysis: 'Buen trabajo hoy. Sigue así.', verdict: 'neutral' }
 
   const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
@@ -537,6 +538,15 @@ async function runCoachAnalysis(day, effort, durationMin, exercises) {
     date: new Date().toISOString().slice(0, 10),
     duration_min: durationMin || 0,
     effort,
+    user_profile: {
+      age: settings.age || '',
+      sex: settings.sex || '',
+      body_weight_kg: settings.weight || '',
+      height_cm: settings.height || '',
+      goal: settings.goal || '',
+      experience: settings.experience || '',
+      occupation: settings.occupation || '',
+    },
     exercises: exerciseData,
     total_volume_kg: totalVolume,
   }

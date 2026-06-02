@@ -14,6 +14,8 @@ let _coachResult = null
 let _coachCardMode = false
 let _effortModalShowing = false
 let _sessionDate = ''
+let _coachDay = null
+let _coachEffort = null
 
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps }) {
   swaps = swaps || {}
@@ -265,8 +267,8 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
       showCenterToast({
         svg: TOAST_IMG_TRAINER,
-        message: 'Enfría bb',
-        subtitle: `Ya no tienes 20 añitos<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
+        message: 'ESTIRA',
+        subtitle: `Ya no tienes 20 añitos bb<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
         duration: 3000,
         accent,
         onDone: refreshView,
@@ -397,10 +399,12 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
           day,
           exercises,
           onEffort: async (effort) => {
+            _coachDay = day
+            _coachEffort = effort
             _effortValue = effort
             _effortModalShowing = false
             showToast('🧑‍🏫 Pedro analiza tu sesión…')
-            const result = await runCoachAnalysis(day, effort, day.duration || 60, exercises)
+            const result = await runCoachAnalysis(day, effort, day.duration || 60, exercises, settings)
             _coachResult = result
             const toast = document.getElementById('backup-toast')
             if (toast) { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300) }
@@ -653,14 +657,14 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
       </div>
     </div>
     <div style="padding:20px">
-      <div style="border-radius:24px;border:0.5px solid rgba(255,255,255,0.06);background:#141414;padding:24px;overflow:hidden;position:relative">
+      <div id="coach-card-regen" style="border-radius:24px;border:0.5px solid rgba(255,255,255,0.06);background:#141414;padding:24px;overflow:hidden;position:relative;cursor:pointer;transition:border-color 0.15s">
         <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:${accent};opacity:0.08;filter:blur(60px)"></div>
         <div style="position:relative;z-index:1">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
             <div style="width:40px;height:40px;border-radius:12px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;font-size:20px">🧑‍🏫</div>
             <div>
               <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:${accent};font-weight:600">Tu coach Pedro</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Análisis de hoy</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Toca para regenerar ↻</div>
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:flex-start">
@@ -671,6 +675,24 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
       </div>
     </div>
     </div>`
+  const regenEl = document.getElementById('coach-card-regen')
+  if (regenEl && _coachDay && _coachEffort) {
+    regenEl.addEventListener('click', async () => {
+      regenEl.style.borderColor = `${accent}55`
+      const s = await Storage.getSettings()
+      showToast('🧑‍🏫 Pedro analiza tu sesión…')
+      const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, _state.exercises || [], s)
+      _coachResult = result
+      showCoachAnalysisSheet({
+        analysis: result,
+        accent,
+        onDone: () => {
+          _coachCardMode = true
+          refreshView()
+        }
+      })
+    })
+  }
 }
 
 // ── Effort Selector Modal ──
@@ -744,27 +766,17 @@ function showCoachAnalysisSheet({ analysis, accent, onDone }) {
         <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px">te quiere decir algo…</div>
       </div>
     </div>
-    <div id="coach-analysis-body" style="background:rgba(255,255,255,0.03);border-radius:16px;padding:18px;border:0.5px solid rgba(255,255,255,0.06);display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;opacity:0;transform:translateY(8px);transition:opacity 0.35s ease-out,transform 0.35s ease-out;pointer-events:none">
+    <div id="coach-analysis-body" style="background:rgba(255,255,255,0.03);border-radius:16px;padding:18px;border:0.5px solid rgba(255,255,255,0.06);display:flex;gap:12px;align-items:flex-start;margin-bottom:20px">
       <div style="font-size:24px;flex-shrink:0;margin-top:1px">${verdictIcon}</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.65;color:rgba(255,255,255,0.9);letter-spacing:-0.05px">${analysis.analysis}</div>
     </div>
-    <button id="coach-ver-btn" style="width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation">VER</button>`
+    <button id="coach-ver-btn" style="width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation">OK</button>`
   overlay.appendChild(sheet)
   document.body.appendChild(overlay)
 
-  let revealed = false
   document.getElementById('coach-ver-btn').addEventListener('click', () => {
-    if (!revealed) {
-      revealed = true
-      const body = document.getElementById('coach-analysis-body')
-      body.style.opacity = '1'
-      body.style.transform = 'translateY(0)'
-      body.style.pointerEvents = 'auto'
-      document.getElementById('coach-ver-btn').textContent = 'OK'
-    } else {
-      overlay.remove()
-      onDone()
-    }
+    overlay.remove()
+    onDone()
   })
 }
 

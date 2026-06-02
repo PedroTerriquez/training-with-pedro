@@ -179,7 +179,7 @@ const Storage = {
   // ── Settings ──
   async getSettings() {
     const s = await get('settings', 'settings')
-    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a', userName: 'Pedro', height: '', weight: '', sex: '', pushServerUrl: '', pushSubscribed: false, lastCoachAnalysis: null, lastUpdate: '' }
+    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a', userName: 'Pedro', height: '', weight: '', sex: '', age: '', goal: '', experience: '', occupation: '', pushServerUrl: '', pushSubscribed: false, lastCoachAnalysis: null, lastUpdate: '' }
   },
 
   async saveSettings(settings) {

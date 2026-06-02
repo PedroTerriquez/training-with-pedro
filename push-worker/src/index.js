@@ -91,7 +91,7 @@ export default {
             { role: 'user', content: fullPrompt },
           ],
           stream: false,
-          max_tokens: 512,
+          max_tokens: 1024,
         })
 
         let resultText = ''
@@ -106,12 +106,12 @@ export default {
         try {
           parsed = JSON.parse(resultText)
         } catch {
-          return respond({ analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' })
+          return respond({ error: 'La IA no generó JSON válido', raw: resultText }, 502)
         }
 
         return respond(parsed)
       } catch (err) {
-        return respond({ analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' })
+        return respond({ error: 'Error de IA: ' + err.message }, 500)
       }
     }
 

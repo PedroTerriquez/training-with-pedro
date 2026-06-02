@@ -88,6 +88,34 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         <option value="Otro" ${settings.sex === 'Otro' ? 'selected' : ''}>Otro</option>
       </select>
     </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Edad</div>
+      <input id="age-input" type="number" value="${settings.age || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Objetivo principal</div>
+      <select id="goal-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
+        <option value="" ${!settings.goal ? 'selected' : ''}>Seleccionar</option>
+        <option value="hipertrofia" ${settings.goal === 'hipertrofia' ? 'selected' : ''}>Hipertrofia</option>
+        <option value="fuerza" ${settings.goal === 'fuerza' ? 'selected' : ''}>Fuerza</option>
+        <option value="perdida de grasa" ${settings.goal === 'perdida de grasa' ? 'selected' : ''}>Pérdida de grasa</option>
+        <option value="recomposicion" ${settings.goal === 'recomposicion' ? 'selected' : ''}>Recomposición</option>
+        <option value="rendimiento" ${settings.goal === 'rendimiento' ? 'selected' : ''}>Rendimiento</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Nivel experiencia</div>
+      <select id="exp-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
+        <option value="" ${!settings.experience ? 'selected' : ''}>Seleccionar</option>
+        <option value="principiante" ${settings.experience === 'principiante' ? 'selected' : ''}>Principiante</option>
+        <option value="intermedio" ${settings.experience === 'intermedio' ? 'selected' : ''}>Intermedio</option>
+        <option value="avanzado" ${settings.experience === 'avanzado' ? 'selected' : ''}>Avanzado</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Profesión</div>
+      <input id="occ-input" type="text" value="${settings.occupation || ''}" placeholder="Ej: Ingeniero, oficinista, repartidor…" style="width:160px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif">
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Notificaciones push</div>
       <button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>
@@ -254,6 +282,38 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       sexInput.addEventListener('change', async () => {
         const s = await Storage.getSettings()
         s.sex = sexInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const ageInput = document.getElementById('age-input')
+    if (ageInput) {
+      ageInput.addEventListener('blur', async () => {
+        const s = await Storage.getSettings()
+        s.age = ageInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const goalInput = document.getElementById('goal-input')
+    if (goalInput) {
+      goalInput.addEventListener('change', async () => {
+        const s = await Storage.getSettings()
+        s.goal = goalInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const expInput = document.getElementById('exp-input')
+    if (expInput) {
+      expInput.addEventListener('change', async () => {
+        const s = await Storage.getSettings()
+        s.experience = expInput.value
+        await Storage.saveSettings(s)
+      })
+    }
+    const occInput = document.getElementById('occ-input')
+    if (occInput) {
+      occInput.addEventListener('blur', async () => {
+        const s = await Storage.getSettings()
+        s.occupation = occInput.value
         await Storage.saveSettings(s)
       })
     }
