@@ -19,7 +19,6 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   swaps = swaps || {}
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
   _completionToastShown = false
-  _coachCardMode = false
   _effortValue = null
   _coachResult = null
   _effortModalShowing = false
@@ -57,9 +56,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     return
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10)
-  if (settings.lastCoachAnalysis?.date === todayStr) {
-    _coachCardMode = true
+  if (_coachCardMode && settings.lastCoachAnalysis?.date === new Date().toISOString().slice(0, 10)) {
     renderCoachCard(page, settings.lastCoachAnalysis, accent, dateStr, weekDayName)
     return
   }
