@@ -34,10 +34,12 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
   // Week tabs
   if (weeks.length > 0) {
     const tabs = document.createElement('div')
+    tabs.id = 'plan-week-tabs'
     tabs.style.cssText = 'padding:0 20px;display:flex;gap:8px;margin-bottom:18px'
     weeks.forEach((w, i) => {
       const on = _planWeekIdx === i
       const btn = document.createElement('button')
+      btn.dataset.weekIndex = i
       btn.style.cssText = `flex:1;padding:12px 8px;border:0;cursor:pointer;background:${on ? '#1f1f1f' : 'transparent'};border:${on ? `0.5px solid ${w.accent || accent}66` : '0.5px solid rgba(255,255,255,0.06)'};border-radius:14px;color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};text-align:left;position:relative`
       btn.innerHTML = `
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:${on ? (w.accent || accent) : 'rgba(255,255,255,0.4)'};text-transform:uppercase">${w.tag || ''}</div>
@@ -58,6 +60,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
 
     // Days grid
     const daysGrid = document.createElement('div')
+    daysGrid.id = 'plan-days-grid'
     daysGrid.style.cssText = 'padding:0 20px;display:flex;flex-direction:column;gap:10px'
     week.days.forEach((day, i) => {
       const isToday = i === dayIndex && _planWeekIdx === weekIdx
@@ -65,6 +68,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
       const isExpanded = _planExpandedDayIdx === i
 
       const dayContainer = document.createElement('div')
+      dayContainer.dataset.dayIndex = i
       dayContainer.style.cssText = `background:#141414;border-radius:18px;border:${isToday ? `1px solid ${accent}` : '0.5px solid rgba(255,255,255,0.06)'};overflow:hidden`
 
       const card = document.createElement('div')
@@ -86,7 +90,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
         <div style="text-align:right">
           ${!isRest ? `
             <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#fafafa;font-weight:500">${day.exercises.length}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">${day.duration}m</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">ejercicios</div>
           ` : `      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#9bd1ff">DESC</div>`}
         </div>`
 
@@ -118,6 +122,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
 
 function createPlanExerciseRow(ex, accent, onOpen) {
   const btn = document.createElement('button')
+  btn.dataset.exerciseId = ex.exerciseId || ex.id || ''
   btn.style.cssText = 'width:100%;background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;border:0;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;margin-bottom:8px'
   const imgUrl = ex.imgUrl || (typeof getExerciseImageFromDictionary === 'function' ? getExerciseImageFromDictionary(ex.name || '') : '') || ''
   btn.innerHTML = `

@@ -26,6 +26,7 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   ]
   tabOptions.forEach((t) => {
     const btn = document.createElement('button')
+    btn.id = 'you-tab-' + t.id
     const on = _youTab === t.id
     btn.style.cssText = `flex:1;padding:8px 0;border:0;cursor:pointer;background:${on ? '#262626' : 'transparent'};color:${on ? '#fafafa' : 'rgba(255,255,255,0.5)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:-0.1px;border-radius:8px`
     btn.textContent = t.label
@@ -51,6 +52,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   container.appendChild(settingsLabel)
 
   const settingsCard = document.createElement('div')
+  settingsCard.id = 'you-settings-card'
   settingsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
   settingsCard.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
@@ -196,14 +198,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   )
   container.appendChild(maintCard)
 
-  // ── Last Update + Refresh ──
+  // ── Version + Refresh ──
   const footerRow = document.createElement('div')
-  const fmt = settings.lastUpdate
-    ? new Date(settings.lastUpdate).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : ''
+  const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''
   footerRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:16px 20px 0'
   footerRow.innerHTML = `
-    <div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace">${fmt ? 'Última actualización: ' + fmt : ''}</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace">${ver}</div>
     <button id="refresh-btn" style="padding:5px 10px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.08);cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:500;touch-action:manipulation">↻</button>`
   container.appendChild(footerRow)
 
@@ -607,6 +607,7 @@ function renderExercises(container, { accent, units, onRefresh }) {
       }
       filtered.forEach((e) => {
         const card = document.createElement('div')
+        card.dataset.exerciseId = e.id
         card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:12px`
         card.innerHTML = `
           <div style="flex:1;min-width:0">
@@ -865,6 +866,7 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
     programs.forEach((p) => {
       const isActive = settings.activeProgramId === p.id
       const card = document.createElement('div')
+      card.dataset.programId = p.id
       card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:${isActive ? `0.5px solid ${accent}55` : '0.5px solid rgba(255,255,255,0.06)'};display:flex;flex-wrap:wrap;align-items:center;gap:8px`
       card.innerHTML = `
         <div style="flex:1;min-width:0">

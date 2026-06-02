@@ -342,7 +342,9 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       if (savedLog) {
         savedWeight = pendingWeight
         loggedToday = true
-        exercise.logs = [...(exercise.logs || []), savedLog]
+        const idx = (exercise.logs || []).findIndex(l => l.date === savedLog.date && l.exerciseId === savedLog.exerciseId)
+        if (idx >= 0) exercise.logs[idx] = savedLog
+        else exercise.logs = [...(exercise.logs || []), savedLog]
       }
       render()
     }

@@ -78,6 +78,43 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/ai/coach') {
+      try {
+        const { sessionData, systemPrompt } = await req.json()
+        if (!sessionData) return respond({ error: 'No session data provided' }, 400)
+
+        const fullPrompt = (systemPrompt || '') + '\n\nDATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData, null, 2)
+
+        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+          messages: [
+            { role: 'system', content: systemPrompt || '' },
+            { role: 'user', content: fullPrompt },
+          ],
+          stream: false,
+          max_tokens: 512,
+        })
+
+        let resultText = ''
+        if (aiRes.response) {
+          resultText = aiRes.response.trim()
+        }
+
+        const jsonMatch = resultText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        if (jsonMatch) resultText = jsonMatch[1].trim()
+
+        let parsed
+        try {
+          parsed = JSON.parse(resultText)
+        } catch {
+          return respond({ analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' })
+        }
+
+        return respond(parsed)
+      } catch (err) {
+        return respond({ analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' })
+      }
+    }
+
     if (url.pathname === '/api/ai/import') {
       try {
         const { text, systemPrompt } = await req.json()

@@ -1,6 +1,8 @@
 // ── App Shell ──
 // Router, state management, event bus
 
+const APP_VERSION = 'v1.0 · ' + new Date().toLocaleString('es-MX', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
 // (loaded via <script> tag before this file in index.html)
@@ -311,6 +313,8 @@ async function openDetailSheet(exercise) {
 
 async function refresh() {
   _state.settings = await Storage.getSettings()
+  _state.settings.lastUpdate = new Date().toISOString()
+  await Storage.saveSettings(_state.settings)
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
   _state.activeProgram = _state.settings.activeProgramId
@@ -474,6 +478,90 @@ async function importWithAI(text, onProgress) {
   _state.activeProgram = program
 
   return program
+}
+
+// ── Coach Analysis ──
+
+async function runCoachAnalysis(day, effort, durationMin, exercises) {
+  if (!PUSH_SERVER_URL) return { analysis: 'Buen trabajo hoy. Sigue así.', verdict: 'neutral' }
+
+  const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
+  const exerciseData = []
+
+  for (const progEx of (day.exercises || [])) {
+    const exDef = exercisesById[progEx.exerciseId] || {}
+    const logs = await Storage.getLogsForExercise(progEx.exerciseId)
+    logs.sort((a, b) => a.date.localeCompare(b.date))
+
+    const todayLog = logs.find(l => l.date === new Date().toISOString().slice(0, 10))
+    const weights = logs.filter(l => l.weight > 0).map(l => l.weight)
+    const maxWeight = weights.length > 0 ? Math.max(...weights) : 0
+    const isPR = todayLog ? todayLog.weight >= maxWeight : false
+
+    let plateauSessions = 0
+    if (weights.length >= 3) {
+      const last3 = weights.slice(-3)
+      if (last3.every(w => w === last3[0])) plateauSessions = 3
+      else if (weights.length >= 4) {
+        const last4 = weights.slice(-4)
+        if (last4.every(w => w === last4[0])) plateauSessions = 4
+      }
+    }
+
+    const prevWeight = weights.length >= 2 ? weights[weights.length - 2] : null
+    const prevPrevWeight = weights.length >= 3 ? weights[weights.length - 3] : null
+
+    exerciseData.push({
+      name: exDef.name || progEx.exerciseId,
+      muscle: exDef.muscle || '',
+      planned_sets: progEx.sets || 3,
+      planned_reps: String(progEx.reps || '10'),
+      actual_sets: todayLog?.sets || null,
+      actual_reps: todayLog?.reps || null,
+      weight_kg: todayLog ? todayLog.weight : null,
+      prev_weight: prevWeight,
+      prev_prev_weight: prevPrevWeight,
+      is_pr: isPR,
+      is_plateau: plateauSessions >= 3,
+      plateau_sessions: plateauSessions,
+    })
+  }
+
+  const totalVolume = exerciseData.reduce((sum, ex) => {
+    const reps = typeof ex.actual_reps === 'number' ? ex.actual_reps : (parseInt(ex.actual_reps) || 0)
+    return sum + (ex.weight_kg || 0) * (ex.actual_sets || 0) * reps
+  }, 0)
+
+  const sessionData = {
+    day_name: day.name || 'Entrenamiento',
+    date: new Date().toISOString().slice(0, 10),
+    duration_min: durationMin || 0,
+    effort,
+    exercises: exerciseData,
+    total_volume_kg: totalVolume,
+  }
+
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/ai/coach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionData, systemPrompt: AI_COACH_PROMPT || '' }),
+    })
+
+    const data = await res.json()
+    const result = {
+      date: sessionData.date,
+      analysis: data.analysis || 'Buen trabajo hoy. Sigue así.',
+      verdict: data.verdict || 'neutral',
+    }
+
+    await Storage.saveCoachAnalysis(result)
+    return result
+  } catch (err) {
+    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' }
+    await Storage.saveCoachAnalysis(fallback)
+    return fallback
+  }
 }
 
 window.notifyWatch = async (title, body) => {

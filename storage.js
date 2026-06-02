@@ -139,8 +139,10 @@ const Storage = {
 
   async logWeight(exerciseId, weight, units, sets, reps) {
     const dateStr = new Date().toISOString().slice(0, 10)
+    const all = await getByIndex('exerciseLogs', 'exerciseId', exerciseId)
+    const existing = all.find(l => l.date === dateStr)
     const log = {
-      id: await generateId(),
+      id: existing ? existing.id : await generateId(),
       exerciseId,
       date: dateStr,
       weight,
@@ -177,11 +179,22 @@ const Storage = {
   // ── Settings ──
   async getSettings() {
     const s = await get('settings', 'settings')
-    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a', userName: 'Pedro', height: '', weight: '', sex: '', pushServerUrl: '', pushSubscribed: false, lastUpdate: '' }
+    return s || { id: 'settings', activeProgramId: null, currentWeekIdx: 0, units: 'kg', accentColor: '#d4ff3a', userName: 'Pedro', height: '', weight: '', sex: '', pushServerUrl: '', pushSubscribed: false, lastCoachAnalysis: null, lastUpdate: '' }
   },
 
   async saveSettings(settings) {
     return put('settings', { ...settings, id: 'settings' })
+  },
+
+  async saveCoachAnalysis(analysis) {
+    const s = await Storage.getSettings()
+    s.lastCoachAnalysis = analysis
+    await Storage.saveSettings(s)
+  },
+
+  async getCoachAnalysis() {
+    const s = await Storage.getSettings()
+    return s.lastCoachAnalysis || null
   },
 
   // ── CSV Import ──
@@ -193,7 +206,6 @@ const Storage = {
     const weekIdx = headers.indexOf('week')
     const dayIdx = headers.indexOf('day')
     const daySubtitleIdx = headers.indexOf('day_subtitle') !== -1 ? headers.indexOf('day_subtitle') : -1
-    const durationIdx = headers.indexOf('duration_min') !== -1 ? headers.indexOf('duration_min') : -1
     const exNameIdx = headers.indexOf('exercise_name')
     const muscleIdx = headers.indexOf('muscle')
     const setsIdx = headers.indexOf('sets')
@@ -210,7 +222,6 @@ const Storage = {
       const weekName = cols[weekIdx] || 'Week 1'
       const dayName = cols[dayIdx] || 'Day'
       const daySubtitle = daySubtitleIdx !== -1 ? (cols[daySubtitleIdx] || '') : ''
-      const duration = durationIdx !== -1 ? parseInt(cols[durationIdx]) || 60 : 60
       const exName = cols[exNameIdx] || ''
       const muscle = muscleIdx !== -1 ? (cols[muscleIdx] || '') : ''
       const sets = setsIdx !== -1 ? parseInt(cols[setsIdx]) || 3 : 3
@@ -222,7 +233,7 @@ const Storage = {
 
       if (!weekMap[weekName]) weekMap[weekName] = {}
       if (!weekMap[weekName][dayName]) {
-        weekMap[weekName][dayName] = { subtitle: daySubtitle, duration, exercises: [] }
+        weekMap[weekName][dayName] = { subtitle: daySubtitle, exercises: [] }
       }
       weekMap[weekName][dayName].exercises.push({ exerciseId: exercise.id, sets, reps: String(reps), rest })
     }
@@ -234,7 +245,6 @@ const Storage = {
       days: Object.entries(days).map(([dayName, data]) => ({
         name: dayName,
         subtitle: data.subtitle,
-        duration: data.duration,
         exercises: data.exercises,
       })),
     }))
@@ -267,7 +277,7 @@ const Storage = {
         : s
     }
 
-    const rows = ['week,day,day_subtitle,duration_min,exercise_name,muscle,sets,reps,rest_sec']
+    const rows = ['week,day,day_subtitle,exercise_name,muscle,sets,reps,rest_sec']
 
     program.weeks.forEach((week) => {
       week.days.forEach((day) => {
@@ -275,7 +285,7 @@ const Storage = {
           const exData = exMap[ex.exerciseId] || {}
           const name = exData.name || ex.exerciseId || 'Unknown'
           const muscle = exData.muscle || ''
-          rows.push([week.name, day.name, day.subtitle || '', day.duration || '', name, muscle, ex.sets, ex.reps, ex.rest].map(esc).join(','))
+          rows.push([week.name, day.name, day.subtitle || '', name, muscle, ex.sets, ex.reps, ex.rest].map(esc).join(','))
         })
       })
     })

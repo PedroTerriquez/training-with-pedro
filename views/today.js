@@ -9,11 +9,31 @@ let _phaseCardOpen = null
 let _todayExDone = 0
 let _timerInterval = null
 let _completionToastShown = false
+let _effortValue = null
+let _coachResult = null
+let _coachCardMode = false
+let _effortModalShowing = false
+let _sessionDate = ''
 
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps }) {
   swaps = swaps || {}
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
   _completionToastShown = false
+  _coachCardMode = false
+  _effortValue = null
+  _coachResult = null
+  _effortModalShowing = false
+  const todayDate = new Date().toISOString().slice(0, 10)
+  if (_sessionDate !== todayDate) {
+    _warmupDone = false
+    _stretchDone = false
+    _exercisesSkipped = false
+    _startedAt = null
+    _endedAt = null
+    _phaseCardOpen = null
+    _todayExDone = 0
+    _sessionDate = todayDate
+  }
   container.innerHTML = ''
   const page = document.createElement('div')
   page.className = 'page'
@@ -34,6 +54,13 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   if (!day || day.name === 'Rest' || day.name === 'Descanso') {
     renderRestDay(page, { weekDayName, dateStr, accent, weekObj, weekIdx })
+    return
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  if (settings.lastCoachAnalysis?.date === todayStr) {
+    _coachCardMode = true
+    renderCoachCard(page, settings.lastCoachAnalysis, accent, dateStr, weekDayName)
     return
   }
 
@@ -105,6 +132,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   // Enviar al Watch button
   const watchBtn = document.createElement('button')
+  watchBtn.id = 'today-watch-btn'
   watchBtn.style.cssText = 'display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.5);font-family:\'Space Grotesk\',sans-serif;font-size:11px;font-weight:500;touch-action:manipulation;transition:all 0.2s'
   watchBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ⌚'
   watchBtn.title = 'Enviar al Watch'
@@ -147,6 +175,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   // ── WARM-UP ──
   if (hasWarmup) {
     const section = document.createElement('div')
+    section.id = 'today-warmup-section'
     section.style.paddingTop = '22px'
     page.appendChild(section)
     section.appendChild(PhaseCard({
@@ -189,11 +218,13 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   // ── EXERCISES ──
   const exSection = document.createElement('div')
+  exSection.id = 'today-exercises-section'
   exSection.style.paddingTop = '22px'
   page.appendChild(exSection)
 
   if (hasWarmup && !_warmupDone) {
     const exLabel = document.createElement('div')
+    exLabel.id = 'today-ex-label'
     exLabel.style.cssText = 'padding:0 20px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-family:JetBrains Mono,monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.55);font-weight:600;white-space:nowrap'
     exLabel.innerHTML = `<span style="width:4px;height:4px;border-radius:50%;background:${accent};flex-shrink:0;display:inline-block"></span><span>Fase 02 · Entrenamiento</span><span style="margin-left:auto;color:rgba(255,255,255,0.4);letter-spacing:0.4px">${exDone} / ${exercisesTotal}</span>`
     exSection.appendChild(exLabel)
@@ -203,6 +234,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     }))
   } else if (_exercisesSkipped || exDone >= exercisesTotal) {
     const doneBanner = document.createElement('div')
+    doneBanner.id = 'today-ex-done-banner'
     doneBanner.style.cssText = `margin:0 20px;background:#141414;border-radius:18px;padding:14px 16px;border:0.5px solid ${accent}55;display:flex;align-items:center;gap:12px`
     doneBanner.innerHTML = `
       <div style="width:42px;height:42px;border-radius:12px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -216,12 +248,14 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     exLabel.innerHTML = `<span style="width:4px;height:4px;border-radius:50%;background:${accent};flex-shrink:0;display:inline-block"></span><span>Fase 02 · Entrenamiento</span><span style="margin-left:auto;color:rgba(255,255,255,0.4);letter-spacing:0.4px">${exDone} / ${exercisesTotal}</span>`
     exSection.appendChild(exLabel)
     const exList = document.createElement('div')
+    exList.id = 'today-ex-list'
     exList.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:0 20px'
     exSection.appendChild(exList)
 
     const topRow = document.createElement('div')
     topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:2px'
     const skipBtn = document.createElement('button')
+    skipBtn.id = 'today-skip-btn'
     skipBtn.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;touch-action:manipulation`
     skipBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0.5" y="0.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Marcar todo listo (sin peso)`
     skipBtn.addEventListener('click', () => {
@@ -254,16 +288,19 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   // ── STRETCH ──
   if (hasStretch) {
     const stSection = document.createElement('div')
+    stSection.id = 'today-stretch-section'
     stSection.style.paddingTop = '22px'
     page.appendChild(stSection)
 
     if (hasWarmup && !_warmupDone) {
       stSection.appendChild(LockedPhase({
+        id: 'today-locked-warmup-stretch',
         title: 'Termina el calentamiento primero',
         detail: 'Tus estiramientos aparecerán cuando completes todos los ejercicios.',
       }))
     } else if (exDone < exercisesTotal && !_exercisesSkipped) {
       stSection.appendChild(LockedPhase({
+        id: 'today-locked-training-stretch',
         title: 'Termina el entrenamiento primero',
         detail: `Completa los ${exercisesTotal - exDone} ejercicio(s) restante(s) para ver tus estiramientos.`,
       }))
@@ -351,6 +388,37 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         })
       }
     }
+
+    // ── Coach Analysis trigger ──
+    const allPhasesComplete = (!hasWarmup || _warmupDone) && (_todayExDone >= exercisesTotal || _exercisesSkipped) && (!hasStretch || _stretchDone)
+    if (allPhasesComplete && !_effortValue && !_coachCardMode && !_effortModalShowing && !document.getElementById('effort-overlay')) {
+      _effortModalShowing = true
+      setTimeout(() => {
+        if (_effortValue || _coachCardMode || document.getElementById('effort-overlay')) return
+        showEffortSelector({
+          accent,
+          day,
+          exercises,
+          onEffort: async (effort) => {
+            _effortValue = effort
+            _effortModalShowing = false
+            showToast('🧑‍🏫 Pedro analiza tu sesión…')
+            const result = await runCoachAnalysis(day, effort, day.duration || 60, exercises)
+            _coachResult = result
+            const toast = document.getElementById('backup-toast')
+            if (toast) { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300) }
+            showCoachAnalysisSheet({
+              analysis: result,
+              accent,
+              onDone: () => {
+                _coachCardMode = true
+                refreshView()
+              }
+            })
+          }
+        })
+      }, 600)
+    }
   })
 }
 
@@ -422,6 +490,7 @@ function TimerRing({ startedAt, endedAt, accent, complete, onReset, size = 64 })
 // ── Phase Card (warmup / stretch) ──
 function PhaseCard({ kind, phase, title, subtitle, accentColor, movements, done, onToggle, muscles, mode }) {
   const container = document.createElement('div')
+  container.dataset.phase = kind
   const isOpen = _phaseCardOpen === kind
   const accent = accentColor
 
@@ -504,8 +573,9 @@ function PhaseCard({ kind, phase, title, subtitle, accentColor, movements, done,
 }
 
 // ── Locked Phase ──
-function LockedPhase({ title, detail }) {
+function LockedPhase({ title, detail, id }) {
   const div = document.createElement('div')
+  if (id) div.id = id
   div.style.cssText = 'margin:0 20px;background:rgba(255,255,255,0.02);border-radius:18px;padding:18px 16px;border:0.5px dashed rgba(255,255,255,0.12);display:flex;gap:12px;align-items:center'
   div.innerHTML = `
     <div style="width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -522,6 +592,7 @@ function LockedPhase({ title, detail }) {
 function createExerciseRow(ex, accent, units, onOpen) {
   const btn = document.createElement('button')
   btn.className = 'exercise-row'
+  btn.dataset.exerciseId = ex.exerciseId || ex.id || ''
   btn.style.cssText = `background:#141414;border-radius:18px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;text-align:left;display:flex;align-items:stretch;gap:14px;color:inherit;position:relative;transition:border-color 0.2s`
 
   const imgUrl = ex.imgUrl || (typeof getExerciseImageFromDictionary === 'function' ? getExerciseImageFromDictionary(ex.name || '') : '') || ''
@@ -570,6 +641,134 @@ function createExerciseRow(ex, accent, units, onOpen) {
   })
 
   return btn
+}
+
+// ── Coach Analysis Card (post-session) ──
+function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
+  const verdictColor = analysis.verdict === 'positive' ? accent : analysis.verdict === 'warning' ? '#ff9f43' : 'rgba(255,255,255,0.85)'
+  const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
+  page.innerHTML = `
+    <div id="today-coach-card">
+    <div style="padding:56px 20px 12px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,0.45);text-transform:uppercase">${dateStr}</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:4px">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1">${weekDayName}.</div>
+      </div>
+    </div>
+    <div style="padding:20px">
+      <div style="border-radius:24px;border:0.5px solid rgba(255,255,255,0.06);background:#141414;padding:24px;overflow:hidden;position:relative">
+        <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:${accent};opacity:0.08;filter:blur(60px)"></div>
+        <div style="position:relative;z-index:1">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div style="width:40px;height:40px;border-radius:12px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;font-size:20px">🧑‍🏫</div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:${accent};font-weight:600">Tu coach Pedro</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Análisis de hoy</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <div style="font-size:24px;flex-shrink:0;margin-top:2px">${verdictIcon}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.65;color:${verdictColor};letter-spacing:-0.1px">${analysis.analysis}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>`
+}
+
+// ── Effort Selector Modal ──
+function showEffortSelector({ accent, day, exercises, onEffort }) {
+  const overlay = document.createElement('div')
+  overlay.id = 'effort-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:24px'
+  const card = document.createElement('div')
+  card.style.cssText = `background:#141414;border-radius:24px;padding:28px 24px;max-width:340px;width:100%;border:0.5px solid rgba(255,255,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeUp 0.25s ease-out`
+  card.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:32px;margin-bottom:8px">🧑‍🏫</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;letter-spacing:-0.3px">¿Cómo sentiste la sesión?</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:6px">Esto ayuda a Pedro a darte mejor feedback</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="effort-btn" data-effort="easy" style="padding:14px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;transition:all 0.15s">
+        <div style="width:40px;height:40px;border-radius:10px;background:${accent}1a;display:flex;align-items:center;justify-content:center;font-size:20px;border:0.5px solid ${accent}33">💪</div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Fácil</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Podía más, para subir peso</div>
+        </div>
+      </button>
+      <button class="effort-btn" data-effort="good" style="padding:14px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;transition:all 0.15s">
+        <div style="width:40px;height:40px;border-radius:10px;background:${accent}1a;display:flex;align-items:center;justify-content:center;font-size:20px;border:0.5px solid ${accent}33">👍</div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Justo</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Peso correcto, lo planeado</div>
+        </div>
+      </button>
+      <button class="effort-btn" data-effort="heavy" style="padding:14px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;transition:all 0.15s">
+        <div style="width:40px;height:40px;border-radius:10px;background:${accent}1a;display:flex;align-items:center;justify-content:center;font-size:20px;border:0.5px solid ${accent}33">😮‍💨</div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Pesado</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Me costó trabajo</div>
+        </div>
+      </button>
+      <button class="effort-btn" data-effort="failure" style="padding:14px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;transition:all 0.15s">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,107,107,0.12);display:flex;align-items:center;justify-content:center;font-size:20px;border:0.5px solid rgba(255,107,107,0.3)">🛑</div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">RPE 10</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Fallé o casi fallo, bajar peso</div>
+        </div>
+      </button>
+    </div>`
+  overlay.appendChild(card)
+  document.body.appendChild(overlay)
+
+  card.querySelectorAll('.effort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      overlay.remove()
+      onEffort(btn.dataset.effort)
+    })
+  })
+}
+
+// ── Coach Analysis Result Sheet ──
+function showCoachAnalysisSheet({ analysis, accent, onDone }) {
+  const overlay = document.createElement('div')
+  overlay.id = 'coach-analysis-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn 0.2s ease-out'
+  const sheet = document.createElement('div')
+  sheet.id = 'coach-analysis-sheet'
+  sheet.style.cssText = `background:#141414;border-radius:24px 24px 0 0;padding:24px 24px 36px;max-width:480px;width:100%;border:0.5px solid rgba(255,255,255,0.08);animation:fadeUp 0.3s ease-out`
+  const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
+  sheet.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="width:48px;height:48px;border-radius:14px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;font-size:24px">🧑‍🏫</div>
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;letter-spacing:-0.3px">Tu coach Pedro</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px">te quiere decir algo…</div>
+      </div>
+    </div>
+    <div id="coach-analysis-body" style="background:rgba(255,255,255,0.03);border-radius:16px;padding:18px;border:0.5px solid rgba(255,255,255,0.06);display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;opacity:0;transform:translateY(8px);transition:opacity 0.35s ease-out,transform 0.35s ease-out;pointer-events:none">
+      <div style="font-size:24px;flex-shrink:0;margin-top:1px">${verdictIcon}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.65;color:rgba(255,255,255,0.9);letter-spacing:-0.05px">${analysis.analysis}</div>
+    </div>
+    <button id="coach-ver-btn" style="width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation">VER</button>`
+  overlay.appendChild(sheet)
+  document.body.appendChild(overlay)
+
+  let revealed = false
+  document.getElementById('coach-ver-btn').addEventListener('click', () => {
+    if (!revealed) {
+      revealed = true
+      const body = document.getElementById('coach-analysis-body')
+      body.style.opacity = '1'
+      body.style.transform = 'translateY(0)'
+      body.style.pointerEvents = 'auto'
+      document.getElementById('coach-ver-btn').textContent = 'OK'
+    } else {
+      overlay.remove()
+      onDone()
+    }
+  })
 }
 
 // ── Rest Day ──
