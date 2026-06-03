@@ -131,17 +131,18 @@ async function renderScreen() {
 
   // Compute reschedule order for the current week
   const weekOrder = _state.settings?.rescheduleWeekOrder || {}
-  const currentWeek = _state.activeProgram?.weeks[_state.settings?.currentWeekIdx || 0]
-  const currentWeekId = currentWeek?.id
+  const progId = _state.activeProgram?.id || 'prog'
+  const weekIdx = _state.settings?.currentWeekIdx || 0
+  const rescheduleKey = progId + '-week-' + weekIdx
   const defaultOrder = [0,1,2,3,4,5,6]
-  const savedOrder = currentWeekId ? weekOrder[currentWeekId] : null
+  const savedOrder = weekOrder[rescheduleKey]
   const rescheduleOrder = savedOrder?.length === 7 ? savedOrder : defaultOrder
 
   const onUpdateRescheduleOrder = async (newOrder) => {
     const s = await Storage.getSettings()
     if (!s.rescheduleWeekOrder) s.rescheduleWeekOrder = {}
-    const wid = _state.activeProgram?.weeks[_state.settings?.currentWeekIdx || 0]?.id
-    if (wid) s.rescheduleWeekOrder[wid] = newOrder
+    const key = (_state.activeProgram?.id || 'prog') + '-week-' + (_state.settings?.currentWeekIdx || 0)
+    s.rescheduleWeekOrder[key] = newOrder
     await Storage.saveSettings(s)
     _state.settings = s
     renderScreen()
