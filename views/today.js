@@ -1,8 +1,6 @@
 // ── Today screen (Hoy) — redesigned with PhaseCard + ProgressRing + TimerRing ──
 
-let _warmupDone = false
-let _stretchDone = false
-let _exercisesSkipped = false
+let _phase = 1
 let _startedAt = null
 let _endedAt = null
 let _phaseCardOpen = null
@@ -11,13 +9,16 @@ let _timerInterval = null
 let _completionToastShown = false
 let _effortValue = null
 let _coachResult = null
+let _coachLoading = false
 let _coachCardMode = false
 let _effortModalShowing = false
 let _sessionDate = ''
 let _coachDay = null
 let _coachEffort = null
+let _warmupSheetShown = false
+let _stretchSheetShown = false
 
-function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps }) {
+function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps, rescheduleOrder }) {
   swaps = swaps || {}
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
   _completionToastShown = false
@@ -26,14 +27,22 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   _effortModalShowing = false
   const todayDate = new Date().toISOString().slice(0, 10)
   if (_sessionDate !== todayDate) {
-    _warmupDone = false
-    _stretchDone = false
-    _exercisesSkipped = false
+    _phase = 1
     _startedAt = null
     _endedAt = null
     _phaseCardOpen = null
     _todayExDone = 0
     _sessionDate = todayDate
+    _warmupSheetShown = false
+    _stretchSheetShown = false
+    _coachCardMode = false
+    _effortValue = null
+    _coachResult = null
+  }
+  // Restore session state from settings (survives page reload)
+  if (settings.sessionState?.date === todayDate) {
+    _phase = settings.sessionState.phase || 1
+    _todayExDone = settings.sessionState.todayExDone || 0
   }
   container.innerHTML = ''
   const page = document.createElement('div')
@@ -42,12 +51,16 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   const now = new Date()
   const jsDay = now.getDay()
-  const detectedDayIdx = (jsDay + 6) % 7
-  const dayIdx = dayIndex >= 0 ? dayIndex : detectedDayIdx
+  const detectedDayIdx = (dayIndex >= 0 ? dayIndex : (jsDay + 6) % 7)
   const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
   function resolveExId(exerciseId) { return swaps[exerciseId] || exerciseId }
   const weekObj = program?.weeks[weekIdx]
-  const day = weekObj?.days[dayIdx]
+  const defaultDaysOrder = [0,1,2,3,4,5,6]
+  const order = (rescheduleOrder && rescheduleOrder.length === 7) ? rescheduleOrder : defaultDaysOrder
+  const originalDayIdx = order[detectedDayIdx < order.length ? detectedDayIdx : 0]
+  const day = weekObj?.days[originalDayIdx]
+  const isRescheduled = originalDayIdx !== detectedDayIdx
+  const DAYS_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
   const dateStr = `${monthNames[now.getMonth()]} ${now.getDate()} · ${now.getFullYear()}`
@@ -58,8 +71,9 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     return
   }
 
-  if (_coachCardMode && settings.lastCoachAnalysis?.date === new Date().toISOString().slice(0, 10)) {
-    renderCoachCard(page, settings.lastCoachAnalysis, accent, dateStr, weekDayName)
+  if (_coachCardMode) {
+    const analysis = (!_coachLoading && settings.lastCoachAnalysis?.date === new Date().toISOString().slice(0, 10)) ? settings.lastCoachAnalysis : null
+    renderCoachCard(page, analysis, accent, dateStr, weekDayName)
     return
   }
 
@@ -75,7 +89,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const exercisesTotal = day.exercises.length
   const totalSteps = (hasWarmup ? 1 : 0) + exercisesTotal + (hasStretch ? 1 : 0)
   const exDone = _todayExDone
-  const doneSteps = (_warmupDone ? 1 : 0) + exDone + (_stretchDone ? 1 : 0)
+  const doneSteps = (_phase >= 2 ? 1 : 0) + exDone + (_phase >= 4 ? 1 : 0)
   const pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0
 
   // Timer auto-start/stop
@@ -83,18 +97,49 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   if (totalSteps > 0 && doneSteps === totalSteps && _startedAt && !_endedAt) _endedAt = Date.now()
   if (_endedAt && doneSteps < totalSteps) _endedAt = null
 
-  // Auto-open warmup card if not done (first load or after undo)
-  if (_phaseCardOpen === null && hasWarmup && !_warmupDone) {
-    _phaseCardOpen = 'warmup'
+  // Auto-open warmup detail sheet if not done (first load or after undo)
+  if (!_warmupSheetShown && hasWarmup && _phase < 2) {
+    _warmupSheetShown = true
+    setTimeout(() => {
+      mountWarmupDetail({
+        items: warmupItems,
+        mode: 'warmup',
+        accent,
+        onComplete: () => {
+          _phase = 2
+          _phaseCardOpen = null
+          persistPhase()
+          refreshView()
+        },
+      })
+    }, 300)
   }
 
-  // Auto-open stretch card when exercises are done and warmup is complete
-  if (_phaseCardOpen === null && hasStretch && (!hasWarmup || _warmupDone) && exDone >= exercisesTotal && !_stretchDone) {
-    _phaseCardOpen = 'stretch'
+  // Auto-open stretch detail sheet when exercises are done and warmup is complete
+  if (!_stretchSheetShown && hasStretch && _phase >= 3 && _phase < 4) {
+    _stretchSheetShown = true
+    setTimeout(() => {
+      mountWarmupDetail({
+        items: stretchItems,
+        mode: 'stretch',
+        accent,
+        onComplete: () => {
+          _phase = 4
+          _phaseCardOpen = null
+          persistPhase()
+          refreshView()
+        },
+      })
+    }, 300)
   }
 
   function refreshView() {
-    mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps })
+    mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps, rescheduleOrder })
+  }
+
+  function persistPhase() {
+    settings.sessionState = { date: todayDate, phase: _phase, todayExDone: _todayExDone }
+    Storage.saveSettings(settings)
   }
 
   // Header
@@ -117,9 +162,10 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         <div style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:${accent};text-transform:uppercase;font-weight:600;white-space:nowrap">
           Sesión de hoy
         </div>
-        <div style="margin-top:6px;font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;color:#fafafa;letter-spacing:-1.2px;line-height:1.02">${day.name}</div>
-        <div style="margin-top:6px;font-size:13.5px;color:rgba(255,255,255,0.55)">${day.subtitle || ''}</div>
-      </div>
+          <div style="margin-top:6px;font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;color:#fafafa;letter-spacing:-1.2px;line-height:1.02">${day.name}</div>
+          <div style="margin-top:6px;font-size:13.5px;color:rgba(255,255,255,0.55)">${day.subtitle || ''}</div>
+          ${isRescheduled ? `<div style="display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:4px 10px;border-radius:9999px;background:${accent}18;border:0.5px solid ${accent}3a;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.6px;text-transform:uppercase;color:${accent};font-weight:600">↔ Reprogramado · lo de ${DAYS_LONG[originalDayIdx]}</div>` : ''}
+        </div>
       <div id="hero-rings" style="display:flex;align-items:center;gap:10px;flex-shrink:0">
         ${ProgressRing({ pct, done: doneSteps, total: totalSteps, accent })}
       </div>
@@ -184,11 +230,12 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       subtitle: `${Math.ceil(warmupItems.length * 1.5)} min · dinámico`,
       accentColor: '#9bd1ff',
       movements: warmupItems,
-      done: _warmupDone,
+      done: _phase >= 2,
       onToggle: () => {
-        const wasDone = _warmupDone
-        _warmupDone = !_warmupDone
+        const wasDone = _phase >= 2
+        _phase = wasDone ? 1 : 2
         _phaseCardOpen = null
+        persistPhase()
         if (!wasDone) {
           if (day.exercises.length > 0) {
             const firstEx = day.exercises[0]
@@ -221,7 +268,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   exSection.style.paddingTop = '22px'
   page.appendChild(exSection)
 
-  if (hasWarmup && !_warmupDone) {
+  if (hasWarmup && _phase < 2) {
     const exLabel = document.createElement('div')
     exLabel.id = 'today-ex-label'
     exLabel.style.cssText = 'padding:0 20px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-family:JetBrains Mono,monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.55);font-weight:600;white-space:nowrap'
@@ -231,7 +278,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       title: 'Termina el calentamiento primero',
       detail: 'Tus ejercicios aparecerán aquí cuando marques la Fase 01 como hecha.',
     }))
-  } else if (_exercisesSkipped || exDone >= exercisesTotal) {
+  } else if (_phase >= 3) {
     const doneBanner = document.createElement('div')
     doneBanner.id = 'today-ex-done-banner'
     doneBanner.style.cssText = `margin:0 20px;background:#141414;border-radius:18px;padding:14px 16px;border:0.5px solid ${accent}55;display:flex;align-items:center;gap:12px`
@@ -258,8 +305,9 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     skipBtn.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;touch-action:manipulation`
     skipBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0.5" y="0.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Marcar todo listo (sin peso)`
     skipBtn.addEventListener('click', () => {
-      _exercisesSkipped = true
+      _phase = 3
       _todayExDone = exercisesTotal
+      persistPhase()
       const start = _startedAt || Date.now()
       const sec = Math.floor((Date.now() - start) / 1000)
       const mm = Math.floor(sec / 60)
@@ -291,13 +339,13 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     stSection.style.paddingTop = '22px'
     page.appendChild(stSection)
 
-    if (hasWarmup && !_warmupDone) {
+    if (hasWarmup && _phase < 2) {
       stSection.appendChild(LockedPhase({
         id: 'today-locked-warmup-stretch',
         title: 'Termina el calentamiento primero',
         detail: 'Tus estiramientos aparecerán cuando completes todos los ejercicios.',
       }))
-    } else if (exDone < exercisesTotal && !_exercisesSkipped) {
+    } else if (_phase < 3) {
       stSection.appendChild(LockedPhase({
         id: 'today-locked-training-stretch',
         title: 'Termina el entrenamiento primero',
@@ -311,11 +359,20 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         subtitle: `${Math.ceil(stretchItems.length * 1.5)} min · estático`,
         accentColor: '#c89bff',
         movements: stretchItems,
-        done: _stretchDone,
+        done: _phase >= 4,
         onToggle: () => {
-          _stretchDone = !_stretchDone
-          _phaseCardOpen = null
-          refreshView()
+          _stretchSheetShown = true
+          mountWarmupDetail({
+            items: stretchItems,
+            mode: 'stretch',
+            accent,
+            onComplete: () => {
+              _phase = 4
+              _phaseCardOpen = null
+              persistPhase()
+              refreshView()
+            },
+          })
         },
         muscles: warmupMuscles,
         mode: 'stretch',
@@ -342,14 +399,14 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   // Async load today's logs to update counts
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
-    const done = _exercisesSkipped ? exercisesTotal : day.exercises.filter(ex => {
+    const done = _phase >= 3 ? exercisesTotal : day.exercises.filter(ex => {
       const displayedId = resolveExId(ex.exerciseId || ex.id)
       return logs.some(l => l.exerciseId === displayedId)
     }).length
     if (done !== _todayExDone) {
       const prev = _todayExDone
       _todayExDone = done
-      if (!_exercisesSkipped) {
+      if (_phase < 3) {
         const nextIdx = _todayExDone
         if (nextIdx < day.exercises.length) {
           const nextEx = day.exercises[nextIdx]
@@ -367,7 +424,9 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         }
       }
       refreshView()
-      if (done >= exercisesTotal && prev < exercisesTotal && !_exercisesSkipped && !_completionToastShown) {
+      if (done >= exercisesTotal && prev < exercisesTotal && _phase < 3 && !_completionToastShown) {
+        _phase = 3
+        persistPhase()
         _completionToastShown = true
         const start = _startedAt || Date.now()
         const sec = Math.floor((Date.now() - start) / 1000)
@@ -381,7 +440,6 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
           duration: 3000,
           accent,
           onDone: () => {
-            _phaseCardOpen = 'stretch'
             refreshView()
           },
         })
@@ -389,7 +447,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     }
 
     // ── Coach Analysis trigger ──
-    const allPhasesComplete = (!hasWarmup || _warmupDone) && (_todayExDone >= exercisesTotal || _exercisesSkipped) && (!hasStretch || _stretchDone)
+    const allPhasesComplete = _phase >= (hasStretch ? 4 : 3)
     if (allPhasesComplete && !_effortValue && !_coachCardMode && !_effortModalShowing && !document.getElementById('effort-overlay')) {
       _effortModalShowing = true
       setTimeout(() => {
@@ -403,18 +461,21 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
             _coachEffort = effort
             _effortValue = effort
             _effortModalShowing = false
-            showToast('🧑‍🏫 Pedro analiza tu sesión…')
-            const result = await runCoachAnalysis(day, effort, day.duration || 60, exercises, settings)
-            _coachResult = result
-            const toast = document.getElementById('backup-toast')
-            if (toast) { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300) }
-            showCoachAnalysisSheet({
-              analysis: result,
-              accent,
-              onDone: () => {
-                _coachCardMode = true
-                refreshView()
-              }
+            _coachLoading = true
+            _coachCardMode = true
+            _coachDay = day
+            _coachEffort = effort
+            refreshView()
+            runCoachAnalysis(day, effort, day.duration || 60, exercises, settings, swaps).then(async (result) => {
+              _coachResult = result
+              _coachLoading = false
+              const s = await Storage.getSettings()
+              s.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
+              await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
+              refreshView()
+            }).catch(() => {
+              _coachLoading = false
+              refreshView()
             })
           }
         })
@@ -618,17 +679,15 @@ function createExerciseRow(ex, accent, units, onOpen) {
   })
 
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
-    if (_exercisesSkipped) {
-      btn.style.borderColor = `${accent}33`
-      weightEl.innerHTML = `<span style="color:${accent};font-weight:500">✓</span> <span style="font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:${accent}">hoy</span>`
-      const badge = btn.querySelector('div:first-child')
-      badge.innerHTML += `<div style="position:absolute;top:6px;right:6px;width:16px;height:16px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px ${accent}66"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 1" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`
-      return
-    }
     const log = logs.find((l) => l.exerciseId === (ex.exerciseId || ex.id))
     if (log) {
       btn.style.borderColor = `${accent}33`
       weightEl.innerHTML = `<span style="color:${accent};font-weight:500">${log.weight}${units}</span> <span style="font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:${accent}">hoy</span>`
+      const badge = btn.querySelector('div:first-child')
+      badge.innerHTML += `<div style="position:absolute;top:6px;right:6px;width:16px;height:16px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px ${accent}66"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 1" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`
+    } else if (_phase >= 3) {
+      btn.style.borderColor = `${accent}33`
+      weightEl.innerHTML = `<span style="color:${accent};font-weight:500">✓</span> <span style="font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:${accent}">hoy</span>`
       const badge = btn.querySelector('div:first-child')
       badge.innerHTML += `<div style="position:absolute;top:6px;right:6px;width:16px;height:16px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px ${accent}66"><svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 1" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`
     } else {
@@ -646,8 +705,28 @@ function createExerciseRow(ex, accent, units, onOpen) {
 
 // ── Coach Analysis Card (post-session) ──
 function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
-  const verdictColor = analysis.verdict === 'positive' ? accent : analysis.verdict === 'warning' ? '#ff9f43' : 'rgba(255,255,255,0.85)'
-  const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
+  const isLoading = _coachLoading
+  let bodyHtml = ''
+  if (isLoading) {
+    bodyHtml = `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite">
+              <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+              <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+            </svg>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:rgba(255,255,255,0.6);letter-spacing:-0.05px">Analizando tu sesión…</div>
+          </div>`
+  } else if (analysis) {
+    const verdictColor = analysis.verdict === 'positive' ? accent : analysis.verdict === 'warning' ? '#ff9f43' : 'rgba(255,255,255,0.85)'
+    const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
+    bodyHtml = `
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <div style="font-size:24px;flex-shrink:0;margin-top:2px">${verdictIcon}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.65;color:${verdictColor};letter-spacing:-0.1px">${analysis.analysis}</div>
+          </div>`
+  }
   page.innerHTML = `
     <div id="today-coach-card">
     <div style="padding:56px 20px 12px">
@@ -657,41 +736,45 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
       </div>
     </div>
     <div style="padding:20px">
-      <div id="coach-card-regen" style="border-radius:24px;border:0.5px solid rgba(255,255,255,0.06);background:#141414;padding:24px;overflow:hidden;position:relative;cursor:pointer;transition:border-color 0.15s">
+      <div id="coach-card-regen" style="border-radius:24px;border:0.5px solid rgba(255,255,255,0.06);background:#141414;padding:24px;overflow:hidden;position:relative;cursor:${isLoading ? 'default' : 'pointer'};transition:border-color 0.15s">
         <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:${accent};opacity:0.08;filter:blur(60px)"></div>
         <div style="position:relative;z-index:1">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <div style="width:40px;height:40px;border-radius:12px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;font-size:20px">🧑‍🏫</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div style="width:52px;height:52px;border-radius:14px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,0.4)"><img src="data/Gemini_Generated_Image_skjbz4skjbz4skjb.png" alt="Pedro" style="width:100%;height:100%;object-fit:cover"></div>
             <div>
               <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:${accent};font-weight:600">Tu coach Pedro</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Toca para regenerar ↻</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${isLoading ? '' : 'Toca para regenerar ↻'}</div>
             </div>
           </div>
-          <div style="display:flex;gap:10px;align-items:flex-start">
-            <div style="font-size:24px;flex-shrink:0;margin-top:2px">${verdictIcon}</div>
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.65;color:${verdictColor};letter-spacing:-0.1px">${analysis.analysis}</div>
-          </div>
+          ${bodyHtml}
         </div>
       </div>
     </div>
     </div>`
-  const regenEl = document.getElementById('coach-card-regen')
-  if (regenEl && _coachDay && _coachEffort) {
-    regenEl.addEventListener('click', async () => {
-      regenEl.style.borderColor = `${accent}55`
-      const s = await Storage.getSettings()
-      showToast('🧑‍🏫 Pedro analiza tu sesión…')
-      const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, _state.exercises || [], s)
-      _coachResult = result
-      showCoachAnalysisSheet({
-        analysis: result,
-        accent,
-        onDone: () => {
-          _coachCardMode = true
+
+  // Regeneration handler (only when not loading)
+  if (!isLoading && _coachDay && _coachEffort) {
+    const regenEl = document.getElementById('coach-card-regen')
+    if (regenEl) {
+      regenEl.addEventListener('click', async () => {
+        _coachLoading = true
+        _coachResult = null
+        refreshView()
+        const s = await Storage.getSettings()
+        try {
+          const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, _state.exercises || [], s, _state.tempSwaps || {})
+          _coachResult = result
+          _coachLoading = false
+          const settings = await Storage.getSettings()
+          settings.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
+          await Storage.saveCoachAnalysis(settings.lastCoachAnalysis)
+          refreshView()
+        } catch {
+          _coachLoading = false
           refreshView()
         }
       })
-    })
+    }
   }
 }
 
@@ -749,36 +832,7 @@ function showEffortSelector({ accent, day, exercises, onEffort }) {
   })
 }
 
-// ── Coach Analysis Result Sheet ──
-function showCoachAnalysisSheet({ analysis, accent, onDone }) {
-  const overlay = document.createElement('div')
-  overlay.id = 'coach-analysis-overlay'
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn 0.2s ease-out'
-  const sheet = document.createElement('div')
-  sheet.id = 'coach-analysis-sheet'
-  sheet.style.cssText = `background:#141414;border-radius:24px 24px 0 0;padding:24px 24px 36px;max-width:480px;width:100%;border:0.5px solid rgba(255,255,255,0.08);animation:fadeUp 0.3s ease-out`
-  const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
-  sheet.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="width:48px;height:48px;border-radius:14px;background:${accent}22;border:0.5px solid ${accent}44;display:flex;align-items:center;justify-content:center;font-size:24px">🧑‍🏫</div>
-      <div>
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;letter-spacing:-0.3px">Tu coach Pedro</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px">te quiere decir algo…</div>
-      </div>
-    </div>
-    <div id="coach-analysis-body" style="background:rgba(255,255,255,0.03);border-radius:16px;padding:18px;border:0.5px solid rgba(255,255,255,0.06);display:flex;gap:12px;align-items:flex-start;margin-bottom:20px">
-      <div style="font-size:24px;flex-shrink:0;margin-top:1px">${verdictIcon}</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.65;color:rgba(255,255,255,0.9);letter-spacing:-0.05px">${analysis.analysis}</div>
-    </div>
-    <button id="coach-ver-btn" style="width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation">OK</button>`
-  overlay.appendChild(sheet)
-  document.body.appendChild(overlay)
 
-  document.getElementById('coach-ver-btn').addEventListener('click', () => {
-    overlay.remove()
-    onDone()
-  })
-}
 
 // ── Rest Day ──
 function renderRestDay(container, { weekDayName, dateStr, accent, weekObj, weekIdx }) {

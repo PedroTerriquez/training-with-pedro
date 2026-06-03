@@ -4,6 +4,10 @@ function TodayScreen({ ctx, onOpenExercise }) {
   const { day, weekObj, dayIndex, weekDayName, dateStr, accent, units, logState, dayState, setDayState } = ctx;
   if (day.name === "Descanso") return <RestDay ctx={ctx} />;
 
+  // Did today's workout get rescheduled from another weekday?
+  const movedFrom = ctx.order && ctx.order[dayIndex] !== dayIndex ? ctx.order[dayIndex] : null;
+  const DAYS_LONG = window.PROGRAM_DAYS_LONG || [];
+
   // Day-level state for warmup/stretch (keyed by week+day)
   const dayKey = `${weekObj.id}-${dayIndex}`;
   const state = dayState[dayKey] || { warmupDone: false, stretchDone: false, startedAt: null, endedAt: null };
@@ -91,6 +95,16 @@ function TodayScreen({ ctx, onOpenExercise }) {
             <div style={{
               marginTop: 6, fontSize: 13.5, color: 'rgba(255,255,255,0.55)',
             }}>{day.subtitle}</div>
+            {movedFrom !== null && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                marginTop: 9, padding: '4px 10px', borderRadius: 9999,
+                background: `${accent}18`, border: `0.5px solid ${accent}3a`,
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase',
+                color: accent, fontWeight: 600,
+              }}>↔ Reprogramado · lo de {DAYS_LONG[movedFrom]}</div>
+            )}
           </div>
 
           {/* Progress ring + Timer ring */}

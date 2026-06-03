@@ -18,6 +18,9 @@ function App() {
   const [sheetExercise, setSheetExercise] = React.useState(null);
   const [logState, setLogState] = React.useState({});
   const [dayState, setDayState] = React.useState({});
+  // Temporary per-week day reschedule. { [weekId]: number[7] } mapping
+  // calendar-day-index -> original-day-index. Resets are user-driven (this week only).
+  const [weekOrder, setWeekOrder] = React.useState({});
 
   // Date detection — May 14, 2026 = Thursday
   const now = new Date(2026, 4, 14); // override for demo: May 14 2026
@@ -29,7 +32,11 @@ function App() {
   const weekIdx = Math.min(t.currentWeekIdx, t.rotationWeeks - 1);
 
   const weekObj = window.PROGRAM.weeks[weekIdx];
-  const day = weekObj.days[dayIdx];
+  const defaultOrder = [0, 1, 2, 3, 4, 5, 6];
+  const order = weekOrder[weekObj.id] || defaultOrder;
+  const setOrder = (next) => setWeekOrder(o => ({ ...o, [weekObj.id]: next }));
+  // Today shows whatever workout now lands on today's real weekday.
+  const day = weekObj.days[order[dayIdx]];
   const weekDayName = DAY_NAMES_LONG[jsDay];
   const dateStr = `${MONTH_NAMES[now.getMonth()]} ${now.getDate()} · ${now.getFullYear()}`;
 
@@ -39,6 +46,7 @@ function App() {
     accent: t.accent, units: t.units,
     activeWeeks: t.rotationWeeks,
     logState, dayState, setDayState,
+    order, setOrder, defaultOrder,
   };
 
   // Compute prev/next exercise in the day's flow

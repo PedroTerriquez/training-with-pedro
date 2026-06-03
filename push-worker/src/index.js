@@ -83,12 +83,10 @@ export default {
         const { sessionData, systemPrompt } = await req.json()
         if (!sessionData) return respond({ error: 'No session data provided' }, 400)
 
-        const fullPrompt = (systemPrompt || '') + '\n\nDATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData, null, 2)
-
         const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
           messages: [
             { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: fullPrompt },
+            { role: 'user', content: 'DATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData, null, 2) },
           ],
           stream: false,
           max_tokens: 1024,
@@ -120,7 +118,7 @@ export default {
         const { text, systemPrompt } = await req.json()
         if (!text) return respond({ error: 'No text provided' }, 400)
 
-        const fullPrompt = (systemPrompt || '') + '\n\nRUTINA DEL USUARIO:\n' + text
+        const fullPrompt = 'RUTINA DEL USUARIO:\n' + text
 
         const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
           messages: [

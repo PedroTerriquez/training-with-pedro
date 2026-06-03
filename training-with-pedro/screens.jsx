@@ -9,24 +9,90 @@ function PlanScreen({ ctx, onOpenExercise }) {
   const activeWeeks = ctx.activeWeeks; // number from tweak
   const weeks = PROGRAM.weeks.slice(0, activeWeeks);
   const [weekIdx, setWeekIdx] = React.useState(ctx.weekIdx);
+  const [editing, setEditing] = React.useState(false);
   const week = weeks[weekIdx] || weeks[0];
 
   const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+  // Reschedule is current-week-only.
+  const order = ctx.order;
+  const changes = order.reduce((n, v, i) => n + (v !== i ? 1 : 0), 0);
+  const enterEdit = () => { setWeekIdx(ctx.weekIdx); setEditing(true); };
+
   return (
     <div style={{ paddingBottom: 120 }}>
-      <div style={{ padding: '56px 20px 16px' }}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 11, letterSpacing: 1.6, color: 'rgba(255,255,255,0.45)',
-          textTransform: 'uppercase',
-        }}>Tu programa</div>
-        <div style={{
-          fontFamily: 'Space Grotesk, system-ui',
-          fontSize: 38, fontWeight: 700, color: '#fafafa',
-          letterSpacing: -1.5, lineHeight: 1, marginTop: 4,
-        }}>Plan.</div>
+      <div style={{
+        padding: '56px 20px 16px',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 11, letterSpacing: 1.6, color: 'rgba(255,255,255,0.45)',
+            textTransform: 'uppercase',
+          }}>{editing ? 'Reprogramar' : 'Tu programa'}</div>
+          <div style={{
+            fontFamily: 'Space Grotesk, system-ui',
+            fontSize: 38, fontWeight: 700, color: '#fafafa',
+            letterSpacing: -1.5, lineHeight: 1, marginTop: 4,
+          }}>{editing ? 'Mover.' : 'Plan.'}</div>
+        </div>
+        <button
+          onClick={() => (editing ? setEditing(false) : enterEdit())}
+          style={{
+            flexShrink: 0, padding: '9px 15px', borderRadius: 9999, cursor: 'pointer',
+            border: editing ? 0 : `0.5px solid ${accent}55`,
+            background: editing ? accent : 'transparent',
+            color: editing ? '#0a0a0a' : accent,
+            fontFamily: 'Space Grotesk, system-ui', fontSize: 13, fontWeight: 700,
+            letterSpacing: -0.1, display: 'flex', alignItems: 'center', gap: 6,
+            marginBottom: 2,
+          }}
+        >
+          {editing ? 'Listo' : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
+                <path d="M11.5 2.5l3 3-3 3M14 5.5H5.5a3 3 0 00-3 3M5.5 14.5l-3-3 3-3M3 11.5h8.5a3 3 0 003-3"
+                  stroke={accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Reprogramar
+            </>
+          )}
+        </button>
       </div>
+
+      {editing && <ReschedulePlan ctx={ctx} />}
+
+      {!editing && (<>
+
+      {changes > 0 && (
+        <div style={{ padding: '0 20px', marginBottom: 14 }}>
+          <button onClick={enterEdit} style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer',
+            background: `${accent}0d`, border: `0.5px solid ${accent}33`,
+            borderRadius: 14, padding: '11px 14px',
+            display: 'flex', alignItems: 'center', gap: 10, color: 'inherit',
+          }}>
+            <div style={{
+              width: 7, height: 7, borderRadius: '50%', background: accent,
+              boxShadow: `0 0 7px ${accent}`, flexShrink: 0,
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontFamily: 'Space Grotesk, system-ui',
+                fontSize: 13, fontWeight: 600, color: '#fafafa', letterSpacing: -0.2,
+              }}>Semana reprogramada · {changes} {changes === 1 ? 'cambio' : 'cambios'}</div>
+              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
+                Temporal · se reinicia el lunes
+              </div>
+            </div>
+            <span style={{
+              fontFamily: 'Space Grotesk, system-ui', fontSize: 12, fontWeight: 700,
+              color: accent, flexShrink: 0,
+            }}>Editar</span>
+          </button>
+        </div>
+      )}
 
       {/* Week tabs */}
       <div style={{ padding: '0 20px', display: 'flex', gap: 8, marginBottom: 18 }}>
@@ -57,8 +123,12 @@ function PlanScreen({ ctx, onOpenExercise }) {
 
       {/* Days */}
       <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {week.days.map((day, i) => {
-          const isToday = i === ctx.dayIndex && weekIdx === ctx.weekIdx;
+        {week.days.map((_, i) => {
+          const isCurrentWeek = weekIdx === ctx.weekIdx;
+          const originalIdx = isCurrentWeek ? order[i] : i;
+          const day = week.days[originalIdx];
+          const isMoved = isCurrentWeek && originalIdx !== i;
+          const isToday = i === ctx.dayIndex && isCurrentWeek;
           const isRest = day.name === "Descanso";
           return (
             <div key={i} style={{
@@ -102,6 +172,16 @@ function PlanScreen({ ctx, onOpenExercise }) {
                   fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{day.subtitle}</div>
+                {isMoved && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    marginTop: 6, padding: '3px 8px', borderRadius: 9999,
+                    background: `${week.accent}18`, border: `0.5px solid ${week.accent}3a`,
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase',
+                    color: week.accent, fontWeight: 600, whiteSpace: 'nowrap',
+                  }}>↔ desde {dayNames[originalIdx]}</div>
+                )}
               </div>
               <div style={{ textAlign: 'right' }}>
                 {!isRest && (
@@ -129,6 +209,7 @@ function PlanScreen({ ctx, onOpenExercise }) {
           );
         })}
       </div>
+      </>)}
     </div>
   );
 }

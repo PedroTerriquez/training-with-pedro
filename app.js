@@ -129,6 +129,24 @@ async function renderScreen() {
 
   _screenContainer.innerHTML = ''
 
+  // Compute reschedule order for the current week
+  const weekOrder = _state.settings?.rescheduleWeekOrder || {}
+  const currentWeek = _state.activeProgram?.weeks[_state.settings?.currentWeekIdx || 0]
+  const currentWeekId = currentWeek?.id
+  const defaultOrder = [0,1,2,3,4,5,6]
+  const savedOrder = currentWeekId ? weekOrder[currentWeekId] : null
+  const rescheduleOrder = savedOrder?.length === 7 ? savedOrder : defaultOrder
+
+  const onUpdateRescheduleOrder = async (newOrder) => {
+    const s = await Storage.getSettings()
+    if (!s.rescheduleWeekOrder) s.rescheduleWeekOrder = {}
+    const wid = _state.activeProgram?.weeks[_state.settings?.currentWeekIdx || 0]?.id
+    if (wid) s.rescheduleWeekOrder[wid] = newOrder
+    await Storage.saveSettings(s)
+    _state.settings = s
+    renderScreen()
+  }
+
   switch (_state.route) {
     case 'today':
       mountToday(_screenContainer, {
@@ -139,6 +157,7 @@ async function renderScreen() {
         exercises: _state.exercises,
         accent,
         swaps: _state.tempSwaps,
+        rescheduleOrder,
         onOpenExercise: openDetailSheet,
       })
       break
@@ -149,6 +168,8 @@ async function renderScreen() {
         dayIndex: getTodayDayIndex(),
         accent,
         exercises: _state.exercises,
+        rescheduleOrder,
+        onUpdateRescheduleOrder,
         onOpenExercise: openDetailSheet,
         onWeekChange: (idx) => {
           _state.settings.currentWeekIdx = idx
@@ -482,16 +503,18 @@ async function importWithAI(text, onProgress) {
 
 // ── Coach Analysis ──
 
-async function runCoachAnalysis(day, effort, durationMin, exercises, settings) {
+async function runCoachAnalysis(day, effort, durationMin, exercises, settings, swaps) {
   settings = settings || {}
+  swaps = swaps || {}
   if (!PUSH_SERVER_URL) return { analysis: 'Buen trabajo hoy. Sigue así.', verdict: 'neutral' }
 
   const exercisesById = Object.fromEntries((exercises || []).map(e => [e.id, e]))
   const exerciseData = []
 
   for (const progEx of (day.exercises || [])) {
-    const exDef = exercisesById[progEx.exerciseId] || {}
-    const logs = await Storage.getLogsForExercise(progEx.exerciseId)
+    const resolvedId = swaps[progEx.exerciseId] || progEx.exerciseId
+    const exDef = exercisesById[resolvedId] || {}
+    const logs = await Storage.getLogsForExercise(resolvedId)
     logs.sort((a, b) => a.date.localeCompare(b.date))
 
     const todayLog = logs.find(l => l.date === new Date().toISOString().slice(0, 10))
@@ -519,7 +542,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings) {
       planned_reps: String(progEx.reps || '10'),
       actual_sets: todayLog?.sets || null,
       actual_reps: todayLog?.reps || null,
-      weight_kg: todayLog ? todayLog.weight : null,
+      load_weight: todayLog ? todayLog.weight : null,
       prev_weight: prevWeight,
       prev_prev_weight: prevPrevWeight,
       is_pr: isPR,
@@ -530,28 +553,32 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings) {
 
   const totalVolume = exerciseData.reduce((sum, ex) => {
     const reps = typeof ex.actual_reps === 'number' ? ex.actual_reps : (parseInt(ex.actual_reps) || 0)
-    return sum + (ex.weight_kg || 0) * (ex.actual_sets || 0) * reps
+    return sum + (ex.load_weight || 0) * (ex.actual_sets || 0) * reps
   }, 0)
 
+  const units = settings.units || 'kg'
   const sessionData = {
     day_name: day.name || 'Entrenamiento',
     date: new Date().toISOString().slice(0, 10),
     duration_min: durationMin || 0,
     effort,
+    units,
     user_profile: {
+      user_name: settings.userName || '',
       age: settings.age || '',
       sex: settings.sex || '',
-      body_weight_kg: settings.weight || '',
+      body_weight: settings.weight ? `${settings.weight}${units}` : '',
       height_cm: settings.height || '',
       goal: settings.goal || '',
       experience: settings.experience || '',
       occupation: settings.occupation || '',
     },
     exercises: exerciseData,
-    total_volume_kg: totalVolume,
+    total_volume: `${Math.round(totalVolume)}${units}`,
   }
 
   try {
+    console.log('[Coach] sessionData:', JSON.stringify(sessionData, null, 2))
     const res = await fetch(`${PUSH_SERVER_URL}/api/ai/coach`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -559,6 +586,8 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings) {
     })
 
     const data = await res.json()
+    if (data.error) throw new Error(data.error)
+
     const result = {
       date: sessionData.date,
       analysis: data.analysis || 'Buen trabajo hoy. Sigue así.',

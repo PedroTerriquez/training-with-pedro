@@ -24,7 +24,7 @@ function resolvePanelItems(muscles, mode) {
       const data = WARMUP_DATA[key]
       if (!data) return
       const pool = mode === 'warmup' ? data.warmup : data.stretch
-      if (pool) pool.forEach(ex => items.push({ ...ex, tag: mode === 'warmup' ? 'calentar' : 'estirar' }))
+      if (pool) pool.forEach(ex => items.push({ ...ex, imgUrl: IMG_MAP[ex.name] || '', tag: MUSCLE_DISPLAY[key] || key }))
     })
   }
   return items.length > 0 ? items : (mode === 'warmup' ? GENERIC_WARMUP_ONLY : GENERIC_STRETCH_ONLY)
@@ -62,7 +62,7 @@ function makeCheckableRow(ex, tag, accent, { checked, onToggle }) {
   nameEl.textContent = ex.name
   nameRow.appendChild(nameEl)
 
-  const isStallbar = ex.desc && ex.desc.startsWith('STALLBAR:')
+  const isStallbar = ex.desc && ex.desc.startsWith('STALLBAR - ')
   if (isStallbar) {
     const stallbarBadge = document.createElement('span')
     stallbarBadge.textContent = 'STALLBAR'
@@ -76,7 +76,7 @@ function makeCheckableRow(ex, tag, accent, { checked, onToggle }) {
 
   const descEl = document.createElement('div')
   descEl.style.cssText = `font-size:12px;color:${checked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'};line-height:1.45;margin-top:2px`
-  descEl.textContent = isStallbar ? ex.desc.slice(10) : (ex.desc || '')
+  descEl.textContent = isStallbar ? ex.desc.slice(12) : (ex.desc || '')
 
   info.appendChild(tagEl)
   info.appendChild(nameRow)
@@ -182,4 +182,143 @@ function WarmupPanelContent({ muscles, accent, onComplete }) {
 
 function StretchingPanelContent({ muscles, accent, onComplete }) {
   return makePanelContent({ muscles, accent, mode: 'stretch', onComplete })
+}
+
+// ── Warmup/Stretch Exercise Detail Sheet ──
+function mountWarmupDetail({ items, mode, accent, onComplete }) {
+  if (!items || items.length === 0) return
+
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100;pointer-events:auto'
+
+  const backdrop = document.createElement('div')
+  backdrop.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.45);transition:background 0.25s'
+  backdrop.addEventListener('click', close)
+  overlay.appendChild(backdrop)
+
+  const sheet = document.createElement('div')
+  sheet.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:#0e0e0e;border-radius:28px 28px 0 0;max-height:92%;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column'
+
+  const handle = document.createElement('div')
+  handle.style.cssText = 'width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,0.18);margin:10px auto 0;flex-shrink:0'
+  sheet.appendChild(handle)
+
+  const body = document.createElement('div')
+  body.style.cssText = 'overflow:auto;flex:1'
+  sheet.appendChild(body)
+  overlay.appendChild(sheet)
+  document.body.appendChild(overlay)
+  document.body.style.overflow = 'hidden'
+
+  let _idx = 0
+  const total = items.length
+  const label = mode === 'warmup' ? 'calentamiento' : 'estiramiento'
+
+  function close() {
+    document.body.style.overflow = ''
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
+  }
+
+  function render() {
+    body.innerHTML = ''
+    const item = items[_idx]
+
+    // Nav pills
+    const navWrap = document.createElement('div')
+    navWrap.style.cssText = 'padding:10px 14px 0;display:flex;gap:8px'
+
+    function navPill(dir) {
+      const isPrev = dir === 'prev'
+      const targetIdx = isPrev ? _idx - 1 : _idx + 1
+      const disabled = targetIdx < 0 || targetIdx >= total
+      const label = isPrev ? 'Anterior' : 'Siguiente'
+      const arrowColor = disabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.85)'
+      const arrow = isPrev
+        ? `<path d="M10 5H1m0 0l4-4M1 5l4 4" stroke="${arrowColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+        : `<path d="M1 5h9m0 0L6 1m4 4L6 9" stroke="${arrowColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+      const btn = document.createElement('button')
+      btn.style.cssText = `flex:1;min-width:0;background:${disabled ? 'rgba(255,255,255,0.02)' : '#141414'};border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 12px;cursor:${disabled ? 'default' : 'pointer'};color:inherit;text-align:left;display:flex;align-items:center;gap:9px;flex-direction:${isPrev ? 'row' : 'row-reverse'};opacity:${disabled ? 0.45 : 1}`
+      if (!disabled) btn.addEventListener('click', () => { _idx = targetIdx; render() })
+      btn.innerHTML = `
+        <div style="width:26px;height:26px;border-radius:8px;background:${disabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)'};border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="11" height="10" viewBox="0 0 11 10" fill="none" style="flex-shrink:0">${arrow}</svg>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:${isPrev ? 'flex-start' : 'flex-end'};gap:1px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:${disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.45)'};font-weight:600;line-height:1">${label}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:#fafafa;letter-spacing:-0.1px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:${isPrev ? 'left' : 'right'};width:100%">${items[targetIdx]?.name || (isPrev ? 'Primero' : 'Último')}</div>
+        </div>`
+      return btn
+    }
+
+    navWrap.appendChild(navPill('prev'))
+    navWrap.appendChild(navPill('next'))
+    body.appendChild(navWrap)
+
+    // Counter badge
+    const counter = document.createElement('div')
+    counter.style.cssText = 'padding:8px 14px 0;display:flex;align-items:center;gap:8px'
+    counter.innerHTML = `
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,0.45);font-weight:500">${_idx + 1} / ${total}</div>
+      <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden">
+        <div style="height:100%;border-radius:2px;background:${accent};width:${((_idx + 1) / total) * 100}%;transition:width 0.2s"></div>
+      </div>`
+    body.appendChild(counter)
+
+    // Hero image
+    const heroWrap = document.createElement('div')
+    heroWrap.style.cssText = 'padding:12px 14px 0'
+    const hero = document.createElement('div')
+    hero.style.cssText = 'height:280px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;justify-content:space-between'
+
+    if (item.imgUrl) {
+      hero.style.background = `#161616 url(${item.imgUrl}) center/cover no-repeat`
+    } else {
+      hero.style.backgroundImage = 'repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 24px,rgba(255,255,255,0.04) 24px 48px)'
+    }
+
+    // Top row: muscle tag + STALLBAR badge
+    const topRow = document.createElement('div')
+    topRow.style.cssText = 'display:flex;align-items:flex-start;position:relative;z-index:1;padding:12px;gap:6px'
+    topRow.innerHTML = `
+      <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:9999px;background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;font-weight:500;color:rgba(255,255,255,0.85);text-transform:uppercase">${item.tag || ''}</span>
+      ${item.desc && item.desc.startsWith('STALLBAR - ') ? '<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;background:#f59e0b;font-family:\'JetBrains Mono\',monospace;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:#0a0a0a;font-weight:600">STALLBAR</span>' : ''}`
+    hero.appendChild(topRow)
+
+    // Bottom row: exercise name
+    const bottomRow = document.createElement('div')
+    bottomRow.style.cssText = 'padding:12px;position:relative;z-index:1'
+    bottomRow.innerHTML = `
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.5px;line-height:1.1;text-shadow:0 2px 8px rgba(0,0,0,0.5)">${item.name}</div>`
+    hero.appendChild(bottomRow)
+
+    heroWrap.appendChild(hero)
+    body.appendChild(heroWrap)
+
+    // Description
+    const descWrap = document.createElement('div')
+    descWrap.style.cssText = 'padding:14px 18px 0'
+    const descText = item.desc && item.desc.startsWith('STALLBAR - ') ? item.desc.slice(12) : (item.desc || '')
+    descWrap.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:10px">
+        <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
+        Cómo hacerlo
+      </div>
+      <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.05px">${descText}</div>`
+    body.appendChild(descWrap)
+
+    // Complete button
+    const btnWrap = document.createElement('div')
+    btnWrap.style.cssText = 'padding:18px 14px 30px'
+    const completeBtn = document.createElement('button')
+    completeBtn.style.cssText = `width:100%;padding:16px;border-radius:14px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.2px;display:flex;align-items:center;justify-content:center;gap:10px;touch-action:manipulation;box-shadow:0 8px 32px ${accent}44`
+    completeBtn.innerHTML = `<svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 7l5.5 5.5L17 1.5" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Marcar ${label} como hecho`
+    completeBtn.addEventListener('click', () => {
+      close()
+      if (onComplete) onComplete()
+    })
+    btnWrap.appendChild(completeBtn)
+    body.appendChild(btnWrap)
+  }
+
+  render()
 }
