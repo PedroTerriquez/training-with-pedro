@@ -119,6 +119,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Notificaciones push</div>
       <button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Instalar app</div>
+      <button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>
     </div>`
   container.appendChild(settingsCard)
 
@@ -349,6 +353,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           }
         }
       })
+    }
+    const installBtn = document.getElementById('install-btn')
+    if (installBtn) {
+      installBtn.addEventListener('click', () => installPWA())
     }
     const userNameEl = document.getElementById('user-name')
     if (userNameEl) {

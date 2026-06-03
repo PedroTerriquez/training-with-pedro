@@ -23,6 +23,7 @@ let _rootEl = null
 let _appEl = null
 let _screenContainer = null
 let _tabBarEl = null
+let _deferredPrompt = null
 
 async function init() {
   _rootEl = document.getElementById('root')
@@ -42,6 +43,12 @@ async function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {})
   }
+
+  // PWA install prompt (Chrome Android)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault()
+    _deferredPrompt = e
+  })
 
   // Auto-subscribe for push if permission already granted
   if (PUSH_SERVER_URL && 'Notification' in window && Notification.permission === 'granted') {
@@ -737,6 +744,46 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }
+}
+
+function installPWA() {
+  const accent = _state.settings?.accentColor || '#d4ff3a'
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (_deferredPrompt && isMobile) {
+    _deferredPrompt.prompt()
+    _deferredPrompt.userChoice.then(() => { _deferredPrompt = null })
+    return
+  }
+  // Show instructions (desktop or iOS fallback)
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:24px'
+  const card = document.createElement('div')
+  card.style.cssText = `background:#141414;border-radius:24px;padding:28px 24px 24px;max-width:340px;width:100%;border:0.5px solid rgba(255,255,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeUp 0.25s ease-out;text-align:center`
+  card.innerHTML = `
+    <div style="font-size:36px;margin-bottom:8px">📲</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;letter-spacing:-0.3px;margin-bottom:16px">Instalar app</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px">⎙</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.6px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Compartir</div>
+      </div>
+      <div style="color:rgba(255,255,255,0.25);font-size:20px">→</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px">+</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.6px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Pantalla inicio</div>
+      </div>
+      <div style="color:rgba(255,255,255,0.25);font-size:20px">→</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:64px;height:64px;border-radius:16px;background:${accent}18;border:0.5px solid ${accent}33;display:flex;align-items:center;justify-content:center;font-size:28px;color:${accent}">✓</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.6px;text-transform:uppercase;color:${accent}">Listo</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5;margin-bottom:18px;padding:0 4px">Solo funciona en Safari. Presiona <strong style="color:#fafafa">Compartir</strong> <span style="display:inline-block;padding:1px 5px;background:rgba(255,255,255,0.08);border-radius:4px;font-size:11px">⎙</span> y elige <strong style="color:#fafafa">Agregar a pantalla de inicio</strong>.</div>
+    <button id="pwa-close" style="padding:10px 24px;border-radius:12px;border:0;background:rgba(255,255,255,0.08);color:#fafafa;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Entendido</button>`
+  overlay.appendChild(card)
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
+  card.querySelector('#pwa-close').addEventListener('click', () => overlay.remove())
 }
 
 window.notifyWatch = async (title, body) => {
