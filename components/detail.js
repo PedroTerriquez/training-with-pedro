@@ -592,4 +592,211 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
   }
 
   render()
+
+  // ── Coach FAB ──
+  const fab = document.createElement('button')
+  fab.style.cssText = `position:fixed;right:16px;bottom:100px;z-index:110;display:flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:9999px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;letter-spacing:-0.2px;box-shadow:0 8px 24px ${accent}55;touch-action:manipulation`
+  fab.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+      <path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="#0a0a0a" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+      <circle cx="9" cy="8.2" r="0.95" fill="#0a0a0a"/>
+      <circle cx="6" cy="8.2" r="0.95" fill="#0a0a0a"/>
+      <circle cx="12" cy="8.2" r="0.95" fill="#0a0a0a"/>
+    </svg>
+    Coach IA`
+  fab.addEventListener('click', () => openCoachChat(exercise, accent))
+  container.appendChild(fab)
+}
+
+// ── Exercise Coach Chat Overlay ──
+
+let _coachChatThread = []
+let _coachChatLoading = false
+
+function openCoachChat(exercise, accent) {
+  _coachChatThread = []
+
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:200;pointer-events:auto'
+
+  const backdrop = document.createElement('div')
+  backdrop.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.45)'
+  backdrop.addEventListener('click', () => overlay.remove())
+  overlay.appendChild(backdrop)
+
+  const panel = document.createElement('div')
+  panel.style.cssText = 'position:absolute;left:0;right:0;bottom:0;top:0;background:#0c0c0d;display:flex;flex-direction:column'
+
+  panel.innerHTML = `
+    <div style="flex-shrink:0;padding:52px 16px 12px;border-bottom:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:12px;flex-shrink:0;background:${accent}1c;border:0.5px solid ${accent}3a;display:flex;align-items:center;justify-content:center">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round" fill="none"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:#fafafa;letter-spacing:-0.3px">Coach IA</div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${exercise.name}</div>
+      </div>
+      <button id="coach-close-btn" style="width:34px;height:34px;border-radius:50%;flex-shrink:0;cursor:pointer;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.1);color:#fafafa;display:flex;align-items:center;justify-content:center;padding:0">
+        <svg width="13" height="13" viewBox="0 0 13 13"><path d="M1 1l11 11M12 1L1 12" stroke="#fafafa" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="coach-msgs" style="flex:1;overflow-y:auto;padding:18px 16px 8px">
+      <div id="coach-bubbles" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+    <div id="coach-quick-chips" style="flex-shrink:0;padding:10px 16px 8px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none"></div>
+    <div id="coach-pain-picker" style="flex-shrink:0;padding:12px 16px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015);display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.55);font-weight:600">¿Dónde lo sientes?</div>
+        <button id="coach-pain-cancel" style="background:transparent;border:0;cursor:pointer;padding:2px;color:rgba(255,255,255,0.4);font-family:'Space Grotesk',sans-serif;font-size:11px">× cancelar</button>
+      </div>
+      <div id="coach-pain-parts" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+    </div>
+    <div style="flex-shrink:0;padding:6px 16px 28px;display:flex;align-items:flex-end;gap:9px">
+      <div style="flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.12);border-radius:22px;padding:4px 6px 4px 16px;display:flex;align-items:center">
+        <input id="coach-input" type="text" placeholder="Escribe tu pregunta…" style="flex:1;background:transparent;border:0;outline:none;color:#fafafa;font-family:'Space Grotesk',sans-serif;font-size:14px;padding:8px 0;min-width:0">
+      </div>
+      <button id="coach-send-btn" style="width:44px;height:44px;border-radius:50%;flex-shrink:0;padding:0;cursor:pointer;background:${accent};border:0;display:flex;align-items:center;justify-content:center;transition:background 0.15s">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 15V3M9 3l-5 5M9 3l5 5" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>`
+
+  overlay.appendChild(panel)
+  document.body.appendChild(overlay)
+
+  const msgsEl = document.getElementById('coach-msgs')
+  const bubblesEl = document.getElementById('coach-bubbles')
+  const inputEl = document.getElementById('coach-input')
+  const sendBtn = document.getElementById('coach-send-btn')
+  const chipsEl = document.getElementById('coach-quick-chips')
+  const painPicker = document.getElementById('coach-pain-picker')
+  const painParts = document.getElementById('coach-pain-parts')
+  const painCancel = document.getElementById('coach-pain-cancel')
+
+  function bodyPartsFor(muscle) {
+    const m = (muscle || '').toLowerCase()
+    const lower = ['Rodilla', 'Cadera', 'Espalda baja', 'Tobillo', 'Isquios']
+    const upperPush = ['Hombro', 'Codo', 'Muñeca', 'Pecho', 'Cuello']
+    const upperPull = ['Hombro', 'Codo', 'Espalda baja', 'Muñeca', 'Cuello']
+    if (/(pierna|cuád|cuad|femoral|glúteo|gluteo|pantorrilla|sóleo|soleo|isquio)/.test(m)) return lower.concat(['Hombro'])
+    if (/(espalda|dorsal|trapecio|bíceps|biceps|remo)/.test(m)) return upperPull.concat(['Antebrazo'])
+    return upperPush.concat(['Espalda baja'])
+  }
+
+  const parts = bodyPartsFor(exercise.muscle)
+
+  // Quick chips
+  const chips = [
+    { label: 'Mejorar técnica', msg: '¿Cómo mejoro mi técnica en este ejercicio?' },
+    { label: '⚠️ Me duele algo', pain: true },
+    { label: '¿Voy muy pesado?', msg: '¿Cómo sé si estoy usando demasiado peso?' },
+    { label: 'Variante fácil', msg: 'Dame una variante más fácil de este ejercicio.' },
+  ]
+  chips.forEach(c => {
+    const btn = document.createElement('button')
+    btn.textContent = c.label
+    btn.style.cssText = `flex-shrink:0;padding:8px 13px;border-radius:9999px;cursor:pointer;background:${c.pain ? `${accent}16` : 'rgba(255,255,255,0.05)'};border:${c.pain ? `0.5px solid ${accent}3a` : '0.5px solid rgba(255,255,255,0.1)'};color:${c.pain ? accent : 'rgba(255,255,255,0.8)'};font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;white-space:nowrap`
+    if (c.pain) {
+      btn.addEventListener('click', () => {
+        painPicker.style.display = 'block'
+        chipsEl.style.display = 'none'
+      })
+    } else {
+      btn.addEventListener('click', () => sendMessage(c.msg))
+    }
+    chipsEl.appendChild(btn)
+  })
+
+  // Pain parts
+  parts.forEach(p => {
+    const btn = document.createElement('button')
+    btn.textContent = p
+    btn.style.cssText = `padding:8px 13px;border-radius:9999px;cursor:pointer;background:${accent}14;border:0.5px solid ${accent}3a;color:${accent};font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600`
+    btn.addEventListener('click', () => {
+      sendMessage(`Siento molestia en ${p.toLowerCase()} al hacer este ejercicio. ¿Qué ajusto?`)
+      painPicker.style.display = 'none'
+      chipsEl.style.display = 'flex'
+    })
+    painParts.appendChild(btn)
+  })
+
+  painCancel.addEventListener('click', () => {
+    painPicker.style.display = 'none'
+    chipsEl.style.display = 'flex'
+  })
+
+  function scrollToBottom() {
+    if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight
+  }
+
+  function addBubble(role, text) {
+    const isUser = role === 'user'
+    const div = document.createElement('div')
+    div.style.cssText = `display:flex;gap:8px;align-items:flex-end;flex-direction:${isUser ? 'row-reverse' : 'row'};align-self:${isUser ? 'flex-end' : 'flex-start'};max-width:86%`
+    const avatar = !isUser ? `<div style="width:26px;height:26px;border-radius:8px;flex-shrink:0;background:${accent}1c;border:0.5px solid ${accent}3a;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 18 18" fill="none"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round" fill="none"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg></div>` : ''
+    div.innerHTML = `${avatar}<div style="background:${isUser ? accent : '#17171a'};color:${isUser ? '#0a0a0a' : 'rgba(255,255,255,0.92)'};border:${isUser ? 0 : '0.5px solid rgba(255,255,255,0.07)'};border-radius:${isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px'};padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-size:14px;line-height:1.5;letter-spacing:-0.1px;white-space:pre-wrap;word-break:break-word;font-weight:${isUser ? 600 : 400}">${text}</div>`
+    bubblesEl.appendChild(div)
+  }
+
+  // Greeting
+  const greeting = `¡Qué onda! 👋 Soy tu coach para «${exercise.name}». Pregúntame sobre técnica, peso, o si algo te molesta y lo ajustamos.`
+  addBubble('assistant', greeting)
+  scrollToBottom()
+
+  async function sendMessage(text) {
+    const msg = (text || inputEl.value).trim()
+    if (!msg || _coachChatLoading) return
+    inputEl.value = ''
+    painPicker.style.display = 'none'
+    chipsEl.style.display = 'flex'
+
+    _coachChatThread.push({ role: 'user', content: msg })
+    addBubble('user', msg)
+    scrollToBottom()
+
+    _coachChatLoading = true
+    sendBtn.style.background = 'rgba(255,255,255,0.08)'
+    sendBtn.disabled = true
+
+    // Typing dots
+    const typingDiv = document.createElement('div')
+    typingDiv.id = 'coach-typing'
+    typingDiv.style.cssText = 'display:flex;gap:8px;align-items:flex-end;align-self:flex-start;max-width:86%'
+    typingDiv.innerHTML = `
+      <div style="width:26px;height:26px;border-radius:8px;flex-shrink:0;background:${accent}1c;border:0.5px solid ${accent}3a;display:flex;align-items:center;justify-content:center">
+        <svg width="13" height="13" viewBox="0 0 18 18" fill="none"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round" fill="none"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg>
+      </div>
+      <div style="background:#17171a;border-radius:4px 16px 16px 16px;border:0.5px solid rgba(255,255,255,0.07);padding:12px 14px;display:flex;gap:4px;align-items:center">
+        <span style="width:6px;height:6px;border-radius:50%;background:${accent};opacity:0.25;animation:coachBlink 1.2s 0s infinite ease-in-out"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:${accent};opacity:0.25;animation:coachBlink 1.2s 0.18s infinite ease-in-out"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:${accent};opacity:0.25;animation:coachBlink 1.2s 0.36s infinite ease-in-out"></span>
+      </div>`
+    bubblesEl.appendChild(typingDiv)
+    scrollToBottom()
+
+    try {
+      const alternatives = (exercise.alternatives || []).map(a => a.name)
+      const result = await exerciseCoachChat(exercise.name, exercise.muscle, alternatives, _coachChatThread)
+      const reply = result?.reply || 'No tengo respuesta ahora mismo.'
+
+      typingDiv.remove()
+      _coachChatThread.push({ role: 'assistant', content: reply })
+      addBubble('assistant', reply)
+      scrollToBottom()
+    } catch (err) {
+      typingDiv.remove()
+      addBubble('assistant', 'Ups, hubo un error. Intenta de nuevo.')
+      scrollToBottom()
+    } finally {
+      _coachChatLoading = false
+      sendBtn.style.background = accent
+      sendBtn.disabled = false
+    }
+  }
+
+  // Events
+  document.getElementById('coach-close-btn').addEventListener('click', () => overlay.remove())
+  sendBtn.addEventListener('click', () => sendMessage())
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage() }
+  })
 }

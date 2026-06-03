@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.0 · ' + new Date().toLocaleString('es-MX', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const APP_VERSION = 'v1.1 · 2026-06-03'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -499,6 +499,141 @@ async function importWithAI(text, onProgress) {
   _state.activeProgram = program
 
   return program
+}
+
+// ── Program Coach ──
+
+async function programCoach(text, program, settings) {
+  if (!PUSH_SERVER_URL) return { message: 'Configura push-config.js para usar el coach IA.' }
+
+  // Resolve exercise IDs to names
+  const exercises = await Storage.getExercises()
+  const exMap = {}
+  for (const e of exercises) exMap[e.id] = e.name
+
+  const programCopy = JSON.parse(JSON.stringify(program))
+  for (const w of programCopy.weeks || []) {
+    for (const d of w.days || []) {
+      for (const ex of d.exercises || []) {
+        ex.exercise_name = exMap[ex.exerciseId] || ex.exerciseId
+        delete ex.exerciseId
+      }
+    }
+  }
+
+  const userProfile = {
+    user_name: settings.userName || '',
+    age: settings.age || '',
+    sex: settings.sex || '',
+    body_weight: settings.weight ? `${settings.weight}${settings.units || 'kg'}` : '',
+    height_cm: settings.height || '',
+    goal: settings.goal || '',
+    experience: settings.experience || '',
+    occupation: settings.occupation || '',
+    units: settings.units || 'kg',
+  }
+
+  const dictionary = typeof buildAIDictionary === 'function' ? buildAIDictionary() : []
+
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/ai/program-coach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        currentProgram: programCopy,
+        userProfile,
+        systemPrompt: AI_PROGRAM_COACH_PROMPT || '',
+        dictionary,
+      }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Error del servidor')
+
+    if (data.program && data.program.weeks && data.program.weeks.length) {
+      // Create the program from the AI's JSON
+      const programName = data.program.program_name || 'Coach IA ' + new Date().toISOString().slice(0, 10)
+      const weeks = []
+
+      for (const w of data.program.weeks) {
+        const days = []
+        for (const d of (w.days || [])) {
+          const exercises = []
+          for (const ex of (d.exercises || [])) {
+            const exercise = await Storage.findOrCreateExerciseByName(ex.exercise_name, ex.muscle || '')
+            exercises.push({
+              exerciseId: exercise.id,
+              sets: ex.sets || 3,
+              reps: String(ex.reps || '10'),
+              rest: ex.rest_sec || 90,
+            })
+          }
+          days.push({
+            name: d.name || 'Día',
+            subtitle: d.subtitle || '',
+            duration: d.duration_min || 60,
+            exercises,
+          })
+        }
+        weeks.push({
+          name: w.name || 'Semana 1',
+          subtitle: w.subtitle || '',
+          tag: w.tag || '',
+          days,
+        })
+      }
+
+      const newProgram = {
+        id: await generateId(),
+        name: programName,
+        weeks,
+      }
+
+      await Storage.saveProgram(newProgram)
+
+      const s = await Storage.getSettings()
+      s.activeProgramId = newProgram.id
+      await Storage.saveSettings(s)
+
+      _state.programs = await Storage.getPrograms()
+      _state.exercises = await Storage.getExercises()
+      _state.settings = await Storage.getSettings()
+      _state.activeProgram = newProgram
+
+      return newProgram
+    }
+
+    return { message: data.message || 'Listo.' }
+  } catch (err) {
+    return { message: 'Error: ' + err.message }
+  }
+}
+
+// ── Exercise Coach Chat ──
+
+async function exerciseCoachChat(exerciseName, muscle, alternatives, messages) {
+  if (!PUSH_SERVER_URL) return { reply: 'Configura push-config.js para usar el coach IA.' }
+
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/ai/exercise-coach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        exercise_name: exerciseName,
+        muscle,
+        alternatives,
+        messages,
+      }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Error')
+
+    return { reply: data.reply || 'No tengo respuesta ahora.' }
+  } catch (err) {
+    return { reply: 'Error al contactar al coach: ' + err.message }
+  }
 }
 
 // ── Coach Analysis ──

@@ -18,6 +18,8 @@ function App() {
   const [sheetExercise, setSheetExercise] = React.useState(null);
   const [logState, setLogState] = React.useState({});
   const [dayState, setDayState] = React.useState({});
+  const [coachOpen, setCoachOpen] = React.useState(false);
+  const [programResult, setProgramResult] = React.useState(null);
   // Temporary per-week day reschedule. { [weekId]: number[7] } mapping
   // calendar-day-index -> original-day-index. Resets are user-driven (this week only).
   const [weekOrder, setWeekOrder] = React.useState({});
@@ -47,6 +49,7 @@ function App() {
     activeWeeks: t.rotationWeeks,
     logState, dayState, setDayState,
     order, setOrder, defaultOrder,
+    openProgramResult: setProgramResult,
   };
 
   // Compute prev/next exercise in the day's flow
@@ -74,15 +77,23 @@ function App() {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes coachBlink { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+        @keyframes overlayUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes bubbleIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         * { -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
       <div style={{ position: 'absolute', inset: 0, background: '#0a0a0a', overflow: 'hidden' }}>
-        {tab === 'today' && <TodayScreen ctx={ctx} onOpenExercise={openExercise} />}
-        {tab === 'plan' && <PlanScreen ctx={ctx} onOpenExercise={openExercise} />}
-        {tab === 'history' && <HistoryScreen ctx={ctx} onOpenExercise={openExercise} />}
-        {tab === 'me' && <YouScreen ctx={ctx} />}
+        <div key={tab} style={{
+          position: 'absolute', inset: 0, overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        }}>
+          {tab === 'today' && <TodayScreen ctx={ctx} onOpenExercise={openExercise} />}
+          {tab === 'plan' && <PlanScreen ctx={ctx} onOpenExercise={openExercise} />}
+          {tab === 'history' && <HistoryScreen ctx={ctx} onOpenExercise={openExercise} />}
+          {tab === 'me' && <YouScreen ctx={ctx} />}
+        </div>
 
         <TabBar active={tab} onChange={setTab} accent={t.accent} />
 
@@ -99,6 +110,28 @@ function App() {
             onNavigate={(ex) => setSheetExercise(ex)}
           />
         </Sheet>
+
+        {/* AI Coach — floating launch + full-screen chat, scoped to open exercise */}
+        <CoachFab
+          visible={!!sheetExercise && !coachOpen}
+          onClick={() => setCoachOpen(true)}
+          accent={t.accent}
+        />
+        <CoachOverlay
+          open={coachOpen && !!sheetExercise}
+          exercise={sheetExercise}
+          accent={t.accent}
+          units={t.units}
+          onClose={() => setCoachOpen(false)}
+        />
+
+        {/* AI Program generator result */}
+        <ProgramResultOverlay
+          program={programResult}
+          open={!!programResult}
+          accent={t.accent}
+          onClose={() => setProgramResult(null)}
+        />
       </div>
 
       <TweaksPanel title="Ajustes">

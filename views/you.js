@@ -916,6 +916,34 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
     toolbar.appendChild(addBtn)
     container.appendChild(toolbar)
 
+    // ── Program Coach ──
+    const coachSection = document.createElement('div')
+    coachSection.style.cssText = 'margin:0 20px 20px'
+    coachSection.innerHTML = `
+      <div style="background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">
+        <div style="padding:14px 16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:28px;height:28px;border-radius:8px;background:${accent}1f;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round" fill="none"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg>
+            </span>
+            <div>
+              <div style="font-size:13px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Coach IA de programas</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px;line-height:1.4">Pregunta o pide cambios en tu rutina. Si la IA genera un programa nuevo, se activa automáticamente.</div>
+            </div>
+          </div>
+          <textarea id="prog-coach-input" rows="4" placeholder='Ej: "Cambia press banca por press inclinado", "Aumenta series del remo a 5", "¿Está balanceada mi rutina?", "Agrega un día de pierna"' style="width:100%;margin-top:10px;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;font-family:'Space Grotesk',sans-serif;outline:none;resize:vertical;box-sizing:border-box;line-height:1.5"></textarea>
+          <div id="prog-coach-status" style="margin-top:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.35);letter-spacing:0.2px;min-height:14px"></div>
+        </div>
+        <button id="prog-coach-btn" style="margin:0 16px 14px;width:calc(100% - 32px);padding:10px;border-radius:10px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;touch-action:manipulation">Enviar al coach</button>
+        <div id="prog-coach-response" style="padding:0 16px 14px;display:none">
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:10px;border-left:3px solid ${accent}">
+            <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${accent};letter-spacing:1.2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Coach IA</div>
+            <div id="prog-coach-response-text" style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;font-family:'Space Grotesk',sans-serif;white-space:pre-wrap"></div>
+          </div>
+        </div>
+      </div>`
+    container.appendChild(coachSection)
+
     if (programs.length === 0) {
       container.innerHTML += `<div style="padding:40px 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.4)">No hay programas todavía. Crea o importa uno.</div>`
       return
@@ -947,6 +975,77 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
       list.appendChild(card)
     })
     container.appendChild(list)
+
+    // Program Coach events
+    setTimeout(() => {
+      const coachBtn = document.getElementById('prog-coach-btn')
+      const coachInput = document.getElementById('prog-coach-input')
+      const coachStatus = document.getElementById('prog-coach-status')
+      const coachResponse = document.getElementById('prog-coach-response')
+      const coachResponseText = document.getElementById('prog-coach-response-text')
+
+      if (coachBtn && coachInput && coachStatus) {
+        coachBtn.addEventListener('click', async () => {
+          const text = coachInput.value.trim()
+          if (!text) {
+            coachStatus.textContent = '⚠️ Escribe tu pregunta o petición'
+            coachStatus.style.color = '#ff6b6b'
+            return
+          }
+
+          const program = _state.activeProgram
+          if (!program) {
+            coachStatus.textContent = '⚠️ No hay un programa activo'
+            coachStatus.style.color = '#ff6b6b'
+            return
+          }
+
+          if (typeof programCoach !== 'function') {
+            coachStatus.textContent = '❌ programCoach no está disponible'
+            coachStatus.style.color = '#ff6b6b'
+            return
+          }
+
+          coachBtn.disabled = true
+          const origText = coachBtn.textContent
+          coachBtn.textContent = '⏳ Consultando al coach…'
+          coachStatus.textContent = ''
+          if (coachResponse) coachResponse.style.display = 'none'
+
+          try {
+            const result = await programCoach(text, program, _state.settings || settings)
+
+            if (result && result.name && result.weeks) {
+              coachStatus.textContent = `✅ Nuevo programa "${result.name}" creado y activado`
+              coachStatus.style.color = accent
+              coachBtn.textContent = '✅ Listo'
+              coachBtn.style.background = '#0a0a0a'
+              coachBtn.style.color = accent
+              if (coachResponse) coachResponse.style.display = 'none'
+              if (window.appRefresh) window.appRefresh()
+            } else {
+              const msg = result?.message || 'Listo.'
+              coachStatus.textContent = ''
+              if (coachResponse && coachResponseText) {
+                coachResponseText.textContent = msg
+                coachResponse.style.display = 'block'
+              }
+              coachBtn.textContent = '✅ Respondido'
+              setTimeout(() => { coachBtn.textContent = origText }, 2000)
+            }
+          } catch (err) {
+            coachStatus.textContent = `❌ ${err.message}`
+            coachStatus.style.color = '#ff6b6b'
+            coachBtn.textContent = '❌ Error'
+            setTimeout(() => { coachBtn.textContent = origText }, 2000)
+          } finally {
+            coachBtn.disabled = false
+            coachBtn.style.background = accent
+            coachBtn.style.color = '#0a0a0a'
+          }
+        })
+      }
+    }, 0)
   })
 }
 

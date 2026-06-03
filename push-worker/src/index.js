@@ -151,6 +151,91 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/ai/program-coach') {
+      try {
+        const { text, currentProgram, userProfile, systemPrompt, dictionary } = await req.json()
+        if (!text) return respond({ error: 'No text provided' }, 400)
+
+        const fullPrompt = 'PROGRAMA ACTUAL:\n' + JSON.stringify(currentProgram, null, 2) + '\n\nPERFIL DEL USUARIO:\n' + JSON.stringify(userProfile, null, 2) + '\n\nPREGUNTA DEL USUARIO:\n' + text + '\n\nDICCIONARIO DE EJERCICIOS:\n' + JSON.stringify(dictionary || [], null, 2)
+
+        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+          messages: [
+            { role: 'system', content: systemPrompt || '' },
+            { role: 'user', content: fullPrompt },
+          ],
+          stream: false,
+          max_tokens: 2048,
+        })
+
+        let resultText = ''
+        if (aiRes.response) {
+          resultText = aiRes.response.trim()
+        }
+
+        const jsonMatch = resultText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        if (jsonMatch) resultText = jsonMatch[1].trim()
+
+        // Try to parse as JSON first (program update)
+        let parsed = null
+        try {
+          parsed = JSON.parse(resultText)
+        } catch {}
+
+        if (parsed && parsed.weeks) {
+          return respond({ program: parsed })
+        }
+
+        // Otherwise it's a text response
+        return respond({ message: resultText })
+      } catch (err) {
+        return respond({ error: 'Error de IA: ' + err.message }, 500)
+      }
+    }
+
+    if (url.pathname === '/api/ai/exercise-coach') {
+      try {
+        const { exercise_name, muscle, alternatives, messages } = await req.json()
+        if (!messages || !messages.length) return respond({ error: 'No messages provided' }, 400)
+
+        const alternativesStr = (alternatives || []).join('; ') || 'Ninguna'
+        const systemContent = `Eres "Coach", un entrenador personal experto, cercano y conciso. Hablas como compa mexicano del gym.
+
+Contexto del ejercicio:
+- Nombre: ${exercise_name}
+- Músculo principal: ${muscle}
+- Alternativas disponibles: ${alternativesStr}
+
+REGLAS DE RESPUESTA:
+- Máximo ~100 palabras por respuesta
+- Tono motivador y práctico ("échale", "compa", "estás bien")
+- Usa 2-3 viñetas cortas con "•" cuando ayude
+- Sé específico sobre el ejercicio, no genérico
+- Si el usuario reporta dolor: prioriza seguridad, da 1-2 ajustes de técnica, sugiere alternativa por nombre si aplica
+- Si el dolor es agudo/fuerte/persistente: dile que pare y consulte a un profesional
+- NO diagnostiques ni indiques tratamiento médico`
+
+        const aiMessages = [
+          { role: 'system', content: systemContent },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+        ]
+
+        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+          messages: aiMessages,
+          stream: false,
+          max_tokens: 1024,
+        })
+
+        let reply = ''
+        if (aiRes.response) {
+          reply = aiRes.response.trim()
+        }
+
+        return respond({ reply })
+      } catch (err) {
+        return respond({ error: 'Error de IA: ' + err.message }, 500)
+      }
+    }
+
     return respond('Not Found', 404)
   },
 }

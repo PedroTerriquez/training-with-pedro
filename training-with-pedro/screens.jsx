@@ -354,6 +354,15 @@ function YouScreen({ ctx }) {
         }}>Pedro.</div>
       </div>
 
+      {/* AI program generator */}
+      <div style={{ padding: '0 20px 4px' }}>
+        <ProgramGenerator accent={accent} onResult={ctx.openProgramResult} />
+      </div>
+
+      <div style={{ margin: '24px 0 10px' }}>
+        <SectionLabel accent={accent}>Tu resumen</SectionLabel>
+      </div>
+
       {/* Stats grid */}
       <div style={{
         padding: '0 20px',

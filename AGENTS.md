@@ -352,3 +352,81 @@ you.js textarea → importWithAI(text)
 ### Setup
 No setup required. Cloudflare Workers AI is enabled by the `[ai]` binding in `wrangler.toml`.
 The free tier includes 10,000 neurons/day — enough for thousands of AI imports per day.
+
+## Version Tracking
+
+- `APP_VERSION` in `app.js` is a static string (e.g. `v1.1 · 2026-06-03`), NOT a runtime date.
+- **Update `APP_VERSION` with every deploy/commit** so the "last pushed version" date in the You screen reflects the actual deployment, not the last browser refresh.
+
+## Coach IA — Program Coach (Tú → Programas)
+
+Added 2026-06-03. User can ask questions or request modifications to the active program in the Programs tab.
+
+### Architecture
+```
+you.js renderPrograms() → textarea → programCoach(text, program, settings)
+                                       ↓
+                            fetch(POST /api/ai/program-coach)
+                                       ↓
+                              Cloudflare Worker + Workers AI
+                                       ↓
+                              JSON { program: {...} }  OR  { message: "..." }
+                                       ↓
+                If "program" → Storage.saveProgram() + auto-activate → refresh
+                If "message" → display as coach response card
+```
+
+### Files Modified
+| File | Change |
+|---|---|
+| `data/ai-prompt.js` | Added `AI_PROGRAM_COACH_PROMPT` system prompt |
+| `push-worker/src/index.js` | Added `POST /api/ai/program-coach` endpoint |
+| `app.js` | Added `programCoach()` function |
+| `views/you.js` | Added Coach IA textarea + response card in `renderPrograms()` |
+
+### How it works
+1. User types a question or modification (e.g. "Cambia press banca por press inclinado", "¿Está balanceada mi rutina?")
+2. Sends current program (with exercise names resolved), user profile, and dictionary to Worker
+3. AI decides: if modification → return JSON program; if question → return text
+4. Client detects JSON → creates new program + activates it; text → shows response
+
+## Coach IA — Exercise Coach (per-exercise chat)
+
+Added 2026-06-03. Floating "Coach IA" button (FAB) in the exercise detail bottom sheet opens a multi-turn chat.
+
+### Architecture
+```
+detail.js → Coach FAB → openCoachChat(exercise)
+                            ↓
+                   Chat overlay (full-screen, fixed)
+                            ↓
+                   User types / quick chips
+                            ↓
+                exerciseCoachChat(name, muscle, alts, messages)
+                            ↓
+                fetch(POST /api/ai/exercise-coach)
+                            ↓
+                   Cloudflare Worker + Workers AI
+                            ↓
+                { reply: "..." } → appended to chat
+```
+
+### Files Modified
+| File | Change |
+|---|---|
+| `data/ai-prompt.js` | Added `AI_EXERCISE_COACH_PROMPT` (also embedded in Worker as fallback) |
+| `push-worker/src/index.js` | Added `POST /api/ai/exercise-coach` endpoint |
+| `app.js` | Added `exerciseCoachChat()` function |
+| `components/detail.js` | Added FAB button + full chat overlay + `openCoachChat()` |
+| `styles.css` | Added `@keyframes coachBlink` for typing dots |
+
+### How it works
+1. User taps "Coach IA" FAB in exercise detail sheet
+2. Chat overlay opens with greeting, quick chips (Mejorar técnica, Me duele algo, ¿Voy muy pesado?, Variante fácil)
+3. "Me duele algo" → shows body-part picker based on exercise muscle group
+4. Messages sent to Worker with full conversation history + exercise context
+5. AI replies with coaching advice in Mexican Spanish
+6. Multi-turn: maintains thread for follow-up questions
+
+### Data sent to Worker
+Only exercise name, muscle, alternatives list, and message history — NO user profile data.
