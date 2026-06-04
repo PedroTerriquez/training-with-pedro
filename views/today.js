@@ -17,9 +17,11 @@ let _coachDay = null
 let _coachEffort = null
 let _warmupSheetShown = false
 let _stretchSheetShown = false
+let _mountGen = 0
 
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps, rescheduleOrder }) {
   swaps = swaps || {}
+  const gen = ++_mountGen
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null }
   _completionToastShown = false
   _effortValue = null
@@ -383,6 +385,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   // Live timer tick — updates DOM in-place, no full re-render
   if (_startedAt && !_endedAt) {
     _timerInterval = setInterval(() => {
+      if (gen !== _mountGen) { clearInterval(_timerInterval); _timerInterval = null; return }
       if (_endedAt) { clearInterval(_timerInterval); _timerInterval = null; return }
       const totalSec = Math.floor((Date.now() - _startedAt) / 1000)
       const hh = Math.floor(totalSec / 3600)
@@ -399,6 +402,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   // Async load today's logs to update counts
   Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
+    if (gen !== _mountGen) return
     const done = _phase >= 3 ? exercisesTotal : day.exercises.filter(ex => {
       const displayedId = resolveExId(ex.exerciseId || ex.id)
       return logs.some(l => l.exerciseId === displayedId)
@@ -451,6 +455,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     if (allPhasesComplete && !_effortValue && !_coachCardMode && !_effortModalShowing && !document.getElementById('effort-overlay')) {
       _effortModalShowing = true
       setTimeout(() => {
+        if (gen !== _mountGen) return
         if (_effortValue || _coachCardMode || document.getElementById('effort-overlay')) return
         showEffortSelector({
           accent,
@@ -762,7 +767,7 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
         refreshView()
         const s = await Storage.getSettings()
         try {
-          const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, _state.exercises || [], s, _state.tempSwaps || {})
+          const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, exercises || [], s, swaps || {})
           _coachResult = result
           _coachLoading = false
           const settings = await Storage.getSettings()
