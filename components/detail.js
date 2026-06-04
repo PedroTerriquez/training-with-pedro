@@ -728,12 +728,13 @@ function openCoachChat(exercise, accent) {
     if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight
   }
 
-  function addBubble(role, text) {
+  function addBubble(role, text, provider) {
     const isUser = role === 'user'
     const div = document.createElement('div')
     div.style.cssText = `display:flex;gap:8px;align-items:flex-end;flex-direction:${isUser ? 'row-reverse' : 'row'};align-self:${isUser ? 'flex-end' : 'flex-start'};max-width:86%`
     const avatar = !isUser ? `<div style="width:26px;height:26px;border-radius:8px;flex-shrink:0;background:${accent}1c;border:0.5px solid ${accent}3a;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 18 18" fill="none"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round" fill="none"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg></div>` : ''
-    div.innerHTML = `${avatar}<div style="background:${isUser ? accent : '#17171a'};color:${isUser ? '#0a0a0a' : 'rgba(255,255,255,0.92)'};border:${isUser ? 0 : '0.5px solid rgba(255,255,255,0.07)'};border-radius:${isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px'};padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-size:14px;line-height:1.5;letter-spacing:-0.1px;white-space:pre-wrap;word-break:break-word;font-weight:${isUser ? 600 : 400}">${text}</div>`
+    const providerBadge = (!isUser && provider) ? `<div style="margin-top:4px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;color:rgba(255,255,255,0.25);text-transform:uppercase">${provider}</div>` : ''
+    div.innerHTML = `${avatar}<div style="display:flex;flex-direction:column;align-items:${isUser ? 'flex-end' : 'flex-start'}"><div style="background:${isUser ? accent : '#17171a'};color:${isUser ? '#0a0a0a' : 'rgba(255,255,255,0.92)'};border:${isUser ? 0 : '0.5px solid rgba(255,255,255,0.07)'};border-radius:${isUser ? '16px 16px 4px 16px' : '4px 16px 16px 16px'};padding:11px 14px;font-family:'Space Grotesk',sans-serif;font-size:14px;line-height:1.5;letter-spacing:-0.1px;white-space:pre-wrap;word-break:break-word;font-weight:${isUser ? 600 : 400}">${text}</div>${providerBadge}</div>`
     bubblesEl.appendChild(div)
   }
 
@@ -780,7 +781,7 @@ function openCoachChat(exercise, accent) {
 
       typingDiv.remove()
       _coachChatThread.push({ role: 'assistant', content: reply })
-      addBubble('assistant', reply)
+      addBubble('assistant', reply, result?._provider)
       scrollToBottom()
     } catch (err) {
       typingDiv.remove()

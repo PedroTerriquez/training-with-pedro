@@ -8,14 +8,133 @@ const corsHeaders = {
 
 const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast'
 
+const GEMINI_SAFETY = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+]
+
+const COACH_SCHEMA = {
+  type: 'object',
+  properties: {
+    analysis: { type: 'string' },
+    verdict: { type: 'string', enum: ['positive', 'neutral', 'warning'] },
+  },
+  required: ['analysis', 'verdict'],
+}
+
+const IMPORT_SCHEMA = {
+  type: 'object',
+  properties: {
+    program_name: { type: 'string' },
+    weeks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          tag: { type: 'string', enum: ['VOLUMEN', 'FUERZA', 'RESISTENCIA', ''] },
+          days: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                subtitle: { type: 'string' },
+                duration_min: { type: 'number' },
+                exercises: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      exercise_name: { type: 'string' },
+                      muscle: { type: 'string' },
+                      sets: { type: 'number' },
+                      reps: { type: 'string' },
+                      rest_sec: { type: 'number' },
+                      load_weight: { type: 'number' },
+                      units: { type: 'string', enum: ['kg', 'lb'] },
+                    },
+                    required: ['exercise_name', 'muscle', 'sets', 'reps', 'rest_sec'],
+                  },
+                },
+              },
+              required: ['name', 'exercises'],
+            },
+          },
+        },
+        required: ['name', 'days'],
+      },
+    },
+  },
+  required: ['program_name', 'weeks'],
+}
+
+async function callGemini(messages, apiKey, opts = {}) {
+  const { maxTokens = 4096, responseFormat = 'text', responseSchema, model = 'gemini-2.5-flash', safetySettings } = opts
+
+  const systemMsg = messages.find(m => m.role === 'system')
+  const contents = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : m.role,
+      parts: [{ text: m.content }],
+    }))
+
+  const generationConfig = { maxOutputTokens: maxTokens }
+  if (responseFormat === 'json') {
+    generationConfig.responseMimeType = 'application/json'
+    if (responseSchema) generationConfig.responseSchema = responseSchema
+  }
+
+  const body = { contents, generationConfig }
+  if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] }
+  if (safetySettings) body.safetySettings = safetySettings
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Gemini ${res.status}: ${errText}`)
+  }
+
+  const data = await res.json()
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+}
+
 async function callAI(messages, env, opts = {}) {
-  const maxTokens = opts.maxTokens || 1024
-  const aiRes = await env.AI.run(AI_MODEL, {
-    messages,
-    stream: false,
-    max_tokens: maxTokens,
-  })
-  return aiRes
+  const maxTokens = opts.maxTokens || 4096
+  let text = ''
+  let provider = 'llama'
+
+  if (env.GEMINI_API_KEY) {
+    try {
+      text = await callGemini(messages, env.GEMINI_API_KEY, { ...opts, maxTokens })
+      provider = 'gemini'
+    } catch (_) {
+      // fallback to Llama
+    }
+  }
+
+  if (!text) {
+    const aiRes = await env.AI.run(AI_MODEL, {
+      messages,
+      stream: false,
+      max_tokens: maxTokens,
+    })
+    text = aiRes?.response?.trim() || ''
+    provider = 'llama'
+  }
+
+  return { text, provider }
 }
 
 export default {
@@ -37,8 +156,8 @@ export default {
       return new Response(body, { status, headers })
     }
 
-    function parseAIResponse(aiRes) {
-      let text = aiRes?.response?.trim() || ''
+    function parseAIResponse(text) {
+      text = (text || '').trim()
       const m = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
       if (m) text = m[1].trim()
       try { return JSON.parse(text) } catch { return null }
@@ -102,15 +221,15 @@ export default {
         const { sessionData, systemPrompt } = await req.json()
         if (!sessionData) return respond({ error: 'No session data provided' }, 400)
 
-        const aiRes = await callAI([
+        const { text, provider } = await callAI([
           { role: 'system', content: systemPrompt || '' },
           { role: 'user', content: 'DATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData) },
-        ], env)
+        ], env, { responseFormat: 'json', responseSchema: COACH_SCHEMA, safetySettings: GEMINI_SAFETY })
 
-        const parsed = parseAIResponse(aiRes)
-        if (!parsed) return respond({ error: 'La IA no generó JSON válido', raw: aiRes?.response?.trim() || '' }, 502)
+        const parsed = parseAIResponse(text)
+        if (!parsed) return respond({ error: 'La IA no generó JSON válido', raw: text, _provider: provider }, 502)
 
-        return respond(parsed)
+        return respond({ ...parsed, _provider: provider })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
       }
@@ -118,20 +237,20 @@ export default {
 
     if (url.pathname === '/api/ai/import') {
       try {
-        const { text, systemPrompt } = await req.json()
-        if (!text) return respond({ error: 'No text provided' }, 400)
+        const { text: userText, systemPrompt } = await req.json()
+        if (!userText) return respond({ error: 'No text provided' }, 400)
 
-        const fullPrompt = 'RUTINA DEL USUARIO:\n' + text
+        const fullPrompt = 'RUTINA DEL USUARIO:\n' + userText
 
-        const aiRes = await callAI([
+        const { text, provider } = await callAI([
           { role: 'system', content: systemPrompt || '' },
           { role: 'user', content: fullPrompt },
-        ], env)
+        ], env, { model: 'gemini-2.5-pro', responseFormat: 'json', responseSchema: IMPORT_SCHEMA, safetySettings: GEMINI_SAFETY })
 
-        const parsed = parseAIResponse(aiRes)
-        if (!parsed) return respond({ error: 'La IA no generó JSON válido. Intenta simplificar la rutina.', raw: aiRes?.response?.trim() || '' }, 502)
+        const parsed = parseAIResponse(text)
+        if (!parsed) return respond({ error: 'La IA no generó JSON válido. Intenta simplificar la rutina.', raw: text, _provider: provider }, 502)
 
-        return respond(parsed)
+        return respond({ ...parsed, _provider: provider })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
       }
@@ -139,22 +258,22 @@ export default {
 
     if (url.pathname === '/api/ai/program-coach') {
       try {
-        const { text, currentProgram, userProfile, systemPrompt, dictionary } = await req.json()
-        if (!text) return respond({ error: 'No text provided' }, 400)
+        const { text: userText, currentProgram, userProfile, systemPrompt, dictionary } = await req.json()
+        if (!userText) return respond({ error: 'No text provided' }, 400)
 
-        const fullPrompt = 'PROGRAMA ACTUAL:\n' + JSON.stringify(currentProgram) + '\n\nPERFIL DEL USUARIO:\n' + JSON.stringify(userProfile) + '\n\nPREGUNTA DEL USUARIO:\n' + text + '\n\nDICCIONARIO DE EJERCICIOS:\n' + JSON.stringify(dictionary || [])
+        const fullPrompt = 'PROGRAMA ACTUAL:\n' + JSON.stringify(currentProgram) + '\n\nPERFIL DEL USUARIO:\n' + JSON.stringify(userProfile) + '\n\nPREGUNTA DEL USUARIO:\n' + userText + '\n\nDICCIONARIO DE EJERCICIOS:\n' + JSON.stringify(dictionary || [])
 
-        const aiRes = await callAI([
+        const { text, provider } = await callAI([
           { role: 'system', content: systemPrompt || '' },
           { role: 'user', content: fullPrompt },
-        ], env, { maxTokens: 2048 })
+        ], env, { model: 'gemini-2.5-pro', maxTokens: 4096, safetySettings: GEMINI_SAFETY })
 
-        const parsed = parseAIResponse(aiRes)
+        const parsed = parseAIResponse(text)
         if (parsed && parsed.weeks) {
-          return respond({ program: parsed })
+          return respond({ program: parsed, _provider: provider })
         }
 
-        return respond({ message: aiRes?.response?.trim() || '' })
+        return respond({ message: text || '', _provider: provider })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
       }
@@ -186,12 +305,12 @@ REGLAS DE RESPUESTA:
 - Si el dolor es agudo/fuerte/persistente: dile que pare y consulte a un profesional
 - NO diagnostiques ni indiques tratamiento médico`
 
-        const aiRes = await callAI([
+        const { text, provider } = await callAI([
           { role: 'system', content: systemContent },
           ...messages.map(m => ({ role: m.role, content: m.content })),
-        ], env)
+        ], env, { safetySettings: GEMINI_SAFETY })
 
-        return respond({ reply: aiRes?.response?.trim() || '' })
+        return respond({ reply: text || '', _provider: provider })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
       }

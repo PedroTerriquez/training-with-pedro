@@ -794,7 +794,9 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
           <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:10px;border-left:3px solid ${accent}">
             <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${accent};letter-spacing:1.2px;text-transform:uppercase;font-weight:600;margin-bottom:6px">Coach IA</div>
             <div id="prog-coach-response-text" style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;font-family:'Space Grotesk',sans-serif;white-space:pre-wrap"></div>
-          </div>
+            <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+              <span id="prog-coach-provider" style="font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;color:rgba(255,255,255,0.3);text-transform:uppercase"></span>
+            </div>
         </div>
       </div>`
     container.appendChild(coachSection)
@@ -838,6 +840,7 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
       const coachStatus = document.getElementById('prog-coach-status')
       const coachResponse = document.getElementById('prog-coach-response')
       const coachResponseText = document.getElementById('prog-coach-response-text')
+      const coachProvider = document.getElementById('prog-coach-provider')
 
       if (coachBtn && coachInput && coachStatus) {
         coachBtn.addEventListener('click', async () => {
@@ -884,6 +887,7 @@ function renderPrograms(container, { accent, settings, onRefresh }) {
               if (coachResponse && coachResponseText) {
                 coachResponseText.textContent = msg
                 coachResponse.style.display = 'block'
+                if (coachProvider) coachProvider.textContent = result?._provider || 'llama'
               }
               coachBtn.textContent = '✅ Respondido'
               setTimeout(() => { coachBtn.textContent = origText }, 2000)

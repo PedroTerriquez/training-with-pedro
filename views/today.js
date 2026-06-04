@@ -731,6 +731,9 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
           <div style="display:flex;gap:10px;align-items:flex-start">
             <div style="font-size:24px;flex-shrink:0;margin-top:2px">${verdictIcon}</div>
             <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.65;color:${verdictColor};letter-spacing:-0.1px">${analysis.analysis}</div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;color:rgba(255,255,255,0.2);text-transform:uppercase">${analysis._provider || 'llama'}</span>
           </div>`
   }
   page.innerHTML = `

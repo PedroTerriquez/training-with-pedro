@@ -619,7 +619,7 @@ async function programCoach(text, program, settings) {
       return newProgram
     }
 
-    return { message: data.message || 'Listo.' }
+    return { message: data.message || 'Listo.', _provider: data._provider || 'llama' }
   } catch (err) {
     return { message: 'Error: ' + err.message }
   }
@@ -645,7 +645,7 @@ async function exerciseCoachChat(exerciseName, muscle, alternatives, messages) {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Error')
 
-    return { reply: data.reply || 'No tengo respuesta ahora.' }
+    return { reply: data.reply || 'No tengo respuesta ahora.', _provider: data._provider || 'llama' }
   } catch (err) {
     return { reply: 'Error al contactar al coach: ' + err.message }
   }
@@ -739,12 +739,13 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
       date: sessionData.date,
       analysis: data.analysis || 'Buen trabajo hoy. Sigue así.',
       verdict: data.verdict || 'neutral',
+      _provider: data._provider || 'llama',
     }
 
     await Storage.saveCoachAnalysis(result)
     return result
   } catch (err) {
-    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral' }
+    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _provider: 'llama' }
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }
