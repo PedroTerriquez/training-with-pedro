@@ -105,8 +105,8 @@ const Storage = {
     return getByIndex('exerciseLogs', 'exerciseId', exerciseId)
   },
 
-  async logWeight(exerciseId, weight, units, sets, reps) {
-    const dateStr = new Date().toISOString().slice(0, 10)
+  async logWeight(exerciseId, weight, units, sets, reps, dateStr) {
+    dateStr = dateStr || new Date().toISOString().slice(0, 10)
     const all = await getByIndex('exerciseLogs', 'exerciseId', exerciseId)
     const existing = all.find(l => l.date === dateStr)
     const log = {
@@ -119,6 +119,10 @@ const Storage = {
     if (sets !== undefined) log.sets = sets
     if (reps !== undefined) log.reps = reps
     return put('exerciseLogs', log)
+  },
+
+  async getAllLogs() {
+    return getAll('exerciseLogs')
   },
 
   async getLogsForDate(dateStr) {

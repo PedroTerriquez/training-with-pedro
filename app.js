@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.1 · 2026-06-03'
+const APP_VERSION = 'v1.2 · 2026-06-04'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -190,6 +190,10 @@ async function renderScreen() {
         accent,
         units: _state.settings?.units || 'kg',
         onOpenExercise: openDetailSheet,
+        program: _state.activeProgram,
+        weekIdx: _state.settings?.currentWeekIdx || 0,
+        onRefresh: refresh,
+        exercises: _state.exercises,
       })
       break
     case 'you':

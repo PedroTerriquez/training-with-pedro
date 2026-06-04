@@ -427,6 +427,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
           }
         }
       }
+      persistPhase()
       refreshView()
       if (done >= exercisesTotal && prev < exercisesTotal && _phase < 3 && !_completionToastShown) {
         _phase = 3

@@ -69,7 +69,9 @@ Si el usuario PIDE UNA MODIFICACIÓN (cambiar/agregar/quitar ejercicios, ajustar
 Si el usuario HACE UNA PREGUNTA o PIDE REVISIÓN:
   Responde SOLO texto plano:
   - Si encuentras errores (desequilibrio muscular, volumen excesivo, frecuencia incorrecta), menciónalos
-  - Da recomendaciones específicas basadas en evidencia
+  - Si NO hay errores y la rutina está bien estructurada, DILO. No inventes problemas solo para justificar la revisión.
+  - Da recomendaciones específicas basadas en evidencia científica
+  - Si todo está bien, puedes sugerir progresiones o variaciones menores pero sin forzar cambios innecesarios
   - Hasta ~10 líneas si es necesario para ser claro`
 
 let _importPrompt, _coachPrompt, _programCoachPrompt

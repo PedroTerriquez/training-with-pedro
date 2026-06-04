@@ -311,7 +311,7 @@ you.js textarea → importWithAI(text)
                        ↓
               Cloudflare Worker (same as push)
                        ↓
-               Cloudflare Workers AI — Llama 3.1 8B (free tier, no API key needed)
+              Llama 3.1 8B (Cloudflare Workers AI, free tier)
                        ↓
               JSON { program_name, weeks[...days[...exercises[...]]] }
                        ↓
@@ -328,7 +328,7 @@ you.js textarea → importWithAI(text)
 ### Files Modified
 | File | Change |
 |---|---|
-| `push-worker/src/index.js` | Added `POST /api/ai/import` route — receives `{ text, systemPrompt, dictionary }`, calls `env.AI.run('@cf/meta/llama-3.1-8b-instruct')`, returns parsed JSON |
+| `push-worker/src/index.js` | Added `POST /api/ai/import` route — receives `{ text, systemPrompt, dictionary }`, calls `env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast')`, returns parsed JSON |
 | `app.js` | Added `importWithAI(text)` — sends to Worker, resolves exercises via `findOrCreateExerciseByName()`, builds and saves program |
 | `views/you.js` | Added "Importar con IA" section in Datos tab (above Importar) with textarea + button + status |
 | `index.html` | Added `<script src="data/ai-prompt.js">` after exercise-dictionary.js |
@@ -339,7 +339,7 @@ you.js textarea → importWithAI(text)
 2. Clicks "Importar con IA"
 3. `importWithAI(text)` bundles `{ text, systemPrompt: AI_SYSTEM_PROMPT, dictionary: buildAIDictionary() }`
 4. POSTs to `{PUSH_SERVER_URL}/api/ai/import`
-5. Worker calls `env.AI.run()` with the prompt + dictionary + user text
+5. Worker calls `env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast')` with the prompt + dictionary + user text
 6. Gemini returns structured JSON with program/week/day/exercise data
 7. Client iterates exercises: `Storage.findOrCreateExerciseByName(name, muscle)` for each (uses dictionary, auto-fills image/tips)
 8. Builds program object from weeks/days with exerciseId references
@@ -349,6 +349,11 @@ you.js textarea → importWithAI(text)
 ### Setup
 No setup required. Cloudflare Workers AI is enabled by the `[ai]` binding in `wrangler.toml`.
 The free tier includes 10,000 neurons/day — enough for thousands of AI imports per day.
+
+To deploy:
+```bash
+cd push-worker && npx wrangler deploy
+```
 
 ## Version Tracking
 

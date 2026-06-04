@@ -6,6 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast'
+
+async function callAI(messages, env, opts = {}) {
+  const maxTokens = opts.maxTokens || 1024
+  const aiRes = await env.AI.run(AI_MODEL, {
+    messages,
+    stream: false,
+    max_tokens: maxTokens,
+  })
+  return aiRes
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') {
@@ -90,14 +102,10 @@ export default {
         const { sessionData, systemPrompt } = await req.json()
         if (!sessionData) return respond({ error: 'No session data provided' }, 400)
 
-        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: 'DATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData) },
-          ],
-          stream: false,
-          max_tokens: 1024,
-        })
+        const aiRes = await callAI([
+          { role: 'system', content: systemPrompt || '' },
+          { role: 'user', content: 'DATOS DE LA SESIÓN:\n' + JSON.stringify(sessionData) },
+        ], env)
 
         const parsed = parseAIResponse(aiRes)
         if (!parsed) return respond({ error: 'La IA no generó JSON válido', raw: aiRes?.response?.trim() || '' }, 502)
@@ -115,14 +123,10 @@ export default {
 
         const fullPrompt = 'RUTINA DEL USUARIO:\n' + text
 
-        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: fullPrompt },
-          ],
-          stream: false,
-          max_tokens: 1024,
-        })
+        const aiRes = await callAI([
+          { role: 'system', content: systemPrompt || '' },
+          { role: 'user', content: fullPrompt },
+        ], env)
 
         const parsed = parseAIResponse(aiRes)
         if (!parsed) return respond({ error: 'La IA no generó JSON válido. Intenta simplificar la rutina.', raw: aiRes?.response?.trim() || '' }, 502)
@@ -140,22 +144,16 @@ export default {
 
         const fullPrompt = 'PROGRAMA ACTUAL:\n' + JSON.stringify(currentProgram) + '\n\nPERFIL DEL USUARIO:\n' + JSON.stringify(userProfile) + '\n\nPREGUNTA DEL USUARIO:\n' + text + '\n\nDICCIONARIO DE EJERCICIOS:\n' + JSON.stringify(dictionary || [])
 
-        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: fullPrompt },
-          ],
-          stream: false,
-          max_tokens: 2048,
-        })
+        const aiRes = await callAI([
+          { role: 'system', content: systemPrompt || '' },
+          { role: 'user', content: fullPrompt },
+        ], env, { maxTokens: 2048 })
 
-        // Try to parse as JSON first (program update)
         const parsed = parseAIResponse(aiRes)
         if (parsed && parsed.weeks) {
           return respond({ program: parsed })
         }
 
-        // Otherwise it's a text response
         return respond({ message: aiRes?.response?.trim() || '' })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
@@ -188,23 +186,12 @@ REGLAS DE RESPUESTA:
 - Si el dolor es agudo/fuerte/persistente: dile que pare y consulte a un profesional
 - NO diagnostiques ni indiques tratamiento médico`
 
-        const aiMessages = [
+        const aiRes = await callAI([
           { role: 'system', content: systemContent },
           ...messages.map(m => ({ role: m.role, content: m.content })),
-        ]
+        ], env)
 
-        const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-          messages: aiMessages,
-          stream: false,
-          max_tokens: 1024,
-        })
-
-        let reply = ''
-        if (aiRes.response) {
-          reply = aiRes.response.trim()
-        }
-
-        return respond({ reply })
+        return respond({ reply: aiRes?.response?.trim() || '' })
       } catch (err) {
         return respond({ error: 'Error de IA: ' + err.message }, 500)
       }
