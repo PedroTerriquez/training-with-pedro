@@ -593,9 +593,9 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
 
   render()
 
-  // ── Coach FAB ──
+  // ── Coach FAB (top-right) ──
   const fab = document.createElement('button')
-  fab.style.cssText = `position:fixed;right:16px;bottom:100px;z-index:110;display:flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:9999px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;letter-spacing:-0.2px;box-shadow:0 8px 24px ${accent}55;touch-action:manipulation`
+  fab.style.cssText = `position:fixed;right:20px;top:72px;z-index:110;display:flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:9999px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;letter-spacing:-0.2px;box-shadow:0 8px 24px ${accent}55;touch-action:manipulation`
   fab.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
       <path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="#0a0a0a" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
