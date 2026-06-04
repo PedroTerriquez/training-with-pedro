@@ -47,28 +47,63 @@ function makeDayStatusFn(today, logsByDate, program, weeks, weekIdx, exerciseMap
   }
 }
 
-function computeStreak(dayStatusFn, today) {
+function computeWeekStreak(today, logsByDate) {
+  today = calStripTime(today)
+  const thisMonday = calMonday(today)
   let count = 0
-  const startRec = dayStatusFn(today)
-  let cursor = (startRec.status === 'today' || startRec.status === 'done') ? calAddDays(today, -1) : calStripTime(today)
-  for (let i = 0; i < 800; i++) {
-    const r = dayStatusFn(cursor)
-    if (r.status === 'missed' || r.status === 'none' || r.status === 'future') break
-    count++
-    cursor = calAddDays(cursor, -1)
+
+  for (let w = 0; w < 200; w++) {
+    const weekStart = calAddDays(thisMonday, -w * 7)
+    const weekEnd = calAddDays(weekStart, 6)
+
+    if (weekStart > today) continue
+
+    const effectiveEnd = weekEnd > today ? today : weekEnd
+
+    let total = 0
+    for (let d = calStripTime(weekStart); d <= effectiveEnd; d = calAddDays(d, 1)) {
+      const logs = logsByDate.get(calKey(d)) || []
+      total += logs.filter(l => l.weight > 0 || l.exerciseId === '__day__').length
+    }
+
+    if (total >= 5) {
+      count++
+    } else if (weekEnd <= today) {
+      break
+    }
   }
+
   return count
 }
 
-function computeBestStreak(dayStatusFn, today, startDate) {
+function computeBestWeekStreak(startDate, today, logsByDate) {
+  today = calStripTime(today)
+  startDate = calStripTime(startDate)
+  const startMonday = calMonday(startDate)
+  const thisMonday = calMonday(today)
   let best = 0, cur = 0
-  let d = calStripTime(startDate)
-  while (d <= today) {
-    const r = dayStatusFn(d)
-    if (r.status === 'missed') cur = 0
-    else if (r.status === 'done' || r.status === 'rest' || r.status === 'today') { cur++; best = Math.max(best, cur) }
-    d = calAddDays(d, 1)
+
+  for (let w = 0; ; w++) {
+    const weekStart = calAddDays(startMonday, w * 7)
+    if (weekStart > thisMonday) break
+
+    const weekEnd = calAddDays(weekStart, 6)
+    const effectiveEnd = weekEnd > today ? today : weekEnd
+
+    let total = 0
+    for (let d = weekStart; d <= effectiveEnd; d = calAddDays(d, 1)) {
+      const logs = logsByDate.get(calKey(d)) || []
+      total += logs.filter(l => l.weight > 0 || l.exerciseId === '__day__').length
+    }
+
+    if (total >= 5) {
+      cur++
+      best = Math.max(best, cur)
+    } else if (weekEnd <= today) {
+      cur = 0
+    }
   }
+
   return best
 }
 
@@ -198,9 +233,9 @@ function renderCalendarView(container, { accent, logsByDate, program, weeks, wee
   today = calStripTime(today || new Date())
   const dayStatusFn = makeDayStatusFn(today, logsByDate || new Map(), program, weeks, weekIdx, exerciseMap)
 
-  const streak = computeStreak(dayStatusFn, today)
+  const streak = computeWeekStreak(today, logsByDate || new Map())
   const startDate = calAddDays(calMonday(today), -7 * 9)
-  const best = computeBestStreak(dayStatusFn, today, startDate)
+  const best = computeBestWeekStreak(startDate, today, logsByDate || new Map())
 
   let viewMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   let selected = today
@@ -239,9 +274,9 @@ function renderCalendarView(container, { accent, logsByDate, program, weeks, wee
                   <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:${accent};font-weight:600">Racha actual</div>
                   <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px">
                     <span style="font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:700;color:#fafafa;letter-spacing:-1.8px;line-height:0.9">${streak}</span>
-                    <span style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:rgba(255,255,255,0.6)">${streak === 1 ? 'día seguido' : 'días seguidos'}</span>
+                    <span style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:rgba(255,255,255,0.6)">${streak === 1 ? 'semana seguida' : 'semanas seguidas'}</span>
                   </div>
-                  <div style="font-size:11.5px;color:rgba(255,255,255,0.5);margin-top:4px">Mejor racha: <span style="color:rgba(255,255,255,0.8);font-weight:600">${best} días</span></div>
+                  <div style="font-size:11.5px;color:rgba(255,255,255,0.5);margin-top:4px">Mejor racha: <span style="color:rgba(255,255,255,0.8);font-weight:600">${best} ${best === 1 ? 'semana' : 'semanas'}</span></div>
                 </div>
               </div>
               <div style="margin-top:16px">
@@ -262,7 +297,9 @@ function renderCalendarView(container, { accent, logsByDate, program, weeks, wee
                 <div style="margin-top:11px;font-size:11.5px;line-height:1.4;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif">
                   ${selRec.status === 'today' && !selRec.isRest
                     ? `Hoy toca <span style="color:${accent};font-weight:600">${selRec.day ? selRec.day.name : ''}</span> — no rompas la cadena`
-                    : `Llevas <span style="color:${accent};font-weight:600">${streak} días</span> sin fallar. ¡Sigue así!`}
+                    : streak > 0
+                      ? `Llevas <span style="color:${accent};font-weight:600">${streak} ${streak === 1 ? 'semana' : 'semanas'}</span> cumpliendo. ¡Sigue así!`
+                      : `Arranca esta semana con 5 sesiones para comenzar tu racha.`}
                 </div>
               </div>
             </div>
