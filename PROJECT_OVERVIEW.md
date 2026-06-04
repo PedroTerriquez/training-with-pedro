@@ -146,8 +146,8 @@
 
 ### `storage.js` — Data Service Layer
 - **Purpose**: Business-logic CRUD for all 4 stores, CSV/JSON import/export, dictionary migration, localStorage backup
-- **Exposes**: `Storage.getExercises()`, `Storage.saveExercise()`, `Storage.deleteExercise()`, `Storage.findOrCreateExerciseByName()`, `Storage.getLogsForExercise()`, `Storage.logWeight()`, `Storage.getPrograms()`, `Storage.saveProgram()`, `Storage.getSettings()`, `Storage.saveSettings()`, `Storage.importProgramFromCSV()`, `Storage.exportProgramToCSV()`, `Storage.importExercisesFromCSV()`, `Storage.migrateExercisesToDictionary()`, `Storage.exportLogsAndSettings()`, `Storage.importLogsAndSettings()`, `backupAll()`, `restoreFromBackup()`
-- **Also defines**: `showToast()`, `parseCSVLine()`
+- **Exposes**: `Storage.getExercises()`, `Storage.saveExercise()`, `Storage.deleteExercise()`, `Storage.findOrCreateExerciseByName()`, `Storage.getLogsForExercise()`, `Storage.logWeight()`, `Storage.getPrograms()`, `Storage.saveProgram()`, `Storage.getSettings()`, `Storage.saveSettings()`, `Storage.migrateExercisesToDictionary()`, `Storage.exportLogsAndSettings()`, `Storage.importLogsAndSettings()`, `backupAll()`, `restoreFromBackup()`
+- **Also defines**: `showToast()`
 - **Dependencies**: `db.js`
 - **Depended on by**: `app.js`, all views
 

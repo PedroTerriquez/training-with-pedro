@@ -24,7 +24,7 @@
   today.js           → mountToday() — auto-detects day, shows session or rest day
   plan.js            → mountPlan() — week selector + day grid
   history.js         → mountHistory() — exercise list with muscle filter + sparklines
-  you.js             → mountYou() — stats, settings, exercise CRUD, program CRUD, CSV/JSON import/export, AI import
+  you.js             → mountYou() — stats, settings, exercise CRUD, program CRUD, JSON import/export, AI import
 /push-worker/
   src/index.js       → Cloudflare Worker: push notifications + AI import proxy to Gemini
   wrangler.toml      → Worker config
@@ -86,10 +86,7 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 - Duplicate exercise IDs allowed in same program (different days)
 - Logs are flat exerciseLogs — no workout grouping. Each log = one weight entry for one exercise on one date
 - History is computed by scanning exerciseLogs per exerciseId, sorted by date
-- No seed data — app starts empty, user creates exercises/programs or imports CSV
-- localStorage backup layer mirrors IndexedDB on every write; auto-restores on data loss (iOS purge)
-- Full CRUD on exercises and programs (You screen)
-- CSV import: week, day, exercise_name, muscle, sets, reps, rest_sec — auto-creates exercises by name
+- No seed data — app starts empty, user creates exercises/programs or imports JSON/CSV (CSV import removed)
 - User picks active program from You screen; Today/Plan use active program
 - Week-day mapping: Mon=0 through Sun=6 (converted from JS's Sun=0 via (jsDay+6)%7)
 - Logging weight from Today auto-creates exerciseLog entry; no "start workout" ceremony
@@ -100,7 +97,7 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 | `#today` (default) | Auto-detect day, show session or rest day | views/today.js |
 | `#plan` | Week tabs + day cards | views/plan.js |
 | `#history` | Exercise list + muscle filter + sparklines | views/history.js |
-| `#you` | Stats + settings + CRUD + CSV/JSON import/export + AI import | views/you.js |
+| `#you` | Stats + settings + CRUD + JSON import/export + AI import | views/you.js |
 | (bottom sheet) | Exercise detail (Workout + History tabs) | components/detail.js |
 
 ## Design Tokens
@@ -130,8 +127,8 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 ## Data Management (You screen)
 Four grouped sections under Perfil → Datos tab:
 - **Importar con IA** (new): Textarea + button → sends to Gemini → creates program + exercises
-- **Importar**: 3 rows (Programa CSV, Ejercicios CSV, Logs+ajustes JSON)
-- **Exportar**: 3 rows (Ejercicios CSV, Programa CSV, Logs+ajustes JSON)
+- **Importar**: 2 rows (Ejercicios (CSV/JSON), Logs+ajustes JSON) — CSV import removed
+- **Exportar**: 2 rows (Ejercicios JSON, Programa JSON, Logs+ajustes JSON) — CSV export removed
 - **Mantenimiento**: Normalizar ejercicios con diccionario (Aplicar / Forzar)
 
 Previously had a separate "Migrar datos" section — removed and merged JSON import into Importar, JSON export into Exportar.

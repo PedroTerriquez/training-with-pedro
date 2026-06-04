@@ -1,5 +1,5 @@
 // ── You screen ──
-// Stats, settings, exercise + program CRUD, CSV import
+// Stats, settings, exercise + program CRUD, JSON import
 
 let _youTab = 'stats'
 
@@ -129,7 +129,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   // ── Data Management ──
   const card = (content) => `<div style="margin:0 20px;background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">${content}</div>`
   const row = (inner) => `<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">${inner}</div>`
-  const divider = () => `<div style="height:0.5px;background:rgba(255,255,255,0.04);margin:0 16px"></div>`
   const btn = (id, label, style = '') => `<button id="${id}" style="padding:7px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;touch-action:manipulation${style}">${label}</button>`
   const statusEl = (id) => `<div id="${id}" style="margin-top:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.35);letter-spacing:0.2px"></div>`
 
@@ -159,22 +158,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   const impCard = document.createElement('div')
   impCard.innerHTML = card(
     row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Programa</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">semana, día, ejercicio, músculo, series, reps, descanso</div>
-      ${statusEl('csv-status')}
-    </div>
-    <input type="file" id="csv-input" accept=".csv" style="display:none">
-    ${btn('csv-btn', 'Subir CSV')}`) +
-    divider() +
-    row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Ejercicios</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">nombre, músculo, url_imagen, consejos, alternativas</div>
-      ${statusEl('csv-ex-status')}
-    </div>
-    <input type="file" id="csv-ex-input" accept=".csv" style="display:none">
-    ${btn('csv-ex-btn', 'Subir CSV')}`) +
-    divider() +
-    row(`<div style="flex:1;min-width:0">
       <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Restaura toda la base de datos desde un JSON</div>
       ${statusEl('json-import-status')}
@@ -189,29 +172,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   const expCard = document.createElement('div')
   expCard.innerHTML = card(
     row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Ejercicios</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga todos los ejercicios como CSV</div>
-      ${statusEl('csv-export-status')}
-    </div>
-    ${btn('csv-export-btn', 'Descargar')}`) +
-    divider() +
-    row(`<div style="flex:1;min-width:0">
-      <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Programa</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Selecciona un programa y descárgalo como CSV</div>
-    </div>
-    <select id="prog-export-select" style="padding:7px 10px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0e0e0e;color:#fafafa;font-size:12px;outline:none;font-family:'Space Grotesk',sans-serif;cursor:pointer;max-width:140px">
-      <option value="">Programa...</option>
-    </select>
-    ${btn('prog-export-btn', 'Descargar')}`) +
-    divider() +
-    row(`<div style="flex:1;min-width:0">
       <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga toda la base de datos como JSON</div>
       ${statusEl('json-export-status')}
     </div>
     ${btn('json-export-btn', 'Exportar')}`)
   )
-  expCard.innerHTML += statusEl('prog-export-status')
   container.appendChild(expCard)
 
   // ── Mantenimiento ──
@@ -379,48 +345,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         if (onRefresh) onRefresh()
       })
     }
-    const csvBtn = document.getElementById('csv-btn')
-    const csvInput = document.getElementById('csv-input')
-    const csvStatus = document.getElementById('csv-status')
-    if (csvBtn && csvInput) {
-      csvBtn.addEventListener('click', () => csvInput.click())
-      csvInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-        try {
-          const text = await file.text()
-          const prog = await Storage.importProgramFromCSV(text)
-          csvStatus.textContent = `✅ Importado "${prog.name}" con ${prog.weeks.length} semana(s)`
-          csvStatus.style.color = accent
-          if (window.silentRefresh) await window.silentRefresh()
-        } catch (err) {
-          csvStatus.textContent = `❌ ${err.message}`
-          csvStatus.style.color = '#ff6b6b'
-        }
-      })
-    }
-
-    const csvExBtn = document.getElementById('csv-ex-btn')
-    const csvExInput = document.getElementById('csv-ex-input')
-    const csvExStatus = document.getElementById('csv-ex-status')
-    if (csvExBtn && csvExInput) {
-      csvExBtn.addEventListener('click', () => csvExInput.click())
-      csvExInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-        try {
-          const text = await file.text()
-          const result = await Storage.importExercisesFromCSV(text)
-          csvExStatus.textContent = `✅ Creados ${result.created}, actualizados ${result.updated}`
-          csvExStatus.style.color = accent
-          if (window.silentRefresh) await window.silentRefresh()
-        } catch (err) {
-          csvExStatus.textContent = `❌ ${err.message}`
-          csvExStatus.style.color = '#ff6b6b'
-        }
-      })
-    }
-
     const aiImportBtn = document.getElementById('ai-import-btn')
     const aiInput = document.getElementById('ai-input')
     const aiStatus = document.getElementById('ai-status')
@@ -503,83 +427,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     }
     if (dictForceBtn && dictMigrateStatus) {
       dictForceBtn.addEventListener('click', () => runMigration(true))
-    }
-
-    const csvExportBtn = document.getElementById('csv-export-btn')
-    const csvExportStatus = document.getElementById('csv-export-status')
-    if (csvExportBtn) {
-      csvExportBtn.addEventListener('click', async () => {
-        try {
-          const exercises = await Storage.getExercises()
-          const esc = (v) => {
-            const s = String(v == null ? '' : v)
-            return s.includes(',') || s.includes('"') || s.includes('\n')
-              ? '"' + s.replace(/"/g, '""') + '"'
-              : s
-          }
-          const rows = ['nombre,musculo,series,reps,descanso_seg,url_imagen,consejos,alternativas']
-          exercises.forEach((e) => {
-            const tips = (e.tips || []).join(' | ')
-            const alts = (e.alternatives || []).map((a) => `${a.name} (${a.reason || ''})`).join(' | ')
-            rows.push([e.name, e.muscle, e.sets || 3, e.reps || '10', e.rest || 60, e.imgUrl || '', tips, alts].map(esc).join(','))
-          })
-          const csv = '\uFEFF' + rows.join('\n')
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = 'ejercicios.csv'
-          a.click()
-          URL.revokeObjectURL(url)
-          csvExportStatus.textContent = `✅ Descargados ${exercises.length} ejercicios`
-          csvExportStatus.style.color = accent
-          const orig = csvExportBtn.textContent
-          csvExportBtn.textContent = '✅ Descargado'
-          csvExportBtn.style.background = '#0a0a0a'
-          csvExportBtn.style.color = accent
-          csvExportBtn.style.border = `0.5px solid ${accent}55`
-          setTimeout(() => {
-            csvExportBtn.textContent = orig
-            csvExportBtn.style.background = accent
-            csvExportBtn.style.color = '#0a0a0a'
-            csvExportBtn.style.border = '0'
-          }, 1500)
-        } catch (err) {
-          csvExportStatus.textContent = `❌ ${err.message}`
-          csvExportStatus.style.color = '#ff6b6b'
-          csvExportBtn.textContent = '❌ Error'
-          setTimeout(() => { csvExportBtn.textContent = 'Copiar CSV' }, 1500)
-        }
-      })
-    }
-
-    const progSelect = document.getElementById('prog-export-select')
-    const progExportBtn = document.getElementById('prog-export-btn')
-    const progExportStatus = document.getElementById('prog-export-status')
-    if (progSelect && progExportBtn) {
-      Storage.getPrograms().then((programs) => {
-        programs.forEach((p) => {
-          const opt = document.createElement('option')
-          opt.value = p.id
-          opt.textContent = p.name
-          progSelect.appendChild(opt)
-        })
-      })
-      progExportBtn.addEventListener('click', async () => {
-        const id = progSelect.value
-        if (!id) { progExportStatus.textContent = '⚠️ Selecciona un programa'; progExportStatus.style.color = '#ff6b6b'; return }
-        try {
-          const programs = await Storage.getPrograms()
-          const program = programs.find(p => p.id === id)
-          if (!program) throw new Error('Programa no encontrado')
-          await exportProgram(program)
-          progExportStatus.textContent = `✅ Exportado "${program.name}"`
-          progExportStatus.style.color = accent
-        } catch (err) {
-          progExportStatus.textContent = `❌ ${err.message}`
-          progExportStatus.style.color = '#ff6b6b'
-        }
-      })
     }
 
     // JSON Export
@@ -1270,20 +1117,4 @@ function deleteProgram(program, onRefresh) {
   Storage.deleteProgram(program.id).then(() => {
     if (onRefresh) onRefresh()
   })
-}
-
-async function exportProgram(program) {
-  try {
-    const csv = await Storage.exportProgramToCSV(program.id)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${program.name.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g, '_')}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToast(`✅ Exportado "${program.name}"`)
-  } catch (err) {
-    showToast('❌ ' + err.message, true)
-  }
 }

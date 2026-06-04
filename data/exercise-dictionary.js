@@ -1,5 +1,5 @@
 // Single source of truth for exercise metadata.
-// Used by storage.js (CSV import + one-time migration) and exercise-images.js (instant image lookup).
+// Used by storage.js (one-time migration) and exercise-images.js (instant image lookup).
 // Loaded after data/warmup.js (provides IMG_BASE) and before storage.js / exercise-images.js.
 
 const _IMG = (p) => IMG_BASE + p + '/0.jpg'

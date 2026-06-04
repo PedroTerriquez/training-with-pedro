@@ -9,15 +9,15 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 | # | Description | Why It Matters | Effort | Files | Dependencies |
 |---|-------------|----------------|--------|-------|-------------|
 | C1 | **No schema validation on JSON import** — `importLogsAndSettings()` calls `JSON.parse` and writes directly to all 4 stores without validation | Data corruption risk: a crafted JSON can overwrite any store with malformed objects, inject `__proto__` pollution, or set orphaned foreign keys | S | `storage.js:436-444` | None |
-| C2 | **Race condition in `today.js` async chain** — `Storage.getLogsForDate()` can resolve after the view has been unmounted/remounted, causing double-render, lost state transitions, and duplicated push notifications | Affects every workout session — the core user flow | S | `views/today.js:401-484` | None |
-| C3 | **Missing `_state` global guard in today.js** — coach card regeneration references `_state.exercises` and `_state.tempSwaps` from global scope without declaration | Crash on coach card regeneration if `_state` shape changes or app.js initializes differently | S | `views/today.js:765` | C2 (same function scope) |
-| C4 | **`setInterval` timer leak in `today.js`** — overlapping mount calls can leak intervals when race condition (C2) triggers concurrent renders | Multiple concurrent intervals, stale timer updates, memory leak | S | `views/today.js:384-398` | C2 (root cause) |
+| C2 | **Race condition in `today.js` async chain** — ✅ FIXED: generation counter guard | Affects every workout session — the core user flow | — | — | — |
+| C3 | **Missing `_state` global guard in today.js** — ✅ FIXED: `_state` initialization guard | Crash on coach card regeneration | — | — | — |
+| C4 | **`setInterval` timer leak in `today.js`** — ✅ FIXED: proper cleanup on unmount | Multiple concurrent intervals, stale timer updates, memory leak | — | — | — |
 | C5 | **No `pushsubscriptionchange` handler in Service Worker** — when iOS rotates the push subscription endpoint, the Worker has a stale subscription | Push notifications silently fail; user sees "push enabled" but receives nothing | M | `sw.js` | None |
 | C6 | **No request body validation on Cloudflare Worker** — all 7 POST endpoints call `req.json()` without type/schema checks | Malformed requests produce opaque 500 errors instead of helpful 400s; error messages leak internal details | M | `push-worker/src/index.js` (all endpoints) | None |
 | C7 | **No request size limits on Worker** — no Content-Length checks on any endpoint | Memory exhaustion risk; oversized prompts can exceed Llama 3.1's 8K context window | S | `push-worker/src/index.js` (entry point) | None |
 | C8 | **User profile sent to AI endpoint** — `programCoach()` sends full settings (height, weight, sex, age, occupation) to Workers AI | Unnecessary PII exposure to AI inference pipeline; AGENTS.md explicitly says "no user profile data" for AI endpoints | S | `app.js:programCoach()`, `push-worker/src/index.js:159` | None |
 
-**Execution order**: C2 → C3 → C4 (same root cause, fix together), then C1, C6, C7, C8 (data integrity & security), then C5 (push reliability). Total: ~6-8 hours.
+**Execution order**: C1, C6, C7, C8 (data integrity & security), then C5 (push reliability). Total: ~4-6 hours.
 
 ---
 
@@ -64,7 +64,7 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 | M12 | **Stale data risk in cascade delete** — `deleteExercise` reads programs outside transaction; multi-tab race condition | Orphaned exercise references in programs if another tab modifies simultaneously | S | `storage.js:97-121` | None |
 | M13 | **Import writes each item in separate transaction** — `importLogsAndSettings` issues individual `put()` per item | 2500 sequential transactions for large import (500 exercises + 2000 logs) | M | `storage.js:441-444` | H10 |
 | M14 | **UI toast logic lives in data layer** — `showToast()` defined in `storage.js` creates DOM and manages timers | Violates separation of concerns; storage.js depends on DOM existence | S | `storage.js:1-10` | None |
-| M15 | **`parseCSVLine` utility in wrong module** — general-purpose CSV parser in data service layer | Can't import/unit test independently; cluttered 451-line file | S | `storage.js:49-79` | None |
+| ~~M15~~ | ~~**`parseCSVLine` utility in wrong module** — REMOVED: CSV import/export deleted~~ | — | — | — | — |
 | M16 | **Default settings object has no migration pattern** — `getSettings()` returns inline defaults; existing users get `undefined` for new fields | New schema fields silently return `undefined` for existing users until they save | S | `storage.js:180-183` | None |
 | M17 | **`restoreFromBackup` issues individual puts** — opens separate connection per restored item | 500 connections on restore with large backup | M | `storage.js:37-41` | H10 |
 | M18 | **Low `max_tokens` also affects `/api/ai/program-coach`** — 2048 tokens for complex program modifications | Risk of truncated program JSON for medium-to-complex programs (comment confirms) | S | `push-worker/src/index.js:167` | None |
@@ -99,8 +99,8 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 | L17 | **Load order dependency between warmup.js and exercise-dictionary.js** — no runtime guard if script order changes | S |
 | L18 | **Single CDN point of failure for exercise images** — `raw.githubusercontent.com` main branch URLs not pinned | S |
 | L19 | **`buildAIDictionary` memoization comment missing** — assumes `EXERCISE_DICTIONARY` is immutable at runtime | S |
-| L20 | **Error messages in import toasts may include PII** — `importProgramFromCSV`/`importExercisesFromCSV` show raw error messages | S |
-| L21 | **Broken indentation in try/catch blocks** — `storage.js:202-261,298-365` has try body at wrong indent level (misleading but valid) | S |
+| ~~L20~~ | ~~**Error messages in import toasts may include PII** — REMOVED: CSV import/export deleted~~ | — |
+| ~~L21~~ | ~~**Broken indentation in try/catch blocks** — REMOVED: CSV try/catch blocks deleted~~ | — |
 | L22 | **Inline styles in `installPWA()`** — 25 lines of `style.cssText` in JS makes overlay hard to theme | S |
 | L23 | **`tempSwaps` never cleaned up** — stale swap entries persist across days until page reload | S |
 | L24 | **`user-select: none` prevents text selection** — can't copy exercise names or tips | S |
@@ -121,7 +121,7 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 
 ### Sprint 1: Fix Critical Issues (~1 week)
 
-1. **C2+C3+C4** — Fix today.js race condition (generation counter), pass exercises/swaps as mount params, fix interval leak
+1. **C2+C3+C4** — ✅ DONE: today.js race condition, _state guard, timer leak
 2. **C1** — Add schema validation to `importLogsAndSettings()`
 3. **C6+C7** — Add request body validation + size limits to Worker
 4. **C8** — Filter user profile before sending to AI (send only goal + experience)
@@ -152,7 +152,7 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 20. **H7** — Selective DOM updates (start with filter chips and tab bars)
 21. **M1** — Split detail.js into detail.js + coach-chat.js
 22. **M7+M8+M9** — Use replaceState for sheets; differentiate refresh types; extract reloadState()
-23. **M14+M15** — Move showToast to ui.js; extract parseCSVLine to csv.js
+23. **M14** — Move showToast to ui.js (parseCSVLine deleted — CSV removed)
 24. **M4+M5+M6** — Log cache errors; add origin filter to SW fetch; use constant push tag
 25. **M12+M13+M17** — Batch IndexedDB transactions across write operations
 
@@ -166,10 +166,10 @@ Generated from: PROJECT_OVERVIEW.md, MODULES.md, MODULE_REVIEW_*.md (8 module re
 
 | Group | Items | File(s) |
 |-------|-------|---------|
-| today.js rework | C2, C3, C4, L2, L5, L8 | `views/today.js` |
+| today.js rework | C2, C3, C4, L2, L5, L8 | ✅ DONE (C2, C3, C4) | `views/today.js` |
 | Worker hardening | C6, C7, C8, H12, H13, H14, M18, L14, L15 | `push-worker/src/index.js` |
 | SW cleanup | C5, M4, M5, M6, L9, L10, L11, L12, L13 | `sw.js` |
-| Persistence overhaul | C1, H8, H9, H10, H11, M10, M11, M12, M13, M14, M15, M16, M17, L20, L21 | `db.js`, `storage.js` |
+| Persistence overhaul | C1, H8, H9, H10, H11, M10, M11, M12, M13, M14, M16, M17 | `db.js`, `storage.js` |
 | App shell hardening | H3, H4, H5, H6, H7, M7, M8, M9 | `app.js`, `index.html` |
 | Dictionary normalization | H16, M19, M20, M21 | `data/exercise-dictionary.js` |
 | Component splitting | H1, M1, M23 | `views/you.js`, `components/detail.js` |

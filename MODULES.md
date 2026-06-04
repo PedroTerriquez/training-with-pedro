@@ -8,7 +8,7 @@ Modules ordered by dependency (foundational first).
 
 - **Files**: `db.js`, `storage.js`
 - **Purpose**: IndexedDB abstraction and all data operations — CRUD for 4 object stores, localStorage backup mirror, CSV/JSON import/export, dictionary migration.
-- **Boundaries**: `db.js` is the raw IndexedDB gateway with Promise wrappers. `storage.js` builds on it with the `Storage` singleton object that provides business-logic operations (find-or-create, delete with cascade, log weight with dedup, CSV parsing, etc.). Also includes `showToast()`, `backupAll()`, `restoreFromBackup()`, `parseCSVLine()`.
+- **Boundaries**: `db.js` is the raw IndexedDB gateway with Promise wrappers. `storage.js` builds on it with the `Storage` singleton object that provides business-logic operations (find-or-create, delete with cascade, log weight with dedup, etc.). Also includes `showToast()`, `backupAll()`, `restoreFromBackup()`.
 - **Internal Dependencies**: None
 - **External Dependencies**: None (IndexedDB is a browser API)
 - **Entry Points**:
@@ -17,8 +17,8 @@ Modules ordered by dependency (foundational first).
   - `Storage.getLogsForExercise()`, `.logWeight()`, `.getLogsForDate()`
   - `Storage.getPrograms()`, `.getProgram()`, `.saveProgram()`, `.deleteProgram()`
   - `Storage.getSettings()`, `.saveSettings()`, `.saveCoachAnalysis()`, `.getCoachAnalysis()`
-  - `Storage.importProgramFromCSV()`, `.exportProgramToCSV()`
-  - `Storage.importExercisesFromCSV()`
+  - ~~`Storage.importProgramFromCSV()`, `.exportProgramToCSV()`~~ (removed)
+  - ~~`Storage.importExercisesFromCSV()`~~ (removed)
   - `Storage.migrateExercisesToDictionary()`
   - `Storage.exportLogsAndSettings()`, `.importLogsAndSettings()`
   - `backupAll()`, `restoreFromBackup()`
