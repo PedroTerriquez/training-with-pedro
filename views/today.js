@@ -75,7 +75,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
   if (_coachCardMode) {
     const analysis = (!_coachLoading && settings.lastCoachAnalysis?.date === new Date().toISOString().slice(0, 10)) ? settings.lastCoachAnalysis : null
-    renderCoachCard(page, analysis, accent, dateStr, weekDayName)
+    renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises, swaps)
     return
   }
 
@@ -478,6 +478,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
               const s = await Storage.getSettings()
               s.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
               await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
+              settings.lastCoachAnalysis = s.lastCoachAnalysis
               refreshView()
             }).catch(() => {
               _coachLoading = false
@@ -710,7 +711,7 @@ function createExerciseRow(ex, accent, units, onOpen) {
 }
 
 // ── Coach Analysis Card (post-session) ──
-function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
+function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises, swaps) {
   const isLoading = _coachLoading
   let bodyHtml = ''
   if (isLoading) {
@@ -768,7 +769,7 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
       regenEl.addEventListener('click', async () => {
         _coachLoading = true
         _coachResult = null
-        refreshView()
+        if (typeof window.appRefresh === 'function') window.appRefresh()
         const s = await Storage.getSettings()
         try {
           const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, exercises || [], s, swaps || {})
@@ -777,10 +778,10 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName) {
           const settings = await Storage.getSettings()
           settings.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
           await Storage.saveCoachAnalysis(settings.lastCoachAnalysis)
-          refreshView()
+          if (typeof window.appRefresh === 'function') window.appRefresh()
         } catch {
           _coachLoading = false
-          refreshView()
+          if (typeof window.appRefresh === 'function') window.appRefresh()
         }
       })
     }
