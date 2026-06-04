@@ -50,6 +50,7 @@ function App() {
     logState, dayState, setDayState,
     order, setOrder, defaultOrder,
     openProgramResult: setProgramResult,
+    today: now,
   };
 
   // Compute prev/next exercise in the day's flow

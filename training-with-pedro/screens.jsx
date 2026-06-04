@@ -354,7 +354,16 @@ function YouScreen({ ctx }) {
         }}>Pedro.</div>
       </div>
 
+      {/* Motivational attendance calendar + streak */}
+      <div style={{ marginBottom: 6 }}>
+        <SectionLabel accent={accent}>Tu constancia</SectionLabel>
+      </div>
+      <MotivationCalendar ctx={ctx} />
+
       {/* AI program generator */}
+      <div style={{ margin: '24px 0 10px' }}>
+        <SectionLabel accent={accent}>Crear con IA</SectionLabel>
+      </div>
       <div style={{ padding: '0 20px 4px' }}>
         <ProgramGenerator accent={accent} onResult={ctx.openProgramResult} />
       </div>
