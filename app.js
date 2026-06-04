@@ -430,7 +430,7 @@ async function importWithAI(text, onProgress) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       text,
-      systemPrompt: AI_SYSTEM_PROMPT || '',
+      systemPrompt: typeof buildImportPrompt === 'function' ? buildImportPrompt() : '',
     }),
   })
 
@@ -541,7 +541,10 @@ async function programCoach(text, program, settings) {
     units: settings.units || 'kg',
   }
 
-  const dictionary = typeof buildAIDictionary === 'function' ? buildAIDictionary() : []
+  const exerciseNames = program.weeks.flatMap(w =>
+    w.days.flatMap(d => d.exercises.map(ex => exMap[ex.exerciseId]))
+  ).filter(Boolean)
+  const dictionary = typeof buildAIDictionary === 'function' ? buildAIDictionary(exerciseNames) : []
 
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/ai/program-coach`, {
@@ -551,7 +554,7 @@ async function programCoach(text, program, settings) {
         text,
         currentProgram: programCopy,
         userProfile,
-        systemPrompt: AI_PROGRAM_COACH_PROMPT || '',
+        systemPrompt: typeof buildProgramCoachPrompt === 'function' ? buildProgramCoachPrompt() : '',
         dictionary,
       }),
     })
@@ -711,21 +714,18 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
       age: settings.age || '',
       sex: settings.sex || '',
       body_weight: settings.weight ? `${settings.weight}${units}` : '',
-      height_cm: settings.height || '',
       goal: settings.goal || '',
       experience: settings.experience || '',
-      occupation: settings.occupation || '',
     },
     exercises: exerciseData,
     total_volume: `${Math.round(totalVolume)}${units}`,
   }
 
   try {
-    console.log('[Coach] sessionData:', JSON.stringify(sessionData, null, 2))
     const res = await fetch(`${PUSH_SERVER_URL}/api/ai/coach`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionData, systemPrompt: AI_COACH_PROMPT || '' }),
+      body: JSON.stringify({ sessionData, systemPrompt: typeof buildCoachPrompt === 'function' ? buildCoachPrompt() : '' }),
     })
 
     const data = await res.json()
