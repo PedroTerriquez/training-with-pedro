@@ -359,9 +359,11 @@ cd push-worker && npx wrangler deploy
 
 - `APP_VERSION` in `app.js` is a static string (e.g. `v1.1 · 2026-06-03`), NOT a runtime date.
 - **Bump the minor version +1 with every commit** (e.g. `v1.2` → `v1.3`), not just the date. This ensures the SW update detection (`updateViaCache: 'none'` + `SKIP_WAITING` + `controllerchange` → `reload`) always triggers correctly.
+- **Bump `CACHE` version in `sw.js`** with every deploy (e.g. `'v2'` → `'v3'`) to invalidate old cached assets.
 - **Update the date** to match the commit date.
 - **Keep the description concise** (~10 words) capturing the key changes.
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
+- **Before every commit**, opencode MUST run `bash scripts/bump-version.sh` to auto-update both `app.js` and `sw.js` versions, then stage both files.
 
 ## Coach IA — Program Coach (Tú → Programas)
 
