@@ -363,7 +363,8 @@ cd push-worker && npx wrangler deploy
 - **`CACHE` in `sw.js` must always match the minor number** from `APP_VERSION` (e.g. v1.4 → CACHE v4). They're in sync.
 - **Bump the minor version +1 with every commit** (e.g. `v1.2` → `v1.3`), not just the date. This ensures the SW update detection (`updateViaCache: 'none'` + `SKIP_WAITING` + `controllerchange` → `reload`) always triggers correctly.
 - **Update the date** to match the commit date.
-- **Keep the description concise** (~10 words) capturing the key changes.
+- **Keep the description concise** (~10 words) capturing the key changes of the current commit.
+- **Update the description in `app.js`** before every commit — it must reflect the actual changes in that commit, not previous ones.
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
 - **Before every commit**, run `bash scripts/bump-version.sh` to bump both `app.js` minor version and `sw.js` CACHE in sync.
 
