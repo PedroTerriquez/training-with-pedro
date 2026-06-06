@@ -368,6 +368,46 @@ cd push-worker && npx wrangler deploy
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
 - **Before every commit**, run `bash scripts/bump-version.sh` to bump both `app.js` minor version and `sw.js` CACHE in sync.
 
+## Rest Timer via Push Actions
+
+Added 2026-06-06. Manual push notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a push with the exercise name + sets/reps. Long-pressing the notification reveals a "Descansar Xs" action that starts a countdown timer in the Service Worker. When the timer completes, a generic notification appears for 10 seconds then auto-dismisses.
+
+### Architecture
+```
+detail.js → [⚡ Iniciar] button
+                ↓
+         sendPushNotification(name, `${sets}×${reps}`, tag, rest)
+                ↓
+         Cloudflare Worker → Web Push
+                ↓
+         Service Worker `push` event
+                ↓
+         Notification with `actions: [{ action: 'start-rest', title: 'Descansar Xs' }]`
+                ↓ (long-press → tap action)
+         notificationclick(e.action === 'start-rest')
+                ↓
+         e.waitUntil(setTimeout(restSec * 1000))
+                ↓
+         "⏰ Descanso terminado" notification → 10s → auto-close
+```
+
+### Key Changes from Previous Behavior
+- Auto-notifications removed entirely (⌚ button, warmup, exercise completion, workout complete)
+- No 5-second delay on push sends
+- Push only fires when user manually taps [⚡ Iniciar] in the detail sheet
+- Timer runs in SW via `e.waitUntil()` — survives background
+- User can restart timer multiple times from the same notification (repeated long-press → action)
+- Tap on notification (without action) does nothing — informational only
+
+### Files Modified
+| File | Change |
+|---|---|
+| `sw.js` | `push` event: adds `actions` with "Descansar Xs" when `restSeconds > 0`. `notificationclick`: handles `start-rest` action with timer + auto-close "rest-done" after 10s; non-action tap is no-op. |
+| `app.js` | Removed 5-second delay from `sendPushNotification()`. Added optional `restSeconds` parameter. |
+| `views/today.js` | Removed all 4 `sendPushNotification()` + `window.notifyWatch()` calls. |
+| `components/detail.js` | Added [⚡ Iniciar] button between prev/next nav pills. Calls `sendPushNotification(ex.name, \`${sets}×${reps}\`, tag, rest)`. |
+| `push-worker/src/index.js` | Reads `restSeconds` from request body and passes it in the encrypted push payload. |
+
 ## Coach IA — Program Coach (Tú → Programas)
 
 Added 2026-06-03. User can ask questions or request modifications to the active program in the Programs tab.

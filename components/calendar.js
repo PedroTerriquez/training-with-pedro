@@ -63,7 +63,7 @@ function computeWeekStreak(today, logsByDate) {
     let total = 0
     for (let d = calStripTime(weekStart); d <= effectiveEnd; d = calAddDays(d, 1)) {
       const logs = logsByDate.get(calKey(d)) || []
-      total += logs.filter(l => l.weight > 0 || l.exerciseId === '__day__').length
+      if (logs.some(l => l.weight > 0 || l.exerciseId === '__day__')) total++
     }
 
     if (total >= 5) {
@@ -93,7 +93,7 @@ function computeBestWeekStreak(startDate, today, logsByDate) {
     let total = 0
     for (let d = weekStart; d <= effectiveEnd; d = calAddDays(d, 1)) {
       const logs = logsByDate.get(calKey(d)) || []
-      total += logs.filter(l => l.weight > 0 || l.exerciseId === '__day__').length
+      if (logs.some(l => l.weight > 0 || l.exerciseId === '__day__')) total++
     }
 
     if (total >= 5) {

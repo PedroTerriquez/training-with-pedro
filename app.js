@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.9 · 2026-06-05 · version rules in AGENTS.md · description update rule'
+const APP_VERSION = 'v1.10 · 2026-06-06 · Iniciar push button + rest timer in SW'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -425,16 +425,14 @@ async function unsubscribePush() {
   } catch (_) {}
 }
 
-async function sendPushNotification(title, body, tag) {
+async function sendPushNotification(title, body, tag, restSeconds) {
   const s = await Storage.getSettings()
   if (!s.pushSubscribed || !PUSH_SERVER_URL) return
-  // 5-second delay so the user can ready the Apple Watch before the notification fires
-  await new Promise(r => setTimeout(r, 5000))
   try {
     await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body, tag: tag || 'workout' }),
+      body: JSON.stringify({ title, body, tag: tag || 'workout', restSeconds }),
     })
   } catch (_) {}
 }

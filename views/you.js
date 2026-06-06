@@ -91,7 +91,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
 
   // ── Data Management ──
   const card = (content) => `<div style="margin:0 20px;background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">${content}</div>`
-  const row = (inner) => `<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">${inner}</div>`
+  const dataRow = (inner) => `<div style="padding:14px 16px;display:flex;align-items:center;gap:12px">${inner}</div>`
   const btn = (id, label, style = '') => `<button id="${id}" style="padding:7px 14px;border-radius:8px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;touch-action:manipulation${style}">${label}</button>`
   const statusEl = (id) => `<div id="${id}" style="margin-top:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.35);letter-spacing:0.2px"></div>`
 
@@ -120,7 +120,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   section('Importar')
   const impCard = document.createElement('div')
   impCard.innerHTML = card(
-    row(`<div style="flex:1;min-width:0">
+    dataRow(`<div style="flex:1;min-width:0">
       <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Restaura toda la base de datos desde un JSON</div>
       ${statusEl('json-import-status')}
@@ -134,7 +134,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   section('Exportar')
   const expCard = document.createElement('div')
   expCard.innerHTML = card(
-    row(`<div style="flex:1;min-width:0">
+    dataRow(`<div style="flex:1;min-width:0">
       <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Todo (ejercicios, programas, logs)</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga toda la base de datos como JSON</div>
       ${statusEl('json-export-status')}
@@ -147,7 +147,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   section('Mantenimiento')
   const maintCard = document.createElement('div')
   maintCard.innerHTML = card(
-    row(`<div style="flex:1;min-width:0">
+    dataRow(`<div style="flex:1;min-width:0">
       <div style="font-size:12px;color:#fafafa;font-weight:600;font-family:'Space Grotesk',sans-serif">Normalizar ejercicios</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Renombra al canónico en español, rellena imágenes y músculo desde el diccionario</div>
       ${statusEl('dict-migrate-status')}

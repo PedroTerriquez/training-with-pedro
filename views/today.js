@@ -203,14 +203,6 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     }
     // Subscribe for push notifications after permission granted
     await subscribePush()
-    const firstEx = day.exercises[0]
-    if (!firstEx) return
-    const aId = resolveExId(firstEx.exerciseId)
-    const rEx = { ...firstEx, ...(exercisesById[aId] || {}) }
-    sendPushNotification(`🏋️ ${day.name}`, `${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-    if (window.notifyWatch) {
-      window.notifyWatch(`🏋️ ${day.name}`, `${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-    }
     showCenterToast({
       svg: '<span style="font-size:24px">⌚</span>',
       message: 'Enviado al Watch',
@@ -245,15 +237,6 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         _phaseCardOpen = null
         persistPhase()
         if (!wasDone) {
-          if (day.exercises.length > 0) {
-            const firstEx = day.exercises[0]
-            const altId = resolveExId(firstEx.exerciseId)
-            const rEx = { ...firstEx, ...(exercisesById[altId] || {}) }
-            sendPushNotification(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-            if (typeof window.notifyWatch === 'function') {
-              window.notifyWatch(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-            }
-          }
           if (settings.hasWatch) {
             showCenterToast({
               svg: TOAST_SVG_WATCH,
@@ -421,21 +404,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
       const prev = _todayExDone
       _todayExDone = done
       if (_phase < 3) {
-        const nextIdx = _todayExDone
-        if (nextIdx < day.exercises.length) {
-          const nextEx = day.exercises[nextIdx]
-          const altId = resolveExId(nextEx.exerciseId)
-          const rEx = { ...nextEx, ...(exercisesById[altId] || {}) }
-          sendPushNotification(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-          if (typeof window.notifyWatch === 'function') {
-            window.notifyWatch(`🏋️ ${day.name}`, `${nextIdx + 1}. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
-          }
-        } else {
-          sendPushNotification(`✅ ${day.name}`, '¡Entrenamiento completo!')
-          if (typeof window.notifyWatch === 'function') {
-            window.notifyWatch(`✅ ${day.name}`, '¡Entrenamiento completo!')
-          }
-        }
+
       }
       persistPhase()
       refreshView()

@@ -185,7 +185,7 @@ export default {
     if (url.pathname === '/api/push/send') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
-        const { title, body, tag } = await req.json()
+        const { title, body, tag, restSeconds } = await req.json()
         const raw = await env.PUSH_KV.get('subscription')
         if (!raw) {
           return respond('No subscription', 404)
@@ -202,12 +202,9 @@ export default {
         webPush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate)
 
         const sub = JSON.parse(raw)
-        await webPush.sendNotification(sub, JSON.stringify({
-          title: title || 'Coach Pedro AI',
-          body: body || '',
-          tag: tag || 'workout',
-          url: './',
-        }))
+        const payload = { title: title || 'Coach Pedro AI', body: body || '', tag: tag || 'workout', url: './' }
+        if (restSeconds) payload.restSeconds = restSeconds
+        await webPush.sendNotification(sub, JSON.stringify(payload))
 
         return respond('sent')
       } catch (err) {

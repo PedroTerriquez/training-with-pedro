@@ -1,4 +1,4 @@
-const CACHE = 'v9'
+const CACHE = 'v10'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -72,23 +72,37 @@ self.addEventListener('message', (e) => {
 
 self.addEventListener('push', (e) => {
   const data = e.data?.json() || { title: 'Coach Pedro AI', body: '' }
-  // Each notification gets a unique tag so it persists until manually dismissed
-  self.registration.showNotification(data.title, {
+  const opts = {
     body: data.body,
     icon: 'icons/icon-192.png',
     tag: data.tag || `push-${Date.now()}`,
     requireInteraction: true,
-    data: { url: data.url || './' },
-  })
+    data: { url: data.url || './', restSeconds: data.restSeconds || 0, title: data.title, body: data.body },
+  }
+  if (data.restSeconds > 0) {
+    opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
+  }
+  self.registration.showNotification(data.title, opts)
 })
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = e.notification.data?.url || './'
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
-      if (cls.length > 0) { cls[0].focus(); return }
-      clients.openWindow(url)
-    })
-  )
+  if (e.action === 'start-rest') {
+    const restSec = e.notification.data?.restSeconds || 90
+    e.waitUntil(
+      (async () => {
+        await new Promise(r => setTimeout(r, restSec * 1000))
+        await self.registration.showNotification('⏰ Descanso terminado', {
+          icon: 'icons/icon-192.png',
+          tag: 'rest-done',
+          requireInteraction: false,
+        })
+        await new Promise(r => setTimeout(r, 10000))
+        const notifs = await self.registration.getNotifications({ tag: 'rest-done' })
+        notifs.forEach(n => n.close())
+      })()
+    )
+    return
+  }
+  // Normal tap on exercise notification — close only, no action
 })
