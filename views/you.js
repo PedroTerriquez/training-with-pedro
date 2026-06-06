@@ -85,7 +85,8 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   quickCard.appendChild(row('units', 'Unidades', `<button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'}</button>`))
   quickCard.appendChild(row('accent', 'Color de acento', `<div style="display:flex;gap:6px;align-items:center"><input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer"></div>`))
   quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
-  quickCard.appendChild(row('push', 'Notificaciones push', `<button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>`))
+  const permLabel = Notification.permission === 'granted' ? 'Activadas' : Notification.permission === 'denied' ? 'Denegadas' : 'Preguntar'
+  quickCard.appendChild(row(null, 'Notificaciones', `<button id="notif-perm-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${Notification.permission === 'granted' ? `${accent}22` : 'transparent'};color:${Notification.permission === 'granted' ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${permLabel}</button>`))
   quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
   container.appendChild(quickCard)
 
@@ -250,39 +251,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         await Storage.saveSettings(s)
       })
     }
-    const pushToggleBtn = document.getElementById('push-toggle-btn')
-    if (pushToggleBtn) {
-      pushToggleBtn.addEventListener('click', async () => {
-        const s = await Storage.getSettings()
-        if (s.pushSubscribed) {
-          await unsubscribePush()
-          pushToggleBtn.textContent = 'Desactivadas'
-          pushToggleBtn.style.background = 'transparent'
-          pushToggleBtn.style.color = 'rgba(255,255,255,0.55)'
-        } else {
-          if (Notification.permission === 'denied') {
-            showToast('Permiso denegado. Actívalo en Ajustes del navegador.', true)
-            return
-          }
-          if (Notification.permission === 'default') {
-            const result = await Notification.requestPermission()
-            if (result !== 'granted') {
-              showToast('Permiso necesario para notificaciones', true)
-              return
-            }
-          }
-          const ok = await subscribePush()
-          if (ok) {
-            pushToggleBtn.textContent = 'Activadas'
-            pushToggleBtn.style.background = `${accent}22`
-            pushToggleBtn.style.color = accent
-            showToast('✅ Notificaciones push activadas')
-          } else {
-            showToast('❌ No se pudo activar. ¿Configuraste push-config.js?', true)
-          }
-        }
-      })
-    }
     const watchToggleBtn = document.getElementById('watch-toggle-btn')
     if (watchToggleBtn) {
       watchToggleBtn.addEventListener('click', async () => {
@@ -292,6 +260,24 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         watchToggleBtn.textContent = s.hasWatch ? 'Sí' : 'No'
         watchToggleBtn.style.background = s.hasWatch ? `${accent}22` : 'transparent'
         watchToggleBtn.style.color = s.hasWatch ? accent : 'rgba(255,255,255,0.55)'
+      })
+    }
+    const notifBtn = document.getElementById('notif-perm-btn')
+    if (notifBtn) {
+      notifBtn.addEventListener('click', async () => {
+        if (Notification.permission === 'granted') return
+        if (Notification.permission === 'denied') {
+          showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
+          return
+        }
+        const result = await Notification.requestPermission()
+        if (result === 'granted') {
+          notifBtn.textContent = 'Activadas'
+          notifBtn.style.background = `${accent}22`
+          notifBtn.style.color = accent
+        } else {
+          notifBtn.textContent = 'Denegadas'
+        }
       })
     }
     const installBtn = document.getElementById('install-btn')

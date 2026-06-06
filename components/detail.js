@@ -60,14 +60,22 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     iniciarBtn.style.cssText = `flex-shrink:0;background:${accent};border:0;border-radius:12px;padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation;transition:opacity 0.15s;white-space:nowrap`
     iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
     iniciarBtn.addEventListener('click', async () => {
-      const tag = `rest-${Date.now()}`
-      const sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
-      if (typeof showToast === 'function') {
-        if (sent) {
-          showToast(`✓ ${exercise.name} enviado al Watch`)
-        } else {
-          showToast('Activa las notificaciones push en Ajustes', true)
+      if (!('Notification' in window)) return
+      if (Notification.permission === 'default') {
+        const result = await Notification.requestPermission()
+        if (result !== 'granted') {
+          if (typeof showToast === 'function') showToast('Permiso necesario para notificaciones', true)
+          return
         }
+      }
+      if (Notification.permission === 'denied') {
+        if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
+        return
+      }
+      const tag = `rest-${Date.now()}`
+      if (typeof window.notifyWatch === 'function') {
+        await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
+        if (typeof showToast === 'function') showToast(`✓ ${exercise.name}`)
       }
     })
     wrap.appendChild(iniciarBtn)

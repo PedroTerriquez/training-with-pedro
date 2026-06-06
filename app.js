@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.10 · 2026-06-06 · Iniciar push button + rest timer in SW'
+const APP_VERSION = 'v1.11 · 2026-06-06 · ⚡ Iniciar via local notifications, perm toggle in settings'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -69,8 +69,8 @@ async function init() {
     _deferredPrompt = e
   })
 
-  // Auto-subscribe for push if permission already granted
-  if (PUSH_SERVER_URL && 'Notification' in window && Notification.permission === 'granted') {
+  // Auto-subscribe for push if permission already granted (VAPID key required)
+  if (PUSH_SERVER_URL && VAPID_PUBLIC_KEY && 'Notification' in window && Notification.permission === 'granted') {
     subscribePush()
   }
 
@@ -809,11 +809,11 @@ function installPWA() {
   card.querySelector('#pwa-close').addEventListener('click', () => overlay.remove())
 }
 
-window.notifyWatch = async (title, body) => {
+window.notifyWatch = async (title, body, opts = {}) => {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
   try {
     const reg = await navigator.serviceWorker.ready
-    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: 'workout' })
+    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0 })
   } catch (_) {}
 }
 

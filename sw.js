@@ -1,4 +1,4 @@
-const CACHE = 'v10'
+const CACHE = 'v11'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -61,12 +61,17 @@ self.addEventListener('message', (e) => {
     return
   }
   if (e.data?.type === 'notify') {
-    self.registration.showNotification(e.data.title, {
+    const opts = {
       body: e.data.body,
-      icon: e.data.icon,
+      icon: e.data.icon || 'icons/icon-192.png',
       tag: e.data.tag || 'default',
       requireInteraction: true,
-    })
+      data: { url: e.data.url || './', restSeconds: e.data.restSeconds || 0, title: e.data.title, body: e.data.body },
+    }
+    if (e.data.restSeconds > 0) {
+      opts.actions = [{ action: 'start-rest', title: `Descansar ${e.data.restSeconds}s` }]
+    }
+    self.registration.showNotification(e.data.title, opts)
   }
 })
 

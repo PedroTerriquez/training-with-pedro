@@ -368,21 +368,23 @@ cd push-worker && npx wrangler deploy
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
 - **Before every commit**, run `bash scripts/bump-version.sh` to bump both `app.js` minor version and `sw.js` CACHE in sync.
 
-## Rest Timer via Push Actions
+## Rest Timer via Local Notifications (postMessage → SW)
 
-Added 2026-06-06. Manual push notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a push with the exercise name + sets/reps. Long-pressing the notification reveals a "Descansar Xs" action that starts a countdown timer in the Service Worker. When the timer completes, a generic notification appears for 10 seconds then auto-dismisses.
+Added 2026-06-06, refactored 2026-06-06. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. Long-pressing the notification reveals a "Descansar Xs" action that starts a countdown timer in the Service Worker. When the timer completes, a generic notification appears for 10 seconds then auto-dismisses.
+
+This system uses **local notifications only** — no Cloudflare Worker or VAPID keys required. Notifications are sent via `postMessage` to the Service Worker, which calls `self.registration.showNotification()` directly. The rest timer runs inside the SW via `e.waitUntil()`.
 
 ### Architecture
 ```
 detail.js → [⚡ Iniciar] button
                 ↓
-         sendPushNotification(name, `${sets}×${reps}`, tag, rest)
+         window.notifyWatch(name, `${sets}×${reps}`, { restSeconds, tag })
                 ↓
-         Cloudflare Worker → Web Push
+         navigator.serviceWorker → postMessage({ type: 'notify', ... })
                 ↓
-         Service Worker `push` event
+         Service Worker `message` event
                 ↓
-         Notification with `actions: [{ action: 'start-rest', title: 'Descansar Xs' }]`
+         self.registration.showNotification() with `actions`
                 ↓ (long-press → tap action)
          notificationclick(e.action === 'start-rest')
                 ↓
@@ -391,22 +393,21 @@ detail.js → [⚡ Iniciar] button
          "⏰ Descanso terminado" notification → 10s → auto-close
 ```
 
-### Key Changes from Previous Behavior
-- Auto-notifications removed entirely (⌚ button, warmup, exercise completion, workout complete)
-- No 5-second delay on push sends
-- Push only fires when user manually taps [⚡ Iniciar] in the detail sheet
+### Key Points
+- No server, no Worker, no VAPID keys needed — works entirely client-side
 - Timer runs in SW via `e.waitUntil()` — survives background
 - User can restart timer multiple times from the same notification (repeated long-press → action)
 - Tap on notification (without action) does nothing — informational only
+- Requires Notification permission (requested via ⌚ button or Ajustes)
+- `window.notifyWatch()` is the global API (defined in app.js) — takes `(title, body, opts)` where `opts = { restSeconds, tag }`
 
-### Files Modified
-| File | Change |
+### Files
+| File | Role |
 |---|---|
-| `sw.js` | `push` event: adds `actions` with "Descansar Xs" when `restSeconds > 0`. `notificationclick`: handles `start-rest` action with timer + auto-close "rest-done" after 10s; non-action tap is no-op. |
-| `app.js` | Removed 5-second delay from `sendPushNotification()`. Added optional `restSeconds` parameter. |
-| `views/today.js` | Removed all 4 `sendPushNotification()` + `window.notifyWatch()` calls. |
-| `components/detail.js` | Added [⚡ Iniciar] button between prev/next nav pills. Calls `sendPushNotification(ex.name, \`${sets}×${reps}\`, tag, rest)`. |
-| `push-worker/src/index.js` | Reads `restSeconds` from request body and passes it in the encrypted push payload. |
+| `app.js:812` | `window.notifyWatch()` — postMessage to SW |
+| `sw.js:63` | `message` event handler — shows notification + `actions` if `restSeconds > 0` |
+| `sw.js:90` | `notificationclick` handler — `start-rest` timer + auto-dismiss |
+| `components/detail.js:62` | [⚡ Iniciar] button — calls `window.notifyWatch()` |
 
 ## Coach IA — Program Coach (Tú → Programas)
 
