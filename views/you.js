@@ -45,86 +45,49 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
 }
 
 function renderStats(container, { accent, units, settings, onRefresh }) {
-  // Settings
-  const settingsLabel = document.createElement('div')
-  settingsLabel.style.cssText = 'margin-bottom:10px'
-  settingsLabel.appendChild(SectionLabel({ children: 'Ajustes rápidos', accent }))
-  container.appendChild(settingsLabel)
+  const secLabel = (label) => {
+    const el = document.createElement('div')
+    el.style.cssText = 'margin-bottom:10px'
+    el.appendChild(SectionLabel({ children: label, accent }))
+    container.appendChild(el)
+  }
 
-  const settingsCard = document.createElement('div')
-  settingsCard.id = 'you-settings-card'
-  settingsCard.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
-  settingsCard.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Unidades</div>
-      <button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'}</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Color de acento</div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer">
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Estatura</div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <input id="height-input" type="number" value="${settings.height || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
-        <span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">cm</span>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Peso</div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <input id="weight-input" type="number" value="${settings.weight || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
-        <span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">kg</span>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Sexo</div>
-      <select id="sex-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
-        <option value="" ${!settings.sex ? 'selected' : ''}>Seleccionar</option>
-        <option value="Masculino" ${settings.sex === 'Masculino' ? 'selected' : ''}>Masculino</option>
-        <option value="Femenino" ${settings.sex === 'Femenino' ? 'selected' : ''}>Femenino</option>
-        <option value="Otro" ${settings.sex === 'Otro' ? 'selected' : ''}>Otro</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Edad</div>
-      <input id="age-input" type="number" value="${settings.age || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Objetivo principal</div>
-      <select id="goal-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
-        <option value="" ${!settings.goal ? 'selected' : ''}>Seleccionar</option>
-        <option value="hipertrofia" ${settings.goal === 'hipertrofia' ? 'selected' : ''}>Hipertrofia</option>
-        <option value="fuerza" ${settings.goal === 'fuerza' ? 'selected' : ''}>Fuerza</option>
-        <option value="perdida de grasa" ${settings.goal === 'perdida de grasa' ? 'selected' : ''}>Pérdida de grasa</option>
-        <option value="recomposicion" ${settings.goal === 'recomposicion' ? 'selected' : ''}>Recomposición</option>
-        <option value="rendimiento" ${settings.goal === 'rendimiento' ? 'selected' : ''}>Rendimiento</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Nivel experiencia</div>
-      <select id="exp-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer">
-        <option value="" ${!settings.experience ? 'selected' : ''}>Seleccionar</option>
-        <option value="principiante" ${settings.experience === 'principiante' ? 'selected' : ''}>Principiante</option>
-        <option value="intermedio" ${settings.experience === 'intermedio' ? 'selected' : ''}>Intermedio</option>
-        <option value="avanzado" ${settings.experience === 'avanzado' ? 'selected' : ''}>Avanzado</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Profesión</div>
-      <input id="occ-input" type="text" value="${settings.occupation || ''}" placeholder="Ej: Ingeniero, oficinista, repartidor…" style="width:160px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif">
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Notificaciones push</div>
-      <button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">Instalar app</div>
-      <button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>
-    </div>`
-  container.appendChild(settingsCard)
+  const cardWrap = (id) => {
+    const card = document.createElement('div')
+    if (id) card.id = id
+    card.style.cssText = 'margin:0 20px;background:#141414;border-radius:18px;padding:4px;border:0.5px solid rgba(255,255,255,0.06)'
+    return card
+  }
+
+  const row = (id, label, control) => {
+    const isLast = !id
+    const r = document.createElement('div')
+    r.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:12px 14px${isLast ? '' : ';border-bottom:0.5px solid rgba(255,255,255,0.04)'}`
+    r.innerHTML = `<div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:#fafafa;font-weight:500">${label}</div>${control}`
+    return r
+  }
+
+  // ── Mis datos ──
+  secLabel('Mis datos')
+  const profileCard = cardWrap('you-profile-card')
+  profileCard.appendChild(row('height', 'Estatura', `<div style="display:flex;align-items:center;gap:4px"><input id="height-input" type="number" value="${settings.height || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace"><span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">cm</span></div>`))
+  profileCard.appendChild(row('weight', 'Peso', `<div style="display:flex;align-items:center;gap:4px"><input id="weight-input" type="number" value="${settings.weight || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace"><span style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace">kg</span></div>`))
+  profileCard.appendChild(row('sex', 'Sexo', `<select id="sex-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer"><option value="" ${!settings.sex ? 'selected' : ''}>Seleccionar</option><option value="Masculino" ${settings.sex === 'Masculino' ? 'selected' : ''}>Masculino</option><option value="Femenino" ${settings.sex === 'Femenino' ? 'selected' : ''}>Femenino</option><option value="Otro" ${settings.sex === 'Otro' ? 'selected' : ''}>Otro</option></select>`))
+  profileCard.appendChild(row('age', 'Edad', `<input id="age-input" type="number" value="${settings.age || ''}" style="width:72px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'JetBrains Mono',monospace">`))
+  profileCard.appendChild(row('goal', 'Objetivo', `<select id="goal-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer"><option value="" ${!settings.goal ? 'selected' : ''}>Seleccionar</option><option value="hipertrofia" ${settings.goal === 'hipertrofia' ? 'selected' : ''}>Hipertrofia</option><option value="fuerza" ${settings.goal === 'fuerza' ? 'selected' : ''}>Fuerza</option><option value="perdida de grasa" ${settings.goal === 'perdida de grasa' ? 'selected' : ''}>Pérdida de grasa</option><option value="recomposicion" ${settings.goal === 'recomposicion' ? 'selected' : ''}>Recomposición</option><option value="rendimiento" ${settings.goal === 'rendimiento' ? 'selected' : ''}>Rendimiento</option></select>`))
+  profileCard.appendChild(row('experience', 'Experiencia', `<select id="exp-input" style="padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif;cursor:pointer"><option value="" ${!settings.experience ? 'selected' : ''}>Seleccionar</option><option value="principiante" ${settings.experience === 'principiante' ? 'selected' : ''}>Principiante</option><option value="intermedio" ${settings.experience === 'intermedio' ? 'selected' : ''}>Intermedio</option><option value="avanzado" ${settings.experience === 'avanzado' ? 'selected' : ''}>Avanzado</option></select>`))
+  profileCard.appendChild(row(null, 'Profesión', `<input id="occ-input" type="text" value="${settings.occupation || ''}" placeholder="Ej: Ingeniero, oficinista, repartidor…" style="width:160px;padding:6px 8px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);background:#0a0a0a;color:#fafafa;font-size:13px;text-align:right;outline:none;box-sizing:border-box;font-family:'Space Grotesk',sans-serif">`))
+  container.appendChild(profileCard)
+
+  // ── Ajustes rápidos ──
+  secLabel('Ajustes rápidos')
+  const quickCard = cardWrap('you-quick-card')
+  quickCard.appendChild(row('units', 'Unidades', `<button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'}</button>`))
+  quickCard.appendChild(row('accent', 'Color de acento', `<div style="display:flex;gap:6px;align-items:center"><input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer"></div>`))
+  quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
+  quickCard.appendChild(row('push', 'Notificaciones push', `<button id="push-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.pushSubscribed ? `${accent}22` : 'transparent'};color:${settings.pushSubscribed ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.pushSubscribed ? 'Activadas' : 'Desactivadas'}</button>`))
+  quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
+  container.appendChild(quickCard)
 
   // ── Data Management ──
   const card = (content) => `<div style="margin:0 20px;background:#141414;border-radius:16px;border:0.5px solid rgba(255,255,255,0.06);overflow:hidden">${content}</div>`
@@ -318,6 +281,17 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
             showToast('❌ No se pudo activar. ¿Configuraste push-config.js?', true)
           }
         }
+      })
+    }
+    const watchToggleBtn = document.getElementById('watch-toggle-btn')
+    if (watchToggleBtn) {
+      watchToggleBtn.addEventListener('click', async () => {
+        const s = await Storage.getSettings()
+        s.hasWatch = !s.hasWatch
+        await Storage.saveSettings(s)
+        watchToggleBtn.textContent = s.hasWatch ? 'Sí' : 'No'
+        watchToggleBtn.style.background = s.hasWatch ? `${accent}22` : 'transparent'
+        watchToggleBtn.style.color = s.hasWatch ? accent : 'rgba(255,255,255,0.55)'
       })
     }
     const installBtn = document.getElementById('install-btn')

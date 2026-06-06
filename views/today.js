@@ -254,13 +254,17 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
               window.notifyWatch(`🏋️ ${day.name}`, `1. ${rEx.name} · ${rEx.sets}×${rEx.reps}`)
             }
           }
-          showCenterToast({
-            svg: TOAST_SVG_WATCH,
-            message: 'Inicia tu Smart Watch',
-            duration: 1500,
-            accent,
-            onDone: refreshView,
-          })
+          if (settings.hasWatch) {
+            showCenterToast({
+              svg: TOAST_SVG_WATCH,
+              message: 'Inicia tu Smart Watch',
+              duration: 1500,
+              accent,
+              onDone: refreshView,
+            })
+          } else {
+            refreshView()
+          }
         } else {
           refreshView()
         }
@@ -446,7 +450,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
         const tiempo = mm > 0 ? `${mm} min ${ss} seg` : `${ss} seg`
         showCenterToast({
           svg: TOAST_IMG_TRAINER,
-          message: 'Enfría bb',
+          message: 'Estira bb',
           subtitle: `Ya no tienes 20 añitos<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tiempo}</span>`,
           duration: 3000,
           accent,

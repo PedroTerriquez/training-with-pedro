@@ -77,8 +77,10 @@ Sets, reps, rest LIVE on the program exercise instance, NOT on the exercise defi
 
 ### `settings` (singleton)
 ```
-{ id: "settings", activeProgramId, currentWeekIdx, units, accentColor }
+{ id: "settings", activeProgramId, currentWeekIdx, units, accentColor, hasWatch }
 ```
+
+`hasWatch`: `boolean` — defaults to `false`. Controls whether the "Inicia tu Smart Watch" toast shows after warmup.
 
 ## Key Design Decisions
 - Exercises are standalone entities — programs reference them by ID
