@@ -61,6 +61,12 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const order = (rescheduleOrder && rescheduleOrder.length === 7) ? rescheduleOrder : defaultDaysOrder
   const originalDayIdx = order[detectedDayIdx < order.length ? detectedDayIdx : 0]
   const day = weekObj?.days[originalDayIdx]
+  // Show coach card on reload if analysis already exists for today
+  if (settings.lastCoachAnalysis?.date === todayDate) {
+    _coachCardMode = true
+    _coachEffort = settings.lastCoachAnalysis.effort || 'good'
+    _coachDay = day
+  }
   const isRescheduled = originalDayIdx !== detectedDayIdx
   const DAYS_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -476,7 +482,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
               _coachResult = result
               _coachLoading = false
               const s = await Storage.getSettings()
-              s.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
+              s.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), effort: _coachEffort, ...result }
               await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
               settings.lastCoachAnalysis = s.lastCoachAnalysis
               refreshView()
@@ -728,11 +734,20 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises
   } else if (analysis) {
     const verdictColor = analysis.verdict === 'positive' ? accent : analysis.verdict === 'warning' ? '#ff9f43' : 'rgba(255,255,255,0.85)'
     const verdictIcon = analysis.verdict === 'positive' ? '💪' : analysis.verdict === 'warning' ? '⚠️' : '👍'
+    const recs = analysis.recommendations || []
+    const recsHtml = recs.length > 0
+      ? '<div style="margin-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);padding-top:12px"><div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:' + accent + ';font-weight:600;margin-bottom:8px">Recomendaciones</div>' + recs.map(r => '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="color:' + accent + ';font-size:11px;flex-shrink:0">→</span><span style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.4">' + r + '</span></div>').join('') + '</div>'
+      : ''
+    const nextAdvice = analysis.next_session_advice
+      ? '<div style="margin-top:12px;border-top:0.5px solid rgba(255,255,255,0.06);padding-top:12px"><div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:' + accent + ';font-weight:600;margin-bottom:6px">Próxima sesión</div><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5">' + analysis.next_session_advice + '</div></div>'
+      : ''
     bodyHtml = `
           <div style="display:flex;gap:10px;align-items:flex-start">
             <div style="font-size:24px;flex-shrink:0;margin-top:2px">${verdictIcon}</div>
             <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.65;color:${verdictColor};letter-spacing:-0.1px">${analysis.analysis}</div>
           </div>
+          ${recsHtml}
+          ${nextAdvice}
           <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
             <span style="font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;color:rgba(255,255,255,0.2);text-transform:uppercase">${analysis._provider || 'llama'}</span>
           </div>`
@@ -776,7 +791,7 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises
           _coachResult = result
           _coachLoading = false
           const settings = await Storage.getSettings()
-          settings.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), ...result }
+          settings.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), effort: _coachEffort, ...result }
           await Storage.saveCoachAnalysis(settings.lastCoachAnalysis)
           if (typeof window.appRefresh === 'function') window.appRefresh()
         } catch {
@@ -826,8 +841,8 @@ function showEffortSelector({ accent, day, exercises, onEffort }) {
       <button class="effort-btn" data-effort="failure" style="padding:14px;border-radius:14px;border:0.5px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit;transition:all 0.15s">
         <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,107,107,0.12);display:flex;align-items:center;justify-content:center;font-size:20px;border:0.5px solid rgba(255,107,107,0.3)">🛑</div>
         <div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">RPE 10</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Fallé o casi fallo, bajar peso</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa">Al fallo</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Llegué al fallo muscular, no daba más</div>
         </div>
       </button>
     </div>`

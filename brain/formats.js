@@ -25,21 +25,34 @@ const FORMAT_IMPORT = `Convierte la rutina del usuario a este JSON exacto. SOLO 
 const FORMAT_COACH = `Analiza la sesión de entrenamiento del usuario (DATOS DE LA SESIÓN) y genera:
 
 {
-  "analysis": "tu análisis",
-  "verdict": "positive" | "neutral" | "warning"
+  "analysis": "tu análisis detallado",
+  "verdict": "positive" | "neutral" | "warning",
+  "recommendations": ["recomendación 1", "recomendación 2"],
+  "next_session_advice": "consejo para la próxima sesión"
 }
 
+Los campos "recommendations" y "next_session_advice" son OPCIONALES — si no aplican, omítelos.
+
 Reglas para "analysis":
-- Menciona EXACTAMENTE los valores reales de la sesión (pesos, repeticiones, PRs, estancamientos)
-- NO inventes datos — usa solo lo que ves en DATOS DE LA SESIÓN
-- Sé específico: si levanta poco para su perfil o demasiado, dímelo directamente
+- No inventes datos — usa solo los valores reales que ves en DATOS DE LA SESIÓN
 - Personaliza según el perfil del usuario (nombre, edad, sexo, objetivo, experiencia)
-- 2 a 5 líneas máximo
+- Estructura: desempeño general → puntos destacados → áreas de mejora
+- Entre 8 y 15 líneas, dividido en párrafos cortos
+- Si el usuario reporta esfuerzo "failure" (al fallo), reconoce el esfuerzo y sugiere ajuste de peso o recuperación
 
 Reglas para "verdict":
-- "positive": PR, mejora o buen rendimiento
+- "positive": PR, mejora significativa o buen rendimiento general
 - "neutral": sesión normal sin cambios significativos
-- "warning": estancamiento, esfuerzo excesivo o señales de fatiga`
+- "warning": estancamiento prolongado (3+ sesiones mismo peso), esfuerzo excesivo, señales de fatiga
+
+Reglas para "recommendations" (opcional):
+- 2 a 4 recomendaciones accionables y específicas para el próximo entrenamiento
+- Ej: "Sube el press banca a X kg", "Añade una serie en remo", "Toma un día de descanso"
+- Menciona ejercicios específicos por nombre
+
+Reglas para "next_session_advice" (opcional):
+- Un párrafo breve (2-3 líneas) sobre qué esperar o cómo prepararse
+- Incluye consejo de recuperación basado en el esfuerzo reportado`
 
 const FORMAT_PROGRAM_COACH = `Recibes: PROGRAMA ACTUAL (JSON) + PERFIL DEL USUARIO + PREGUNTA DEL USUARIO + DICCIONARIO DE EJERCICIOS
 

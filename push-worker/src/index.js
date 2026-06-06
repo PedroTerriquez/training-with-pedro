@@ -20,6 +20,8 @@ const COACH_SCHEMA = {
   properties: {
     analysis: { type: 'string' },
     verdict: { type: 'string', enum: ['positive', 'neutral', 'warning'] },
+    recommendations: { type: 'array', items: { type: 'string' } },
+    next_session_advice: { type: 'string' },
   },
   required: ['analysis', 'verdict'],
 }
