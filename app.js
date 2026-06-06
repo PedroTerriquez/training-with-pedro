@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.6 · 2026-06-05 · Auto-SW update · SKIP_WAITING · updateViaCache'
+const APP_VERSION = 'v1.7 · 2026-06-05 · Auto-SW update · SKIP_WAITING · updateViaCache'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -709,8 +709,8 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
       muscle: exDef.muscle || '',
       planned_sets: progEx.sets || 3,
       planned_reps: String(progEx.reps || '10'),
-      actual_sets: todayLog?.sets || null,
-      actual_reps: todayLog?.reps || null,
+      actual_sets: todayLog?.sets ?? progEx.sets ?? 3,
+      actual_reps: todayLog?.reps ?? String(progEx.reps ?? '10'),
       load_weight: todayLog ? todayLog.weight : null,
       prev_weight: prevWeight,
       prev_prev_weight: prevPrevWeight,
