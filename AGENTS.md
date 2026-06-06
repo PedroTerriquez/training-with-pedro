@@ -358,10 +358,12 @@ cd push-worker && npx wrangler deploy
 ## Version Tracking
 
 - `APP_VERSION` in `app.js` is a static string (e.g. `v1.1 · 2026-06-03`), NOT a runtime date.
+- **`CACHE` in `sw.js` must always match the minor number** from `APP_VERSION` (e.g. v1.4 → CACHE v4). They're in sync.
 - **Bump the minor version +1 with every commit** (e.g. `v1.2` → `v1.3`), not just the date. This ensures the SW update detection (`updateViaCache: 'none'` + `SKIP_WAITING` + `controllerchange` → `reload`) always triggers correctly.
 - **Update the date** to match the commit date.
 - **Keep the description concise** (~10 words) capturing the key changes.
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
+- **Before every commit**, run `bash scripts/bump-version.sh` to bump both `app.js` minor version and `sw.js` CACHE in sync.
 
 ## Coach IA — Program Coach (Tú → Programas)
 
