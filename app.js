@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.3 · 2026-06-05 · Análisis post-entreno automático · prompt extendido · recomendaciones · al fallo'
+const APP_VERSION = 'v1.4 · 2026-06-05 · Auto-SW update · SKIP_WAITING · updateViaCache'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
