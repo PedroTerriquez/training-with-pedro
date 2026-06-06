@@ -59,9 +59,16 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     const iniciarBtn = document.createElement('button')
     iniciarBtn.style.cssText = `flex-shrink:0;background:${accent};border:0;border-radius:12px;padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation;transition:opacity 0.15s;white-space:nowrap`
     iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
-    iniciarBtn.addEventListener('click', () => {
+    iniciarBtn.addEventListener('click', async () => {
       const tag = `rest-${Date.now()}`
-      sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+      const sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+      if (typeof showToast === 'function') {
+        if (sent) {
+          showToast(`✓ ${exercise.name} enviado al Watch`)
+        } else {
+          showToast('Activa las notificaciones push en Ajustes', true)
+        }
+      }
     })
     wrap.appendChild(iniciarBtn)
 

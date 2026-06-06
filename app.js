@@ -427,14 +427,15 @@ async function unsubscribePush() {
 
 async function sendPushNotification(title, body, tag, restSeconds) {
   const s = await Storage.getSettings()
-  if (!s.pushSubscribed || !PUSH_SERVER_URL) return
+  if (!s.pushSubscribed || !PUSH_SERVER_URL) return false
   try {
     await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, body, tag: tag || 'workout', restSeconds }),
     })
-  } catch (_) {}
+    return true
+  } catch (_) { return false }
 }
 
 // ── AI Import ──
