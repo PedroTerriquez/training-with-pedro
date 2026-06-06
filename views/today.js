@@ -27,7 +27,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   _effortValue = null
   _coachResult = null
   _effortModalShowing = false
-  const todayDate = new Date().toISOString().slice(0, 10)
+  const todayDate = getToday()
   if (_sessionDate !== todayDate) {
     _phase = 1
     _startedAt = null
@@ -80,7 +80,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   }
 
   if (_coachCardMode) {
-    const analysis = (!_coachLoading && settings.lastCoachAnalysis?.date === new Date().toISOString().slice(0, 10)) ? settings.lastCoachAnalysis : null
+    const analysis = (!_coachLoading && settings.lastCoachAnalysis?.date === getToday()) ? settings.lastCoachAnalysis : null
     renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises, swaps)
     return
   }
@@ -407,7 +407,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   }
 
   // Async load today's logs to update counts
-  Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
+  Storage.getLogsForDate(getToday()).then((logs) => {
     if (gen !== _mountGen) return
     const done = _phase >= 3 ? exercisesTotal : day.exercises.filter(ex => {
       const displayedId = resolveExId(ex.exerciseId || ex.id)
@@ -482,7 +482,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
               _coachResult = result
               _coachLoading = false
               const s = await Storage.getSettings()
-              s.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), effort: _coachEffort, ...result }
+              s.lastCoachAnalysis = { date: getToday(), effort: _coachEffort, ...result }
               await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
               settings.lastCoachAnalysis = s.lastCoachAnalysis
               refreshView()
@@ -691,7 +691,7 @@ function createExerciseRow(ex, accent, units, onOpen) {
     onOpen(ex)
   })
 
-  Storage.getLogsForDate(new Date().toISOString().slice(0, 10)).then((logs) => {
+  Storage.getLogsForDate(getToday()).then((logs) => {
     const log = logs.find((l) => l.exerciseId === (ex.exerciseId || ex.id))
     if (log) {
       btn.style.borderColor = `${accent}33`
@@ -791,7 +791,7 @@ function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exercises
           _coachResult = result
           _coachLoading = false
           const settings = await Storage.getSettings()
-          settings.lastCoachAnalysis = { date: new Date().toISOString().slice(0, 10), effort: _coachEffort, ...result }
+          settings.lastCoachAnalysis = { date: getToday(), effort: _coachEffort, ...result }
           await Storage.saveCoachAnalysis(settings.lastCoachAnalysis)
           if (typeof window.appRefresh === 'function') window.appRefresh()
         } catch {

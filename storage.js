@@ -106,7 +106,7 @@ const Storage = {
   },
 
   async logWeight(exerciseId, weight, units, sets, reps, dateStr) {
-    dateStr = dateStr || new Date().toISOString().slice(0, 10)
+    dateStr = dateStr || getToday()
     const all = await getByIndex('exerciseLogs', 'exerciseId', exerciseId)
     const existing = all.find(l => l.date === dateStr)
     const log = {

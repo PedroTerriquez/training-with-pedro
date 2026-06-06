@@ -445,7 +445,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
           a.href = url
-          a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`
+          a.download = `training-backup-${getToday()}.json`
           a.click()
           URL.revokeObjectURL(url)
           jsonExportStatus.textContent = `✅ Exportado (${parts.join(', ')})`

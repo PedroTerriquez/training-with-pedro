@@ -9,7 +9,7 @@ function parseRepsDefault(rep) {
 }
 
 function mountExerciseDetail(container, { exercise, accent, units, exercises, onOpenExercise, onSwapExercise, onClose, onLog, prevExercise, onPrev, nextExercise, onNext }) {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = getToday()
   const todayLog = exercise.logs?.find(l => l.date === todayStr) || null
   const lastLog = exercise.logs?.length ? exercise.logs[exercise.logs.length - 1] : null
 

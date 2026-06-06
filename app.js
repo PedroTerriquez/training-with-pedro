@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.5 · 2026-06-05 · Auto-SW update · SKIP_WAITING · updateViaCache'
+const APP_VERSION = 'v1.6 · 2026-06-05 · Auto-SW update · SKIP_WAITING · updateViaCache'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -352,7 +352,7 @@ async function openDetailSheet(exercise) {
         onLog: async (exerciseId, weight, sets, reps) => {
           const savedUnits = _state.settings?.units || 'kg'
           const log = await Storage.logWeight(exerciseId, weight, savedUnits, sets, reps)
-          return log ? { id: log, exerciseId, date: new Date().toISOString().slice(0, 10), weight, units: savedUnits, sets, reps } : null
+          return log ? { id: log, exerciseId, date: getToday(), weight, units: savedUnits, sets, reps } : null
         },
       })
       return div
@@ -471,7 +471,7 @@ async function importWithAI(text, onProgress) {
     throw new Error('La IA no pudo interpretar la rutina. Intenta con más detalles.')
   }
 
-  const programName = data.program_name || 'Programa IA ' + new Date().toISOString().slice(0, 10)
+  const programName = data.program_name || 'Programa IA ' + getToday()
 
   let totalExercises = 0
   for (const w of data.weeks) {
@@ -587,7 +587,7 @@ async function programCoach(text, program, settings) {
 
     if (data.program && data.program.weeks && data.program.weeks.length) {
       // Create the program from the AI's JSON
-      const programName = data.program.program_name || 'Coach IA ' + new Date().toISOString().slice(0, 10)
+      const programName = data.program.program_name || 'Coach IA ' + getToday()
       const weeks = []
 
       for (const w of data.program.weeks) {
@@ -686,7 +686,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     const logs = await Storage.getLogsForExercise(resolvedId)
     logs.sort((a, b) => a.date.localeCompare(b.date))
 
-    const todayLog = logs.find(l => l.date === new Date().toISOString().slice(0, 10))
+    const todayLog = logs.find(l => l.date === getToday())
     const weights = logs.filter(l => l.weight > 0).map(l => l.weight)
     const maxWeight = weights.length > 0 ? Math.max(...weights) : 0
     const isPR = todayLog ? todayLog.weight >= maxWeight : false
@@ -728,7 +728,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
   const units = settings.units || 'kg'
   const sessionData = {
     day_name: day.name || 'Entrenamiento',
-    date: new Date().toISOString().slice(0, 10),
+    date: getToday(),
     duration_min: durationMin || 0,
     effort,
     units,

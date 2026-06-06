@@ -361,7 +361,7 @@ function renderCalendarView(container, { accent, logsByDate, program, weeks, wee
     const markBtn = container.querySelector('#cal-mark-day')
     if (markBtn) {
       markBtn.addEventListener('click', async () => {
-        const dateStr = selected.toISOString().slice(0, 10)
+        const dateStr = toLocalDateStr(selected)
         await Storage.logWeight('__day__', null, 'kg', null, null, dateStr)
         if (typeof refresh === 'function') refresh()
       })

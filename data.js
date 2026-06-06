@@ -1,3 +1,9 @@
+function toLocalDateStr(date) {
+  const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return d.toISOString().slice(0, 10)
+}
+function getToday() { return toLocalDateStr(new Date()) }
+
 const RECOVERY_TIPS = [
   { icon: '💧', title: 'Hidrátate', body: '3-4 L de agua. Bonus: una pizca de sal con el desayuno.' },
   { icon: '😴', title: 'Duerme 7-9 horas', body: 'El crecimiento pasa aquí, no en el gimnasio.' },
