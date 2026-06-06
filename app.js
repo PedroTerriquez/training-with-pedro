@@ -41,7 +41,26 @@ async function init() {
   }
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {})
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+      // Activate new SW immediately if waiting
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+      // Detect new SW installation
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            sw.postMessage({ type: 'SKIP_WAITING' })
+          }
+        })
+      })
+    }).catch(() => {})
+    // Reload when new SW takes control
+    let refreshing = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return
+      refreshing = true
+      window.location.reload()
+    })
   }
 
   // PWA install prompt (Chrome Android)

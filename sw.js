@@ -1,4 +1,4 @@
-const CACHE = 'v1'
+const CACHE = 'v2'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -56,6 +56,10 @@ self.addEventListener('fetch', (e) => {
 })
 
 self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+    return
+  }
   if (e.data?.type === 'notify') {
     self.registration.showNotification(e.data.title, {
       body: e.data.body,
