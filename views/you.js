@@ -87,6 +87,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
   const permLabel = Notification.permission === 'granted' ? 'Activadas' : Notification.permission === 'denied' ? 'Denegadas' : 'Preguntar'
   quickCard.appendChild(row(null, 'Notificaciones', `<button id="notif-perm-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${Notification.permission === 'granted' ? `${accent}22` : 'transparent'};color:${Notification.permission === 'granted' ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${permLabel}</button>`))
+  quickCard.appendChild(row(null, 'Probar Push', `<button id="test-push-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Enviar</button>`))
   quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
   container.appendChild(quickCard)
 
@@ -282,6 +283,25 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           if (typeof subscribePush === 'function') await subscribePush()
         } else {
           notifBtn.textContent = 'Denegadas'
+        }
+      })
+    }
+    const testBtn = document.getElementById('test-push-btn')
+    if (testBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
+      testBtn.addEventListener('click', async () => {
+        try {
+          testBtn.textContent = 'Enviando...'
+          const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: _deviceId() }),
+          })
+          const data = await res.json()
+          showToast(`Apple: ${data.status} ${data.body || ''}`)
+        } catch (e) {
+          showToast(`Error: ${e.message}`, true)
+        } finally {
+          testBtn.textContent = 'Enviar'
         }
       })
     }

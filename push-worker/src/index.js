@@ -188,13 +188,14 @@ export default {
       const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
 
       // Build encrypted body (aes128gcm format)
+      const recordSize = 4096
       const body = new Uint8Array(16 + 4 + 1 + 65 + ciphertext.length)
       body.set(salt, 0)
-      body[16] = (65 >> 24) & 0xff
-      body[17] = (65 >> 16) & 0xff
-      body[18] = (65 >> 8) & 0xff
-      body[19] = 65 & 0xff
-      body[20] = 65 // key_id_length
+      body[16] = (recordSize >> 24) & 0xff
+      body[17] = (recordSize >> 16) & 0xff
+      body[18] = (recordSize >> 8) & 0xff
+      body[19] = recordSize & 0xff
+      body[20] = 65
       body.set(serverPub, 21)
       body.set(ciphertext, 86)
 
@@ -325,6 +326,35 @@ export default {
           await env.PUSH_KV.delete(`sub_${deviceId}`)
         }
         return respond('Push failed: ' + (err.message || 'unknown'), 500)
+      }
+    }
+
+    // Debug: send empty push (no payload, just VAPID auth) to test if Apple delivers at all
+    if (url.pathname === '/api/push/test-empty') {
+      if (!env.PUSH_KV) return respond('Push KV not configured', 501)
+      try {
+        const { deviceId } = await req.json()
+        if (!deviceId) return respond('deviceId required', 400)
+        const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
+        if (!raw) return respond('No subscription', 404)
+        const sub = JSON.parse(raw)
+        const vapidPub = env.VAPID_PUBLIC_KEY
+        const vapidPriv = env.VAPID_PRIVATE_KEY
+        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
+        if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
+
+        const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
+        const res = await fetch(sub.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Length': '0',
+            'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
+            'TTL': '86400',
+          },
+        })
+        return respond({ status: res.status, body: await res.text().catch(()=>'') })
+      } catch (err) {
+        return respond('Test failed: ' + (err.message || 'unknown'), 500)
       }
     }
 
