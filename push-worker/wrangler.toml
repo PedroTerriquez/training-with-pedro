@@ -7,5 +7,9 @@ workers_dev = true
 [ai]
 binding = "AI"
 
+[[kv_namespaces]]
+binding = "PUSH_KV"
+id = "96139c40523448939c29acf202c4ff16"
+
 [vars]
 VAPID_EMAIL = "mailto:pedro@example.com"
