@@ -1,5 +1,3 @@
-import webPush from 'web-push'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -165,6 +163,102 @@ export default {
       try { return JSON.parse(text) } catch { return null }
     }
 
+    // ── Web Push send (manual, no web-push library) ──
+
+    async function sendWebPush(sub, payload, vapidPub, vapidPriv, vapidEmail) {
+      const { endpoint, keys } = sub
+      const p256dh = _base64UrlDecode(keys.p256dh)
+      const auth = _base64UrlDecode(keys.auth)
+
+      // 1. Encrypt payload (RFC 8291)
+      const salt = crypto.getRandomValues(new Uint8Array(16))
+      const serverKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
+      const serverPub = new Uint8Array(await crypto.subtle.exportKey('raw', serverKeyPair.publicKey))
+      const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', publicKey: await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, []), privateKey: serverKeyPair.privateKey }, 256))
+
+      const prk = await hkdf(sharedSecret, auth, 'Content-Encoding: auth\x00', 32)
+      const cek = await hkdf(prk, salt, 'Content-Encoding: aes128gcm\x00', 16)
+      const nonce = await hkdf(prk, salt, 'Content-Encoding: nonce\x00', 12)
+
+      const plaintext = new TextEncoder().encode(JSON.stringify(payload))
+      const pad = new Uint8Array(plaintext.length + 2)
+      pad[0] = 0; pad[1] = 0; pad.set(plaintext, 2)
+
+      const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
+
+      // Build encrypted body (aes128gcm format)
+      const body = new Uint8Array(16 + 4 + 65 + ciphertext.length)
+      body.set(salt, 0)
+      body[16] = (65 >> 24) & 0xff
+      body[17] = (65 >> 16) & 0xff
+      body[18] = (65 >> 8) & 0xff
+      body[19] = 65 & 0xff
+      body.set(serverPub, 20)
+      body.set(ciphertext, 85)
+
+      // 2. Create VAPID JWT
+      const vapidJwt = await _signVapid(vapidEmail, vapidPriv, endpoint)
+
+      // 3. Send via fetch
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'aes128gcm',
+          'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
+          'TTL': '2419200',
+        },
+        body: body,
+      })
+      if (res.status === 410) throw { statusCode: 410, message: 'Subscription expired' }
+      if (!res.ok) throw { message: `Push service returned ${res.status} ${await res.text()}` }
+    }
+
+    function _base64UrlDecode(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/')
+      while (str.length % 4) str += '='
+      return Uint8Array.from(atob(str), c => c.charCodeAt(0))
+    }
+
+    async function hkdf(salt, ikm, info, length) {
+      const prk = await crypto.subtle.importKey('raw', salt, 'HKDF', false, ['deriveBits'])
+      return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new ArrayBuffer(0), info: new TextEncoder().encode(info) }, prk, length * 8))
+    }
+
+    async function _signVapid(email, privateKeyB64, endpoint) {
+      const privateKey = _base64UrlDecode(privateKeyB64)
+      const header = _base64UrlEncode(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })))
+      const now = Math.floor(Date.now() / 1000)
+      const claims = { aud: new URL(endpoint).origin, exp: now + 86400, sub: email }
+      const payload = _base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
+      const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await crypto.subtle.importKey('pkcs8', _b64ToPkcs8(privateKey), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']), new TextEncoder().encode(`${header}.${payload}`)))
+      const rawSig = _rawEcdsaSig(sig)
+      return `${header}.${payload}.${_base64UrlEncode(rawSig)}`
+    }
+
+    function _base64UrlEncode(buf) {
+      return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    }
+
+    function _b64ToPkcs8(key) {
+      const prefix = new Uint8Array([0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02, 0x01, 0x01, 0x04, 0x20])
+      const empty = new Uint8Array([0xa1, 0x44, 0x03, 0x42, 0x00])
+      const out = new Uint8Array(prefix.length + key.length + empty.length + 65)
+      out.set(prefix, 0)
+      out.set(key, prefix.length)
+      out.set(empty, prefix.length + key.length)
+      return out
+    }
+
+    function _rawEcdsaSig(sig) {
+      const r = sig.slice(0, 32)
+      const s = sig.slice(32)
+      const out = new Uint8Array(64)
+      out.set(r.length === 32 ? r : new Uint8Array(32).fill(0).set(r, 32 - r.length), 0)
+      out.set(s.length === 32 ? s : new Uint8Array(32).fill(0).set(s, 32 - s.length), 32)
+      return out
+    }
+
     if (url.pathname === '/api/push/subscribe') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
@@ -209,12 +303,12 @@ export default {
         const sub = JSON.parse(raw)
         const payload = { title: title || 'Coach Pedro AI', body: body || '', tag: tag || 'workout', url: './' }
         if (restSeconds) payload.restSeconds = restSeconds
-        await webPush.sendNotification(sub, JSON.stringify(payload))
+        await sendWebPush(sub, payload, vapidPublic, vapidPrivate, vapidEmail)
 
         return respond('sent')
       } catch (err) {
         if (err.statusCode === 410 && env.PUSH_KV) {
-          await env.PUSH_KV.delete('subscription')
+          await env.PUSH_KV.delete(`sub_${deviceId}`)
         }
         return respond('Push failed: ' + (err.message || 'unknown'), 500)
       }
