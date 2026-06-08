@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.15 · 2026-06-08 · Error logging en subscribePush y sendPush'
+const APP_VERSION = 'v1.16 · 2026-06-08 · VAPID keys regeneradas y configuradas'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
