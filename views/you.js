@@ -87,7 +87,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
   const permLabel = Notification.permission === 'granted' ? 'Activadas' : Notification.permission === 'denied' ? 'Denegadas' : 'Preguntar'
   quickCard.appendChild(row(null, 'Notificaciones', `<button id="notif-perm-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${Notification.permission === 'granted' ? `${accent}22` : 'transparent'};color:${Notification.permission === 'granted' ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${permLabel}</button>`))
-  quickCard.appendChild(row(null, 'Probar Push', `<button id="test-push-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Enviar</button>`))
+  quickCard.appendChild(row(null, 'Probar Push', `<div style="display:flex;gap:6px"><button id="test-push-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Vacío</button><button id="test-enc-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Encriptado</button></div>`))
   quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
   container.appendChild(quickCard)
 
@@ -290,18 +290,37 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     if (testBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
       testBtn.addEventListener('click', async () => {
         try {
-          testBtn.textContent = 'Enviando...'
+          testBtn.textContent = '...'
           const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deviceId: await _deviceId() }),
           })
           const data = await res.json()
-          showToast(`Apple: ${data.status} ${data.body || ''}`)
+          showToast(`Vacío: ${data.status} ${data.body || ''}`)
         } catch (e) {
           showToast(`Error: ${e.message}`, true)
         } finally {
-          testBtn.textContent = 'Enviar'
+          testBtn.textContent = 'Vacío'
+        }
+      })
+    }
+    const testEncBtn = document.getElementById('test-enc-btn')
+    if (testEncBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
+      testEncBtn.addEventListener('click', async () => {
+        try {
+          testEncBtn.textContent = '...'
+          const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-encrypted`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: await _deviceId() }),
+          })
+          const data = await res.json()
+          showToast(`Encriptado: ${data.status} ${data.body || ''}`)
+        } catch (e) {
+          showToast(`Error: ${e.message}`, true)
+        } finally {
+          testEncBtn.textContent = 'Encriptado'
         }
       })
     }

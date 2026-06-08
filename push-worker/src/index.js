@@ -213,11 +213,24 @@ export default {
       // Step 4: Nonce = HKDF-Expand(PRK2, "Content-Encoding: nonce\0", 12)
       const nonce = await _hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
+      function _hex(b) { return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') }
+      console.log('[PUSH_DEBUG] salt:', _hex(salt))
+      console.log('[PUSH_DEBUG] serverPub:', _hex(serverPub))
+      console.log('[PUSH_DEBUG] sharedSecret:', _hex(sharedSecret))
+      console.log('[PUSH_DEBUG] auth:', _hex(auth))
+      console.log('[PUSH_DEBUG] PRK:', _hex(prk))
+      console.log('[PUSH_DEBUG] PRK2:', _hex(prk2))
+      console.log('[PUSH_DEBUG] CEK:', _hex(cek))
+      console.log('[PUSH_DEBUG] nonce:', _hex(nonce))
+      console.log('[PUSH_DEBUG] payload:', JSON.stringify(payload))
+
       const plaintext = new TextEncoder().encode(JSON.stringify(payload))
       const pad = new Uint8Array(plaintext.length + 2)
       pad[0] = 0; pad[1] = 0; pad.set(plaintext, 2)
+      console.log('[PUSH_DEBUG] pad hex:', _hex(pad))
 
       const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
+      console.log('[PUSH_DEBUG] ciphertext len:', ciphertext.length, 'hex:', _hex(ciphertext))
 
       // Build encrypted body (aes128gcm format)
       const recordSize = 4096
@@ -385,6 +398,26 @@ export default {
           },
         })
         return respond({ status: res.status, body: await res.text().catch(()=>'') })
+      } catch (err) {
+        return respond('Test failed: ' + (err.message || 'unknown'), 500)
+      }
+    }
+
+    if (url.pathname === '/api/push/test-encrypted') {
+      if (!env.PUSH_KV) return respond('Push KV not configured', 501)
+      try {
+        const { deviceId } = await req.json()
+        if (!deviceId) return respond('deviceId required', 400)
+        const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
+        if (!raw) return respond('No subscription', 404)
+        const sub = JSON.parse(raw)
+        const vapidPub = env.VAPID_PUBLIC_KEY
+        const vapidPriv = env.VAPID_PRIVATE_KEY
+        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
+        if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
+
+        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './' }, vapidPub, vapidPriv, vapidEmail)
+        return respond({ status: 200, body: 'encrypted sent' })
       } catch (err) {
         return respond('Test failed: ' + (err.message || 'unknown'), 500)
       }
