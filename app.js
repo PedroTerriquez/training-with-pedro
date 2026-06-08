@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.20 · 2026-06-08 · VAPID Web Push fixes — HKDF, JWK key import, DER sig parse'
+const APP_VERSION = 'v1.21 · 2026-06-08 · Fix ECDH deriveBits param: publicKey → public'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

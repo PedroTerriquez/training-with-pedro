@@ -175,7 +175,7 @@ export default {
       const serverKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
       const serverPub = new Uint8Array(await crypto.subtle.exportKey('raw', serverKeyPair.publicKey))
       const clientPubKey = await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
-      const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', publicKey: clientPubKey }, serverKeyPair.privateKey, 256))
+      const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: clientPubKey }, serverKeyPair.privateKey, 256))
 
       const prk = await hkdf(auth, sharedSecret, 'Content-Encoding: auth\x00', 32)
       const cek = await hkdf(salt, prk, 'Content-Encoding: aes128gcm\x00', 16)
