@@ -1,4 +1,4 @@
-const CACHE = 'v23'
+const CACHE = 'v24'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -76,18 +76,23 @@ self.addEventListener('message', (e) => {
 })
 
 self.addEventListener('push', (e) => {
-  const data = e.data?.json() || { title: 'Coach Pedro AI', body: '' }
-  const opts = {
-    body: data.body,
-    icon: 'icons/icon-192.png',
-    tag: data.tag || `push-${Date.now()}`,
-    requireInteraction: true,
-    data: { url: data.url || './', restSeconds: data.restSeconds || 0, title: data.title, body: data.body },
-  }
-  if (data.restSeconds > 0) {
-    opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
-  }
-  self.registration.showNotification(data.title, opts)
+  e.waitUntil((async () => {
+    let data = {}
+    try { data = e.data ? await e.data.json() : {} } catch {}
+    const title = data.title || 'Coach Pedro AI'
+    const body = data.body || ''
+    const opts = {
+      body,
+      icon: 'icons/icon-192.png',
+      tag: data.tag || `push-${Date.now()}`,
+      requireInteraction: true,
+      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body },
+    }
+    if (data.restSeconds > 0) {
+      opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
+    }
+    await self.registration.showNotification(title, opts)
+  })())
 })
 
 self.addEventListener('notificationclick', (e) => {

@@ -188,14 +188,15 @@ export default {
       const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
 
       // Build encrypted body (aes128gcm format)
-      const body = new Uint8Array(16 + 4 + 65 + ciphertext.length)
+      const body = new Uint8Array(16 + 4 + 1 + 65 + ciphertext.length)
       body.set(salt, 0)
       body[16] = (65 >> 24) & 0xff
       body[17] = (65 >> 16) & 0xff
       body[18] = (65 >> 8) & 0xff
       body[19] = 65 & 0xff
-      body.set(serverPub, 20)
-      body.set(ciphertext, 85)
+      body[20] = 65 // key_id_length
+      body.set(serverPub, 21)
+      body.set(ciphertext, 86)
 
       // 2. Create VAPID JWT
       const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, endpoint)
@@ -252,13 +253,17 @@ export default {
       return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
     }
 
-    function _rawEcdsaSig(der) {
+    function _rawEcdsaSig(sig) {
+      // subtle.sign may return DER (variable length) or raw 64-byte (IEEE P1363)
+      if (sig.length === 64) return sig
+      // Parse DER-encoded ECDSA signature
       let off = 2
-      const rLen = der[off + 1]
-      const r = der.slice(off + 2, off + 2 + rLen)
+      const rLen = sig[off + 1]
+      const r = sig.slice(off + 2, off + 2 + rLen)
       off += 2 + rLen
-      const sLen = der[off + 1]
-      const s = der.slice(off + 2, off + 2 + sLen)
+      const sLen = sig[off + 1]
+      const s = sig.slice(off + 2, off + 2 + sLen)
+      // Reduce or pad to exactly 32 bytes each
       const to32 = (v) => {
         if (v.length > 32) v = v.slice(v.length - 32)
         if (v.length < 32) { const a = new Uint8Array(32); a.set(v, 32 - v.length); return a }
