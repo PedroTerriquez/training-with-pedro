@@ -298,8 +298,6 @@ export default {
           return respond('VAPID keys not configured', 500)
         }
 
-        webPush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate)
-
         const sub = JSON.parse(raw)
         const payload = { title: title || 'Coach Pedro AI', body: body || '', tag: tag || 'workout', url: './' }
         if (restSeconds) payload.restSeconds = restSeconds
