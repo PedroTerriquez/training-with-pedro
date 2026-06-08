@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.13 · 2026-06-08 · Push prioritario con auto-subscribe y marcador ▸'
+const APP_VERSION = 'v1.14 · 2026-06-08 · Toast diferencia push (✓) vs local (⚠)'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

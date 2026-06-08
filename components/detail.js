@@ -75,6 +75,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       // Try push first, subscribe if needed, fall back to local
       const tag = `rest-${Date.now()}`
       let sent = false
+      let usedLocal = false
       if (typeof sendPushNotification === 'function') {
         sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
         if (!sent && typeof subscribePush === 'function') {
@@ -82,10 +83,15 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
           if (ok) sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
         }
       }
-      if (!sent && typeof window.notifyWatch === 'function') {
-        await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
+      if (!sent) {
+        if (typeof window.notifyWatch === 'function') {
+          await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
+          usedLocal = true
+        }
       }
-      if (typeof showToast === 'function') showToast(`✓ ${exercise.name}`)
+      if (typeof showToast === 'function') {
+        showToast(usedLocal ? `⚠ ${exercise.name} (local)` : `✓ ${exercise.name}`)
+      }
     })
     wrap.appendChild(iniciarBtn)
 
