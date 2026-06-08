@@ -177,9 +177,41 @@ export default {
       const clientPubKey = await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
       const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: clientPubKey }, serverKeyPair.privateKey, 256))
 
-      const prk = await hkdf(auth, sharedSecret, 'Content-Encoding: auth\x00', 32)
-      const cek = await hkdf(salt, prk, 'Content-Encoding: aes128gcm\x00', 16)
-      const nonce = await hkdf(salt, prk, 'Content-Encoding: nonce\x00', 12)
+      // Manual HKDF using HMAC (bypass Web Crypto HKDF primitive)
+      async function _hmac(key, data) {
+        const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+        return new Uint8Array(await crypto.subtle.sign('HMAC', k, data))
+      }
+      async function _hkdfExpand(prk, info, len) {
+        let t = new Uint8Array(0)
+        let out = new Uint8Array(0)
+        for (let i = 1; out.length < len; i++) {
+          const concat = new Uint8Array(t.length + info.length + 1)
+          concat.set(t, 0)
+          concat.set(info, t.length)
+          concat[concat.length - 1] = i
+          t = await _hmac(prk, concat)
+          const tmp = new Uint8Array(out.length + t.length)
+          tmp.set(out, 0)
+          tmp.set(t, out.length)
+          out = tmp
+        }
+        return out.slice(0, len)
+      }
+      // Full HKDF: Extract(salt, ikm) → Expand(prk, info, len)
+      async function _hkdf(salt, ikm, info, len) {
+        const prk = await _hmac(salt, ikm)
+        return _hkdfExpand(prk, info, len)
+      }
+
+      // Step 1: PRK = HKDF(auth, sharedSecret, "Content-Encoding: auth\0", 32)
+      const prk = await _hkdf(auth, sharedSecret, new TextEncoder().encode('Content-Encoding: auth\x00'), 32)
+      // Step 2: PRK2 = HKDF-Extract(salt, PRK)  — second extract with random salt
+      const prk2 = await _hmac(salt, prk)
+      // Step 3: CEK = HKDF-Expand(PRK2, "Content-Encoding: aes128gcm\0", 16)
+      const cek = await _hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'), 16)
+      // Step 4: Nonce = HKDF-Expand(PRK2, "Content-Encoding: nonce\0", 12)
+      const nonce = await _hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
       const plaintext = new TextEncoder().encode(JSON.stringify(payload))
       const pad = new Uint8Array(plaintext.length + 2)

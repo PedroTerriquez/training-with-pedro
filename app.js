@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.24 · 2026-06-08 · Fix: missing key_id_length byte in aes128gcm body'
+const APP_VERSION = 'v1.25 · 2026-06-08 · Fix: missing second HKDF-Extract step in push encryption'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
