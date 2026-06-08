@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.18 · 2026-06-08 · Multi-dispositivo: deviceId por usuario'
+const APP_VERSION = 'v1.19 · 2026-06-08 · Error toasts visibles en push y subscribe'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -403,8 +403,16 @@ async function _deviceId() {
 }
 
 async function subscribePush() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return false
-  if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) return false
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    console.warn('subscribePush: permission not granted')
+    if (typeof showToast === 'function') showToast('Permiso de notificaciones no concedido', true)
+    return false
+  }
+  if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) {
+    console.warn('subscribePush: no SW or no PUSH_SERVER_URL')
+    if (typeof showToast === 'function') showToast('Service Worker o URL no disponible', true)
+    return false
+  }
   try {
     const reg = await navigator.serviceWorker.ready
     let sub = await reg.pushManager.getSubscription()
@@ -457,8 +465,16 @@ async function unsubscribePush() {
 
 async function sendPushNotification(title, body, tag, restSeconds) {
   const s = await Storage.getSettings()
-  if (!s.pushSubscribed) { console.warn('sendPush: not subscribed'); return false }
-  if (!PUSH_SERVER_URL) { console.warn('sendPush: no server URL'); return false }
+  if (!s.pushSubscribed) {
+    console.warn('sendPush: not subscribed')
+    if (typeof showToast === 'function') showToast('No suscrito a push', true)
+    return false
+  }
+  if (!PUSH_SERVER_URL) {
+    console.warn('sendPush: no server URL')
+    if (typeof showToast === 'function') showToast('PUSH_SERVER_URL no configurado', true)
+    return false
+  }
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
@@ -468,11 +484,13 @@ async function sendPushNotification(title, body, tag, restSeconds) {
     if (!res.ok) {
       const txt = await res.text()
       console.error('sendPush error:', res.status, txt)
+      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}: ${txt}`, true)
       return false
     }
     return true
   } catch (e) {
     console.error('sendPush failed:', e)
+    if (typeof showToast === 'function') showToast(`Error: ${e.message}`, true)
     return false
   }
 }
