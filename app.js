@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.11 · 2026-06-06 · ⚡ Iniciar via local notifications, perm toggle in settings'
+const APP_VERSION = 'v1.12 · 2026-06-08 · ⚡ Iniciar: push con auto-subscribe + fallback local'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

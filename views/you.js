@@ -265,7 +265,10 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     const notifBtn = document.getElementById('notif-perm-btn')
     if (notifBtn) {
       notifBtn.addEventListener('click', async () => {
-        if (Notification.permission === 'granted') return
+        if (Notification.permission === 'granted') {
+          showToast('Notificaciones ya activadas')
+          return
+        }
         if (Notification.permission === 'denied') {
           showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
           return
@@ -275,6 +278,8 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           notifBtn.textContent = 'Activadas'
           notifBtn.style.background = `${accent}22`
           notifBtn.style.color = accent
+          // Also subscribe for push notifications
+          if (typeof subscribePush === 'function') await subscribePush()
         } else {
           notifBtn.textContent = 'Denegadas'
         }

@@ -72,11 +72,20 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
         return
       }
+      // Try push first, subscribe if needed, fall back to local
       const tag = `rest-${Date.now()}`
-      if (typeof window.notifyWatch === 'function') {
-        await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
-        if (typeof showToast === 'function') showToast(`✓ ${exercise.name}`)
+      let sent = false
+      if (typeof sendPushNotification === 'function') {
+        sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+        if (!sent && typeof subscribePush === 'function') {
+          const ok = await subscribePush()
+          if (ok) sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+        }
       }
+      if (!sent && typeof window.notifyWatch === 'function') {
+        await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
+      }
+      if (typeof showToast === 'function') showToast(`✓ ${exercise.name}`)
     })
     wrap.appendChild(iniciarBtn)
 
