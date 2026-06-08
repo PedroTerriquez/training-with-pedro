@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.14 · 2026-06-08 · Toast diferencia push (✓) vs local (⚠)'
+const APP_VERSION = 'v1.15 · 2026-06-08 · Error logging en subscribePush y sendPush'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -398,16 +398,26 @@ async function subscribePush() {
         applicationServerKey: VAPID_PUBLIC_KEY,
       })
     }
-    await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sub.toJSON()),
     })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error('Push subscribe error:', res.status, txt)
+      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}`, true)
+      return false
+    }
     const s = await Storage.getSettings()
     s.pushSubscribed = true
     await Storage.saveSettings(s)
     return true
-  } catch (_) { return false }
+  } catch (e) {
+    console.error('subscribePush failed:', e)
+    if (typeof showToast === 'function') showToast(`Error: ${e.message}`, true)
+    return false
+  }
 }
 
 async function unsubscribePush() {
@@ -427,15 +437,24 @@ async function unsubscribePush() {
 
 async function sendPushNotification(title, body, tag, restSeconds) {
   const s = await Storage.getSettings()
-  if (!s.pushSubscribed || !PUSH_SERVER_URL) return false
+  if (!s.pushSubscribed) { console.warn('sendPush: not subscribed'); return false }
+  if (!PUSH_SERVER_URL) { console.warn('sendPush: no server URL'); return false }
   try {
-    await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds }),
     })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error('sendPush error:', res.status, txt)
+      return false
+    }
     return true
-  } catch (_) { return false }
+  } catch (e) {
+    console.error('sendPush failed:', e)
+    return false
+  }
 }
 
 // ── AI Import ──
