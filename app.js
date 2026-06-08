@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.17 · 2026-06-08 · Fix: applicationServerKey como Uint8Array'
+const APP_VERSION = 'v1.18 · 2026-06-08 · Multi-dispositivo: deviceId por usuario'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -393,6 +393,15 @@ function _urlBase64ToUint8Array(str) {
   return Uint8Array.from(raw, c => c.charCodeAt(0))
 }
 
+async function _deviceId() {
+  let id = localStorage.getItem('push_device_id')
+  if (!id) {
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+    localStorage.setItem('push_device_id', id)
+  }
+  return id
+}
+
 async function subscribePush() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) return false
@@ -408,7 +417,7 @@ async function subscribePush() {
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sub.toJSON()),
+      body: JSON.stringify({ subscription: sub.toJSON(), deviceId: await _deviceId() }),
     })
     if (!res.ok) {
       const txt = await res.text()
@@ -434,7 +443,11 @@ async function unsubscribePush() {
     const sub = await reg.pushManager.getSubscription()
     if (sub) await sub.unsubscribe()
     if (PUSH_SERVER_URL) {
-      await fetch(`${PUSH_SERVER_URL}/api/push/unsubscribe`, { method: 'POST' })
+      await fetch(`${PUSH_SERVER_URL}/api/push/unsubscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: await _deviceId() }),
+      })
     }
     const s = await Storage.getSettings()
     s.pushSubscribed = false
@@ -450,7 +463,7 @@ async function sendPushNotification(title, body, tag, restSeconds) {
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds }),
+      body: JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds, deviceId: await _deviceId() }),
     })
     if (!res.ok) {
       const txt = await res.text()

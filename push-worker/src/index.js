@@ -168,8 +168,9 @@ export default {
     if (url.pathname === '/api/push/subscribe') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
-        const sub = await req.json()
-        await env.PUSH_KV.put('subscription', JSON.stringify(sub))
+        const { subscription, deviceId } = await req.json()
+        if (!deviceId) return respond('deviceId required', 400)
+        await env.PUSH_KV.put(`sub_${deviceId}`, JSON.stringify(subscription))
         return respond('ok')
       } catch (err) {
         return respond('Invalid subscription', 400)
@@ -178,15 +179,19 @@ export default {
 
     if (url.pathname === '/api/push/unsubscribe') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
-      await env.PUSH_KV.delete('subscription')
+      try {
+        const { deviceId } = await req.json()
+        if (deviceId) await env.PUSH_KV.delete(`sub_${deviceId}`)
+      } catch {}
       return respond('ok')
     }
 
     if (url.pathname === '/api/push/send') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
-        const { title, body, tag, restSeconds } = await req.json()
-        const raw = await env.PUSH_KV.get('subscription')
+        const { title, body, tag, restSeconds, deviceId } = await req.json()
+        if (!deviceId) return respond('deviceId required', 400)
+        const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
         if (!raw) {
           return respond('No subscription', 404)
         }
