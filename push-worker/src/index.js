@@ -204,14 +204,18 @@ export default {
         return _hkdfExpand(prk, info, len)
       }
 
-      // Step 1: PRK = HKDF(auth, sharedSecret, "Content-Encoding: auth\0", 32)
-      const prk = await _hkdf(auth, sharedSecret, new TextEncoder().encode('Content-Encoding: auth\x00'), 32)
-      // Step 2: PRK2 = HKDF-Extract(salt, PRK)  — second extract with random salt
-      const prk2 = await _hmac(salt, prk)
-      // Step 3: CEK = HKDF-Expand(PRK2, "Content-Encoding: aes128gcm\0", 16)
-      const cek = await _hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'), 16)
-      // Step 4: Nonce = HKDF-Expand(PRK2, "Content-Encoding: nonce\0", 12)
-      const nonce = await _hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
+      // Web-push lib calls hkdf(ikm, salt, info, length) — order matters for HMAC key
+      // Our _hkdf(salt, ikm, info, length) matches the HMAC semantics: key=salt, data=ikm
+      //
+      // Step 1: PRK = HKDF(ikm=auth, salt=sharedSecret, "Content-Encoding: auth\0", 32)
+      //          → HMAC(key=sharedSecret, data=auth) → HKDF-Expand
+      const prk = await _hkdf(sharedSecret, auth, new TextEncoder().encode('Content-Encoding: auth\x00'), 32)
+      // Step 2: CEK = HKDF(ikm=saltBuf, salt=PRK, "Content-Encoding: aes128gcm\0", 16)
+      //          → HMAC(key=PRK, data=saltBuf) → HKDF-Expand
+      const cek = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'), 16)
+      // Step 3: Nonce = HKDF(ikm=saltBuf, salt=PRK, "Content-Encoding: nonce\0", 12)
+      //          → HMAC(key=PRK, data=saltBuf) → HKDF-Expand
+      const nonce = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
       function _hex(b) { return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') }
       console.log('[PUSH_DEBUG] salt:', _hex(salt))

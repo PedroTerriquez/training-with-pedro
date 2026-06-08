@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.26 · 2026-06-08 · Debug: add test-encrypted endpoint + logging'
+const APP_VERSION = 'v1.27 · 2026-06-08 · Fix: swap HMAC key/data args in HKDF to match web-push lib'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
