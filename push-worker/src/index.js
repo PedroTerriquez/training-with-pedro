@@ -253,18 +253,20 @@ export default {
     }
 
     function _rawEcdsaSig(der) {
-      // Parse DER-encoded ECDSA signature
-      let off = 2 // skip SEQUENCE tag + length
+      let off = 2
       const rLen = der[off + 1]
       const r = der.slice(off + 2, off + 2 + rLen)
       off += 2 + rLen
       const sLen = der[off + 1]
       const s = der.slice(off + 2, off + 2 + sLen)
-      // Pad to 32 bytes
-      const pad = (v) => { const a = new Uint8Array(32); a.set(v.length <= 32 ? v : v.slice(v.length - 32), 32 - v.length); return a }
+      const to32 = (v) => {
+        if (v.length > 32) v = v.slice(v.length - 32)
+        if (v.length < 32) { const a = new Uint8Array(32); a.set(v, 32 - v.length); return a }
+        return v
+      }
       const out = new Uint8Array(64)
-      out.set(pad(r), 0)
-      out.set(pad(s), 32)
+      out.set(to32(r), 0)
+      out.set(to32(s), 32)
       return out
     }
 

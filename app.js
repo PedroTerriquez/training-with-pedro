@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.22 · 2026-06-08 · Fix: importKey(jwk) before sign — was passing raw JWK'
+const APP_VERSION = 'v1.23 · 2026-06-08 · Fix: DER sig component >32 bytes caused negative offset'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
