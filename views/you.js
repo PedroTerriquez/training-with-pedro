@@ -294,7 +294,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId: _deviceId() }),
+            body: JSON.stringify({ deviceId: await _deviceId() }),
           })
           const data = await res.json()
           showToast(`Apple: ${data.status} ${data.body || ''}`)
