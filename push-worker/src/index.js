@@ -174,11 +174,12 @@ export default {
       const salt = crypto.getRandomValues(new Uint8Array(16))
       const serverKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
       const serverPub = new Uint8Array(await crypto.subtle.exportKey('raw', serverKeyPair.publicKey))
-      const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', publicKey: await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, []), privateKey: serverKeyPair.privateKey }, 256))
+      const clientPubKey = await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
+      const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', publicKey: clientPubKey }, serverKeyPair.privateKey, 256))
 
-      const prk = await hkdf(sharedSecret, auth, 'Content-Encoding: auth\x00', 32)
-      const cek = await hkdf(prk, salt, 'Content-Encoding: aes128gcm\x00', 16)
-      const nonce = await hkdf(prk, salt, 'Content-Encoding: nonce\x00', 12)
+      const prk = await hkdf(auth, sharedSecret, 'Content-Encoding: auth\x00', 32)
+      const cek = await hkdf(salt, prk, 'Content-Encoding: aes128gcm\x00', 16)
+      const nonce = await hkdf(salt, prk, 'Content-Encoding: nonce\x00', 12)
 
       const plaintext = new TextEncoder().encode(JSON.stringify(payload))
       const pad = new Uint8Array(plaintext.length + 2)
@@ -197,7 +198,7 @@ export default {
       body.set(ciphertext, 85)
 
       // 2. Create VAPID JWT
-      const vapidJwt = await _signVapid(vapidEmail, vapidPriv, endpoint)
+      const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, endpoint)
 
       // 3. Send via fetch
       const res = await fetch(endpoint, {
@@ -221,41 +222,49 @@ export default {
     }
 
     async function hkdf(salt, ikm, info, length) {
-      const prk = await crypto.subtle.importKey('raw', salt, 'HKDF', false, ['deriveBits'])
-      return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new ArrayBuffer(0), info: new TextEncoder().encode(info) }, prk, length * 8))
+      const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
+      return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: salt, info: new TextEncoder().encode(info) }, key, length * 8))
     }
 
-    async function _signVapid(email, privateKeyB64, endpoint) {
+    async function _signVapid(email, privateKeyB64, publicKeyB64, endpoint) {
       const privateKey = _base64UrlDecode(privateKeyB64)
       const header = _base64UrlEncode(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })))
       const now = Math.floor(Date.now() / 1000)
       const claims = { aud: new URL(endpoint).origin, exp: now + 86400, sub: email }
       const payload = _base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
-      const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await crypto.subtle.importKey('pkcs8', _b64ToPkcs8(privateKey), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']), new TextEncoder().encode(`${header}.${payload}`)))
+      const toSign = new TextEncoder().encode(`${header}.${payload}`)
+      const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await _vapidJwk(privateKey, publicKeyB64), toSign))
       const rawSig = _rawEcdsaSig(sig)
       return `${header}.${payload}.${_base64UrlEncode(rawSig)}`
+    }
+
+    async function _vapidJwk(privateKey, publicKeyB64) {
+      const pubRaw = _base64UrlDecode(publicKeyB64)
+      const x = pubRaw.slice(1, 33)
+      const y = pubRaw.slice(33, 65)
+      const d = _base64UrlEncode(privateKey)
+      const xB64 = _base64UrlEncode(x)
+      const yB64 = _base64UrlEncode(y)
+      return { kty: 'EC', crv: 'P-256', d, x: xB64, y: yB64 }
     }
 
     function _base64UrlEncode(buf) {
       return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
     }
 
-    function _b64ToPkcs8(key) {
-      const prefix = new Uint8Array([0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02, 0x01, 0x01, 0x04, 0x20])
-      const empty = new Uint8Array([0xa1, 0x44, 0x03, 0x42, 0x00])
-      const out = new Uint8Array(prefix.length + key.length + empty.length + 65)
-      out.set(prefix, 0)
-      out.set(key, prefix.length)
-      out.set(empty, prefix.length + key.length)
-      return out
-    }
-
-    function _rawEcdsaSig(sig) {
-      const r = sig.slice(0, 32)
-      const s = sig.slice(32)
+    function _rawEcdsaSig(der) {
+      // Parse DER-encoded ECDSA signature
+      let off = 2 // skip SEQUENCE tag + length
+      const rLen = der[off + 1]
+      const r = der.slice(off + 2, off + 2 + rLen)
+      off += 2 + rLen
+      const sLen = der[off + 1]
+      const s = der.slice(off + 2, off + 2 + sLen)
+      // Pad to 32 bytes
+      const pad = (v) => { const a = new Uint8Array(32); a.set(v.length <= 32 ? v : v.slice(v.length - 32), 32 - v.length); return a }
       const out = new Uint8Array(64)
-      out.set(r.length === 32 ? r : new Uint8Array(32).fill(0).set(r, 32 - r.length), 0)
-      out.set(s.length === 32 ? s : new Uint8Array(32).fill(0).set(s, 32 - s.length), 32)
+      out.set(pad(r), 0)
+      out.set(pad(s), 32)
       return out
     }
 
