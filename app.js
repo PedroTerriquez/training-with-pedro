@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.16 · 2026-06-08 · VAPID keys regeneradas y configuradas'
+const APP_VERSION = 'v1.17 · 2026-06-08 · Fix: applicationServerKey como Uint8Array'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -386,6 +386,13 @@ async function refresh() {
 
 // ── Push Notification Management ──
 
+function _urlBase64ToUint8Array(str) {
+  const padding = '='.repeat((4 - str.length % 4) % 4)
+  const b64 = (str + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(b64)
+  return Uint8Array.from(raw, c => c.charCodeAt(0))
+}
+
 async function subscribePush() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) return false
@@ -395,7 +402,7 @@ async function subscribePush() {
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: VAPID_PUBLIC_KEY,
+        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
     }
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
