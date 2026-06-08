@@ -233,7 +233,7 @@ export default {
       const claims = { aud: new URL(endpoint).origin, exp: now + 86400, sub: email }
       const payload = _base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
       const toSign = new TextEncoder().encode(`${header}.${payload}`)
-      const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await _vapidJwk(privateKey, publicKeyB64), toSign))
+      const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await crypto.subtle.importKey('jwk', await _vapidJwk(privateKey, publicKeyB64), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']), toSign))
       const rawSig = _rawEcdsaSig(sig)
       return `${header}.${payload}.${_base64UrlEncode(rawSig)}`
     }
