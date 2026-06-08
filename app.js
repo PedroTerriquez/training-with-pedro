@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.12 · 2026-06-08 · ⚡ Iniciar: push con auto-subscribe + fallback local'
+const APP_VERSION = 'v1.13 · 2026-06-08 · Push prioritario con auto-subscribe y marcador ▸'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -432,7 +432,7 @@ async function sendPushNotification(title, body, tag, restSeconds) {
     await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body, tag: tag || 'workout', restSeconds }),
+      body: JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds }),
     })
     return true
   } catch (_) { return false }
