@@ -3,7 +3,8 @@
 ## Stack
 - Vanilla HTML/CSS/JS, no frameworks, no build step
 - IndexedDB for all persistence (4 object stores)
-- Mobile-first, dark mode only
+- Mobile-only (iPhone PWA), dark mode only
+- No desktop — Safari standalone PWA is the only target
 - Static site deployable to GitHub Pages
 - Entry: `index.html` (single-file SPA with hash routing)
 
@@ -11,7 +12,7 @@
 - **Device**: iPhone with iOS (PWA installed from Safari)
 - **Browser**: Safari (PWA standalone mode)
 - **Notifications**: Web Push via Cloudflare Worker; `showNotification()` actions NOT supported on iOS
-- **Watch mirror**: Notifications mirror to Apple Watch, but long-press actions don't work on iOS — fallback to tap-to-start-timer in `sw.js`. Tap notification → timer starts, notification stays visible → when timer completes, original closes + "Descanso terminado" shows for 10s
+- **Watch mirror**: Notifications mirror to Apple Watch, but long-press actions don't work on iOS — fallback to tap-to-start-timer in `sw.js`. Tap notification → timer starts, "⏱️ Xs · ejercicio" confirmation appears for 2s → when timer completes, "⏰ Descanso terminado" shows for 10s
 
 ## Project Structure
 ```

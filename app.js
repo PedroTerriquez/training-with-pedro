@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.36 · 2026-06-08 · Keep notification visible during rest timer on iOS tap'
+const APP_VERSION = 'v1.37 · 2026-06-08 · iOS tap: 2s confirm + timer, push delay 5s→2s'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -480,8 +480,8 @@ async function sendPushNotification(title, body, tag, restSeconds) {
     const cache = await caches.open('push-pending')
     await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds })))
   } catch (_) {}
-  // Wait 5s before sending push so Apple Watch has time to sync
-  await new Promise(r => setTimeout(r, 5000))
+  // Wait 2s before sending push so Apple Watch has time to sync
+  await new Promise(r => setTimeout(r, 2000))
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
