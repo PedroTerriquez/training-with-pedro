@@ -1,4 +1,4 @@
-const CACHE = 'v29'
+const CACHE = 'v30'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -90,6 +90,7 @@ self.addEventListener('push', (e) => {
     }
     // NOTE: actions omitted — iOS PWA doesn't support them in push notifications.
     // Rest timer actions only work via local notifications (postMessage → message event).
+    await self.registration.showNotification(title, opts)
   })())
 })
 
