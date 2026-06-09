@@ -223,7 +223,6 @@ export default {
       console.log('[PUSH_DEBUG] sharedSecret:', _hex(sharedSecret))
       console.log('[PUSH_DEBUG] auth:', _hex(auth))
       console.log('[PUSH_DEBUG] PRK:', _hex(prk))
-      console.log('[PUSH_DEBUG] PRK2:', _hex(prk2))
       console.log('[PUSH_DEBUG] CEK:', _hex(cek))
       console.log('[PUSH_DEBUG] nonce:', _hex(nonce))
       console.log('[PUSH_DEBUG] payload:', JSON.stringify(payload))
@@ -420,7 +419,7 @@ export default {
         const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
         if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
-        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './' }, vapidPub, vapidPriv, vapidEmail)
+        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './', restSeconds: 120 }, vapidPub, vapidPriv, vapidEmail)
         return respond({ status: 200, body: 'encrypted sent' })
       } catch (err) {
         return respond('Test failed: ' + (err.message || 'unknown'), 500)

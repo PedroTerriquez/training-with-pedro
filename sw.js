@@ -1,4 +1,4 @@
-const CACHE = 'v27'
+const CACHE = 'v28'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -91,7 +91,13 @@ self.addEventListener('push', (e) => {
     if (data.restSeconds > 0) {
       opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
     }
-    await self.registration.showNotification(title, opts)
+    try {
+      await self.registration.showNotification(title, opts)
+    } catch (_) {
+      // actions may not be supported (iOS Safari) — retry without
+      delete opts.actions
+      await self.registration.showNotification(title, opts)
+    }
   })())
 })
 
