@@ -377,7 +377,7 @@ cd push-worker && npx wrangler deploy
 
 ## Rest Timer via Local Notifications (postMessage → SW)
 
-Added 2026-06-06, refactored 2026-06-08. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. The rest timer runs in the app's main thread (not SW `waitUntil` — iOS kills SW after ~30s). When the timer completes, the app shows a toast + sends "⏰ Descanso terminado" notification via `postMessage` to the SW.
+Added 2026-06-06, refactored 2026-06-08. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. The rest timer runs in the app's main thread (not SW `waitUntil` — iOS kills SW after ~30s). When the timer completes, the app shows a toast + sends "⏰ Descanso terminado" notification (auto-dismiss) AND re-shows the original exercise notification so the user can tap to start another rest cycle.
 
 ### Architecture
 ```
@@ -396,13 +396,17 @@ detail.js → [⚡ Iniciar] button
          _completeRest()               (confirmation, 2s)
                 ↓
          showToast("⏰ Descanso terminado")
-         + postMessage → SW → showNotification("⏰")
+         + postMessage → SW
+              ↓
+         showNotification("⏰") (auto-dismiss)
+         + showNotification(exercise info) (re-shown for next cycle)
 ```
 
 ### Key Points
 - Timer runs in app's main thread via `setTimeout` + Cache API persistence — survives iOS SW limits
 - On `visibilitychange` to `visible`, `_checkRestTimer()` recovers pending timers from Cache API
 - App sends final "⏰ Descanso terminado" notification via `postMessage` → SW → `showNotification()`
+- After completion, the original exercise notification is re-shown for the next rest cycle
 - SW `notificationclick` only shows 2s confirmation — no long `waitUntil` timer
 - Requires Notification permission (requested via ⌚ button or Ajustes)
 - `window.notifyWatch()` is the global API (defined in app.js) — takes `(title, body, opts)` where `opts = { restSeconds, tag }`
@@ -410,9 +414,9 @@ detail.js → [⚡ Iniciar] button
 ### Files
 | File | Role |
 |---|---|
-| `app.js:889` | `window._startRestTimer()` — stores endTime in Cache API + starts setTimeout |
-| `app.js:899` | `_checkRestTimer()` — reads Cache API, calculates remaining, shows completion |
-| `app.js:915` | `_completeRest()` — toast + postMessage to SW |
+| `app.js:889` | `window._startRestTimer()` — stores endTime + sets/reps in Cache API, starts setTimeout |
+| `app.js:899` | `_checkRestTimer()` — reads Cache API, calculates remaining, triggers completion |
+| `app.js:917` | `_completeRest()` — toast + "⏰ Descanso terminado" + re-shows exercise notification |
 | `sw.js:105` | `notificationclick` handler — shows 2s confirmation only |
 | `components/detail.js:92` | [⚡ Iniciar] button — calls `_startRestTimer()` + `notifyWatch()` |
 

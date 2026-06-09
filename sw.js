@@ -1,4 +1,4 @@
-const CACHE = 'v38'
+const CACHE = 'v39'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -65,7 +65,7 @@ self.addEventListener('message', (e) => {
       body: e.data.body,
       icon: e.data.icon || 'icons/icon-192.png',
       tag: e.data.tag || 'default',
-      requireInteraction: true,
+      requireInteraction: e.data.requireInteraction !== false,
       data: { url: e.data.url || './', restSeconds: e.data.restSeconds || 0, title: e.data.title, body: e.data.body },
     }
     if (e.data.restSeconds > 0) {

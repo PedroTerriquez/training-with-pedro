@@ -90,7 +90,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         }
       }
       if (typeof window._startRestTimer === 'function' && exercise.rest > 0) {
-        window._startRestTimer(exercise.name, exercise.rest, tag)
+        window._startRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps)
       }
       if (typeof showToast === 'function') {
         showToast(usedLocal ? `⚠ ${exercise.name} (local)` : `✓ ${exercise.name}`)

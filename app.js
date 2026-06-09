@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.38 · 2026-06-08 · Move rest timer to app thread, not SW waitUntil'
+const APP_VERSION = 'v1.39 · 2026-06-08 · Re-show exercise notification after rest done'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -882,15 +882,15 @@ window.notifyWatch = async (title, body, opts = {}) => {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
   try {
     const reg = await navigator.serviceWorker.ready
-    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0 })
+    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0, requireInteraction: opts.requireInteraction !== false })
   } catch (_) {}
 }
 
-window._startRestTimer = async (name, restSec, tag) => {
+window._startRestTimer = async (name, restSec, tag, sets, reps) => {
   const endTime = Date.now() + restSec * 1000
   try {
     const cache = await caches.open('rest-timer')
-    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag })))
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps })))
   } catch (_) {}
   if (window._restTimerId) clearTimeout(window._restTimerId)
   window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000)
@@ -906,7 +906,7 @@ async function _checkRestTimer() {
     if (remaining <= 0) {
       await cache.delete('/pending')
       if (window._restTimerId) { clearTimeout(window._restTimerId); window._restTimerId = null }
-      await _completeRest(data.name, data.tag)
+      await _completeRest(data)
     } else {
       if (window._restTimerId) clearTimeout(window._restTimerId)
       window._restTimerId = setTimeout(_checkRestTimer, remaining)
@@ -914,9 +914,12 @@ async function _checkRestTimer() {
   } catch (_) {}
 }
 
-async function _completeRest(name) {
-  if (typeof showToast === 'function') showToast(`⏰ ${name} — Descanso terminado`)
-  await window.notifyWatch('⏰ Descanso terminado', name, { tag: `done-${Date.now()}` })
+async function _completeRest(data) {
+  if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+  await window.notifyWatch('⏰ Descanso terminado', data.name, { tag: `done-${Date.now()}`, requireInteraction: false })
+  if (data.sets && data.reps) {
+    await window.notifyWatch(data.name, `${data.sets}×${data.reps}`, { restSeconds: data.restSec, tag: `cycle-${Date.now()}` })
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init)
