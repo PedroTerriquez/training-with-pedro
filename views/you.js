@@ -286,11 +286,19 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         }
       })
     }
+    function onTestClick(fn, label) {
+      let busy = false
+      return async () => {
+        if (busy) return
+        busy = true
+        try { await fn() } finally { busy = false }
+      }
+    }
     const testBtn = document.getElementById('test-push-btn')
     if (testBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
-      testBtn.addEventListener('click', async () => {
+      testBtn.addEventListener('click', onTestClick(async () => {
+        testBtn.disabled = true; testBtn.textContent = '...'
         try {
-          testBtn.textContent = '...'
           const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -301,15 +309,15 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (e) {
           showToast(`Error: ${e.message}`, true)
         } finally {
-          testBtn.textContent = 'Vacío'
+          testBtn.disabled = false; testBtn.textContent = 'Vacío'
         }
-      })
+      }, 'Vacío'))
     }
     const testEncBtn = document.getElementById('test-enc-btn')
     if (testEncBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
-      testEncBtn.addEventListener('click', async () => {
+      testEncBtn.addEventListener('click', onTestClick(async () => {
+        testEncBtn.disabled = true; testEncBtn.textContent = '...'
         try {
-          testEncBtn.textContent = '...'
           const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-encrypted`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -320,9 +328,9 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         } catch (e) {
           showToast(`Error: ${e.message}`, true)
         } finally {
-          testEncBtn.textContent = 'Encriptado'
+          testEncBtn.disabled = false; testEncBtn.textContent = 'Encriptado'
         }
-      })
+      }, 'Encriptado'))
     }
     const installBtn = document.getElementById('install-btn')
     if (installBtn) {

@@ -137,6 +137,21 @@ async function callAI(messages, env, opts = {}) {
   return { text, provider }
 }
 
+// Simple in-memory dedup per-isolate to prevent duplicate pushes
+const _recent = new Map()
+function _dedup(deviceId, type) {
+  const key = `${type}:${deviceId}`
+  const now = Date.now()
+  const last = _recent.get(key)
+  if (last && now - last < 3000) return false
+  _recent.set(key, now)
+  if (_recent.size > 100) {
+    const cutoff = now - 10000
+    for (const [k, v] of _recent) if (v < cutoff) _recent.delete(k)
+  }
+  return true
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') {
@@ -383,6 +398,7 @@ export default {
       try {
         const { deviceId } = await req.json()
         if (!deviceId) return respond('deviceId required', 400)
+        if (!_dedup(deviceId, 'test-empty')) return respond({ status: 'ok', dedup: true })
         const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
         if (!raw) return respond('No subscription', 404)
         const sub = JSON.parse(raw)
@@ -411,6 +427,7 @@ export default {
       try {
         const { deviceId } = await req.json()
         if (!deviceId) return respond('deviceId required', 400)
+        if (!_dedup(deviceId, 'test-enc')) return respond({ status: 'ok', dedup: true })
         const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
         if (!raw) return respond('No subscription', 404)
         const sub = JSON.parse(raw)

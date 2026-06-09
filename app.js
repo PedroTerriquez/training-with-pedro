@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.30 · 2026-06-08 · Fix: restore showNotification line removed by accident'
+const APP_VERSION = 'v1.31 · 2026-06-08 · Fix: client debounce + server dedup for double-push issue'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
