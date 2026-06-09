@@ -314,17 +314,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       }, 'Vacío'))
     }
     const testEncBtn = document.getElementById('test-enc-btn')
-    if (testEncBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
+    if (testEncBtn && typeof sendPushNotification === 'function') {
       testEncBtn.addEventListener('click', onTestClick(async () => {
         testEncBtn.disabled = true; testEncBtn.textContent = '...'
         try {
-          const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-encrypted`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId: await _deviceId() }),
-          })
-          const data = await res.json()
-          showToast(`Encriptado: ${data.status} ${data.body || ''}`)
+          const ok = await sendPushNotification('Coach Pedro AI', 'Push con datos funciona ✓', 'test-data', 0)
+          showToast(ok ? 'Push enviado ✓' : 'Push falló')
         } catch (e) {
           showToast(`Error: ${e.message}`, true)
         } finally {

@@ -1,4 +1,4 @@
-const CACHE = 'v31'
+const CACHE = 'v33'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -78,7 +78,14 @@ self.addEventListener('message', (e) => {
 self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     let data = {}
-    try { data = e.data ? await e.data.json() : {} } catch {}
+    try {
+      const cache = await caches.open('push-pending')
+      const res = await cache.match('/pending')
+      if (res) {
+        data = await res.json()
+        await cache.delete('/pending')
+      }
+    } catch {}
     const title = data.title || 'Coach Pedro AI'
     const body = data.body || ''
     const opts = {

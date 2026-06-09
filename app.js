@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.31 · 2026-06-08 · Fix: client debounce + server dedup for double-push issue'
+const APP_VERSION = 'v1.33 · 2026-06-08 · Add 5s delay before push for Apple Watch sync'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -475,11 +475,18 @@ async function sendPushNotification(title, body, tag, restSeconds) {
     if (typeof showToast === 'function') showToast('PUSH_SERVER_URL no configurado', true)
     return false
   }
+  // Write notification data to Cache API so SW can read it on empty push
+  try {
+    const cache = await caches.open('push-pending')
+    await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds })))
+  } catch (_) {}
+  // Wait 5s before sending push so Apple Watch has time to sync
+  await new Promise(r => setTimeout(r, 5000))
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds, deviceId: await _deviceId() }),
+      body: JSON.stringify({ deviceId: await _deviceId() }),
     })
     if (!res.ok) {
       const txt = await res.text()

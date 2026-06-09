@@ -233,18 +233,33 @@ export default {
       const nonce = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
       function _hex(b) { return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') }
+      // Cross-check with Web Crypto native HKDF
+      async function _hkdfNative(salt, ikm, info) {
+        const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
+        return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, 256))
+      }
+      const prk_native = await _hkdfNative(sharedSecret, auth, new TextEncoder().encode('Content-Encoding: auth\x00'))
+      // web-push: hkdf(ikm=saltBuf, salt=PRK) → HMAC(key=PRK, data=saltBuf)
+      // So for Web Crypto: IKM=salt, salt=PRK
+      const cek_native = await _hkdfNative(prk, salt, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'))
+      const nonce_native = await _hkdfNative(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'))
       console.log('[PUSH_DEBUG] salt:', _hex(salt))
       console.log('[PUSH_DEBUG] serverPub:', _hex(serverPub))
       console.log('[PUSH_DEBUG] sharedSecret:', _hex(sharedSecret))
       console.log('[PUSH_DEBUG] auth:', _hex(auth))
-      console.log('[PUSH_DEBUG] PRK:', _hex(prk))
-      console.log('[PUSH_DEBUG] CEK:', _hex(cek))
-      console.log('[PUSH_DEBUG] nonce:', _hex(nonce))
+      console.log('[PUSH_DEBUG] PRK manual:', _hex(prk))
+      console.log('[PUSH_DEBUG] PRK native:', _hex(prk_native))
+      console.log('[PUSH_DEBUG] CEK manual:', _hex(cek))
+      console.log('[PUSH_DEBUG] CEK native:', _hex(cek_native.slice(0, 16)))
+      console.log('[PUSH_DEBUG] nonce manual:', _hex(nonce))
+      console.log('[PUSH_DEBUG] nonce native:', _hex(nonce_native.slice(0, 12)))
       console.log('[PUSH_DEBUG] payload:', JSON.stringify(payload))
 
-      const plaintext = new TextEncoder().encode(JSON.stringify(payload))
-      const pad = new Uint8Array(plaintext.length + 2)
-      pad[0] = 0; pad[1] = 0; pad.set(plaintext, 2)
+      const content = new TextEncoder().encode(JSON.stringify(payload))
+      // RFC 8291: plaintext = content || 0x02 (padding delimiter)
+      const pad = new Uint8Array(content.length + 1)
+      pad.set(content, 0)
+      pad[pad.length - 1] = 0x02
       console.log('[PUSH_DEBUG] pad hex:', _hex(pad))
 
       const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
@@ -276,8 +291,10 @@ export default {
         },
         body: body,
       })
+      const resBody = await res.text().catch(()=>'')
+      console.log('[PUSH_RESULT] endpoint:', endpoint.slice(0,50), 'status:', res.status, 'body:', resBody.slice(0,200))
       if (res.status === 410) throw { statusCode: 410, message: 'Subscription expired' }
-      if (!res.ok) throw { message: `Push service returned ${res.status} ${await res.text()}` }
+      if (!res.ok) throw { message: `Push service returned ${res.status} ${resBody}` }
     }
 
     function _base64UrlDecode(str) {
@@ -363,26 +380,27 @@ export default {
     if (url.pathname === '/api/push/send') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
-        const { title, body, tag, restSeconds, deviceId } = await req.json()
+        const { deviceId } = await req.json()
         if (!deviceId) return respond('deviceId required', 400)
         const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
         if (!raw) {
           return respond('No subscription', 404)
         }
-
-        const vapidPublic = env.VAPID_PUBLIC_KEY
-        const vapidPrivate = env.VAPID_PRIVATE_KEY
-        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
-
-        if (!vapidPublic || !vapidPrivate) {
-          return respond('VAPID keys not configured', 500)
-        }
-
         const sub = JSON.parse(raw)
-        const payload = { title: title || 'Coach Pedro AI', body: body || '', tag: tag || 'workout', url: './' }
-        // restSeconds omitted — actions not supported in iOS push notifications
-        await sendWebPush(sub, payload, vapidPublic, vapidPrivate, vapidEmail)
+        const vapidPub = env.VAPID_PUBLIC_KEY
+        const vapidPriv = env.VAPID_PRIVATE_KEY
+        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
+        if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
+        const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
+        await fetch(sub.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Length': '0',
+            'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
+            'TTL': '86400',
+          },
+        })
         return respond('sent')
       } catch (err) {
         if (err.statusCode === 410 && env.PUSH_KV) {
