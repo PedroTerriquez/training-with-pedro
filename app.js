@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.39 · 2026-06-08 · Re-show exercise notification after rest done'
+const APP_VERSION = 'v1.40 · 2026-06-08 · TIMER DE DESCANSO title + auto-dismiss via close-tag'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -916,7 +916,14 @@ async function _checkRestTimer() {
 
 async function _completeRest(data) {
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  await window.notifyWatch('⏰ Descanso terminado', data.name, { tag: `done-${Date.now()}`, requireInteraction: false })
+  const doneTag = `done-${Date.now()}`
+  await window.notifyWatch(`TIMER DE DESCANSO ${data.restSec}s`, data.name, { tag: doneTag, requireInteraction: false })
+  setTimeout(async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: doneTag })
+    } catch (_) {}
+  }, 60000)
   if (data.sets && data.reps) {
     await window.notifyWatch(data.name, `${data.sets}×${data.reps}`, { restSeconds: data.restSec, tag: `cycle-${Date.now()}` })
   }

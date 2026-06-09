@@ -1,4 +1,4 @@
-const CACHE = 'v39'
+const CACHE = 'v40'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -58,6 +58,13 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
+    return
+  }
+  if (e.data?.type === 'close-tag') {
+    e.waitUntil((async () => {
+      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
+      notifs.forEach(n => n.close())
+    })())
     return
   }
   if (e.data?.type === 'notify') {
