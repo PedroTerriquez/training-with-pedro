@@ -1,4 +1,4 @@
-const CACHE = 'v35'
+const CACHE = 'v36'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -103,12 +103,13 @@ self.addEventListener('push', (e) => {
 })
 
 self.addEventListener('notificationclick', (e) => {
-  e.notification.close()
   const restSec = e.notification.data?.restSeconds || 0
   if (e.action === 'start-rest' || restSec > 0) {
+    if (e.action === 'start-rest') e.notification.close()
     e.waitUntil(
       (async () => {
         await new Promise(r => setTimeout(r, restSec * 1000))
+        e.notification.close()
         await self.registration.showNotification('⏰ Descanso terminado', {
           icon: 'icons/icon-192.png',
           tag: 'rest-done',
@@ -121,5 +122,5 @@ self.addEventListener('notificationclick', (e) => {
     )
     return
   }
-  // Normal tap on exercise notification — close only, no action
+  e.notification.close()
 })

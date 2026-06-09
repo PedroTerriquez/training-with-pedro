@@ -11,7 +11,7 @@
 - **Device**: iPhone with iOS (PWA installed from Safari)
 - **Browser**: Safari (PWA standalone mode)
 - **Notifications**: Web Push via Cloudflare Worker; `showNotification()` actions NOT supported on iOS
-- **Watch mirror**: Notifications mirror to Apple Watch, but long-press actions don't work on iOS — fallback to tap-to-start-timer in `sw.js`
+- **Watch mirror**: Notifications mirror to Apple Watch, but long-press actions don't work on iOS — fallback to tap-to-start-timer in `sw.js`. Tap notification → timer starts, notification stays visible → when timer completes, original closes + "Descanso terminado" shows for 10s
 
 ## Project Structure
 ```
