@@ -1,4 +1,4 @@
-const CACHE = 'v37'
+const CACHE = 'v38'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -108,25 +108,14 @@ self.addEventListener('notificationclick', (e) => {
     const name = e.notification.data?.title || e.notification.title || 'Ejercicio'
     e.waitUntil(
       (async () => {
-        // Confirmación inmediata de que el timer arrancó
         await self.registration.showNotification(`⏱️ ${restSec}s · ${name}`, {
           icon: 'icons/icon-192.png',
           tag: 'rest-started',
           requireInteraction: false,
         })
         await new Promise(r => setTimeout(r, 2000))
-        const confirmNotifs = await self.registration.getNotifications({ tag: 'rest-started' })
-        confirmNotifs.forEach(n => n.close())
-        // Timer real
-        await new Promise(r => setTimeout(r, (restSec - 2) * 1000))
-        await self.registration.showNotification('⏰ Descanso terminado', {
-          icon: 'icons/icon-192.png',
-          tag: 'rest-done',
-          requireInteraction: false,
-        })
-        await new Promise(r => setTimeout(r, 10000))
-        const doneNotifs = await self.registration.getNotifications({ tag: 'rest-done' })
-        doneNotifs.forEach(n => n.close())
+        const notifs = await self.registration.getNotifications({ tag: 'rest-started' })
+        notifs.forEach(n => n.close())
       })()
     )
     return

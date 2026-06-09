@@ -377,44 +377,44 @@ cd push-worker && npx wrangler deploy
 
 ## Rest Timer via Local Notifications (postMessage → SW)
 
-Added 2026-06-06, refactored 2026-06-06. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. Long-pressing the notification reveals a "Descansar Xs" action that starts a countdown timer in the Service Worker. When the timer completes, a generic notification appears for 10 seconds then auto-dismisses.
-
-This system uses **local notifications only** — no Cloudflare Worker or VAPID keys required. Notifications are sent via `postMessage` to the Service Worker, which calls `self.registration.showNotification()` directly. The rest timer runs inside the SW via `e.waitUntil()`.
+Added 2026-06-06, refactored 2026-06-08. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. The rest timer runs in the app's main thread (not SW `waitUntil` — iOS kills SW after ~30s). When the timer completes, the app shows a toast + sends "⏰ Descanso terminado" notification via `postMessage` to the SW.
 
 ### Architecture
 ```
 detail.js → [⚡ Iniciar] button
                 ↓
-         window.notifyWatch(name, `${sets}×${reps}`, { restSeconds, tag })
+         window._startRestTimer() + window.notifyWatch()
+                ↓                              ↓
+         Cache API (endTime)          postMessage → SW
+         app.js setTimeout                         ↓
+                ↓                       showNotification()
+         _checkRestTimer()                 (exercise info)
+         (on visibilitychange)                 ↓
+                ↓                       notificationclick
+         endTime <= Date.now()?           ↓
+                ↓                   showNotification("⏱️ Xs")
+         _completeRest()               (confirmation, 2s)
                 ↓
-         navigator.serviceWorker → postMessage({ type: 'notify', ... })
-                ↓
-         Service Worker `message` event
-                ↓
-         self.registration.showNotification() with `actions`
-                ↓ (long-press → tap action)
-         notificationclick(e.action === 'start-rest')
-                ↓
-         e.waitUntil(setTimeout(restSec * 1000))
-                ↓
-         "⏰ Descanso terminado" notification → 10s → auto-close
+         showToast("⏰ Descanso terminado")
+         + postMessage → SW → showNotification("⏰")
 ```
 
 ### Key Points
-- No server, no Worker, no VAPID keys needed — works entirely client-side
-- Timer runs in SW via `e.waitUntil()` — survives background
-- User can restart timer multiple times from the same notification (repeated long-press → action)
-- Tap on notification (without action) does nothing — informational only
+- Timer runs in app's main thread via `setTimeout` + Cache API persistence — survives iOS SW limits
+- On `visibilitychange` to `visible`, `_checkRestTimer()` recovers pending timers from Cache API
+- App sends final "⏰ Descanso terminado" notification via `postMessage` → SW → `showNotification()`
+- SW `notificationclick` only shows 2s confirmation — no long `waitUntil` timer
 - Requires Notification permission (requested via ⌚ button or Ajustes)
 - `window.notifyWatch()` is the global API (defined in app.js) — takes `(title, body, opts)` where `opts = { restSeconds, tag }`
 
 ### Files
 | File | Role |
 |---|---|
-| `app.js:812` | `window.notifyWatch()` — postMessage to SW |
-| `sw.js:63` | `message` event handler — shows notification + `actions` if `restSeconds > 0` |
-| `sw.js:90` | `notificationclick` handler — `start-rest` timer + auto-dismiss |
-| `components/detail.js:62` | [⚡ Iniciar] button — calls `window.notifyWatch()` |
+| `app.js:889` | `window._startRestTimer()` — stores endTime in Cache API + starts setTimeout |
+| `app.js:899` | `_checkRestTimer()` — reads Cache API, calculates remaining, shows completion |
+| `app.js:915` | `_completeRest()` — toast + postMessage to SW |
+| `sw.js:105` | `notificationclick` handler — shows 2s confirmation only |
+| `components/detail.js:92` | [⚡ Iniciar] button — calls `_startRestTimer()` + `notifyWatch()` |
 
 ## Coach IA — Program Coach (Tú → Programas)
 

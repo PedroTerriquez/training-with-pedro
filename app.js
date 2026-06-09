@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.37 · 2026-06-08 · iOS tap: 2s confirm + timer, push delay 5s→2s'
+const APP_VERSION = 'v1.38 · 2026-06-08 · Move rest timer to app thread, not SW waitUntil'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -88,6 +88,11 @@ async function init() {
     _state.settings.lastUpdate = new Date().toISOString()
     await Storage.saveSettings(_state.settings)
   }
+
+  _checkRestTimer()
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _checkRestTimer()
+  })
 }
 
 async function loadState() {
@@ -879,6 +884,39 @@ window.notifyWatch = async (title, body, opts = {}) => {
     const reg = await navigator.serviceWorker.ready
     if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0 })
   } catch (_) {}
+}
+
+window._startRestTimer = async (name, restSec, tag) => {
+  const endTime = Date.now() + restSec * 1000
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag })))
+  } catch (_) {}
+  if (window._restTimerId) clearTimeout(window._restTimerId)
+  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000)
+}
+
+async function _checkRestTimer() {
+  try {
+    const cache = await caches.open('rest-timer')
+    const res = await cache.match('/pending')
+    if (!res) return
+    const data = await res.json()
+    const remaining = data.endTime - Date.now()
+    if (remaining <= 0) {
+      await cache.delete('/pending')
+      if (window._restTimerId) { clearTimeout(window._restTimerId); window._restTimerId = null }
+      await _completeRest(data.name, data.tag)
+    } else {
+      if (window._restTimerId) clearTimeout(window._restTimerId)
+      window._restTimerId = setTimeout(_checkRestTimer, remaining)
+    }
+  } catch (_) {}
+}
+
+async function _completeRest(name) {
+  if (typeof showToast === 'function') showToast(`⏰ ${name} — Descanso terminado`)
+  await window.notifyWatch('⏰ Descanso terminado', name, { tag: `done-${Date.now()}` })
 }
 
 document.addEventListener('DOMContentLoaded', init)
