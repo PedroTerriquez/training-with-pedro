@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.33 · 2026-06-08 · Add 5s delay before push for Apple Watch sync'
+const APP_VERSION = 'v1.34 · 2026-06-08 · Add rest timer actions to push notifications'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
