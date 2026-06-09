@@ -1,4 +1,4 @@
-const CACHE = 'v28'
+const CACHE = 'v29'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -88,16 +88,8 @@ self.addEventListener('push', (e) => {
       requireInteraction: true,
       data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body },
     }
-    if (data.restSeconds > 0) {
-      opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
-    }
-    try {
-      await self.registration.showNotification(title, opts)
-    } catch (_) {
-      // actions may not be supported (iOS Safari) — retry without
-      delete opts.actions
-      await self.registration.showNotification(title, opts)
-    }
+    // NOTE: actions omitted — iOS PWA doesn't support them in push notifications.
+    // Rest timer actions only work via local notifications (postMessage → message event).
   })())
 })
 

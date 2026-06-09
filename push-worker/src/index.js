@@ -365,7 +365,7 @@ export default {
 
         const sub = JSON.parse(raw)
         const payload = { title: title || 'Coach Pedro AI', body: body || '', tag: tag || 'workout', url: './' }
-        if (restSeconds) payload.restSeconds = restSeconds
+        // restSeconds omitted — actions not supported in iOS push notifications
         await sendWebPush(sub, payload, vapidPublic, vapidPrivate, vapidEmail)
 
         return respond('sent')
@@ -419,7 +419,7 @@ export default {
         const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
         if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
-        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './', restSeconds: 120 }, vapidPub, vapidPriv, vapidEmail)
+        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './' }, vapidPub, vapidPriv, vapidEmail)
         return respond({ status: 200, body: 'encrypted sent' })
       } catch (err) {
         return respond('Test failed: ' + (err.message || 'unknown'), 500)

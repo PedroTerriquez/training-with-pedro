@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.28 · 2026-06-08 · Fix: catch showNotification error on iOS when actions unsupported'
+const APP_VERSION = 'v1.29 · 2026-06-08 · Fix: remove actions from push notifications (iOS unsupported)'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
