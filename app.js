@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.34 · 2026-06-08 · Add rest timer actions to push notifications'
+const APP_VERSION = 'v1.35 · 2026-06-08 · iOS tap-to-start-timer fallback + Platform Context'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

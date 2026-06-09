@@ -7,6 +7,12 @@
 - Static site deployable to GitHub Pages
 - Entry: `index.html` (single-file SPA with hash routing)
 
+## Platform Context
+- **Device**: iPhone with iOS (PWA installed from Safari)
+- **Browser**: Safari (PWA standalone mode)
+- **Notifications**: Web Push via Cloudflare Worker; `showNotification()` actions NOT supported on iOS
+- **Watch mirror**: Notifications mirror to Apple Watch, but long-press actions don't work on iOS — fallback to tap-to-start-timer in `sw.js`
+
 ## Project Structure
 ```
 /index.html              → App shell, font loading, script includes

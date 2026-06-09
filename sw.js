@@ -1,4 +1,4 @@
-const CACHE = 'v34'
+const CACHE = 'v35'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -104,8 +104,8 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  if (e.action === 'start-rest') {
-    const restSec = e.notification.data?.restSeconds || 90
+  const restSec = e.notification.data?.restSeconds || 0
+  if (e.action === 'start-rest' || restSec > 0) {
     e.waitUntil(
       (async () => {
         await new Promise(r => setTimeout(r, restSec * 1000))
