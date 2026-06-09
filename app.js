@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.40 · 2026-06-08 · TIMER DE DESCANSO title + auto-dismiss via close-tag'
+const APP_VERSION = 'v1.41 · 2026-06-08 · Auto-dismiss via Cache API + cleanup on visibilitychange'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -90,8 +90,12 @@ async function init() {
   }
 
   _checkRestTimer()
+  _cleanupStaleNotifications()
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') _checkRestTimer()
+    if (document.visibilityState === 'visible') {
+      _checkRestTimer()
+      _cleanupStaleNotifications()
+    }
   })
 }
 
@@ -917,16 +921,53 @@ async function _checkRestTimer() {
 async function _completeRest(data) {
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
   const doneTag = `done-${Date.now()}`
-  await window.notifyWatch(`TIMER DE DESCANSO ${data.restSec}s`, data.name, { tag: doneTag, requireInteraction: false })
+  const closeAt = Date.now() + 60000
+  // Store close schedule so _cleanupStaleNotifications can close it
+  try {
+    const cache = await caches.open('rest-timer')
+    const existing = await cache.match('/close-pending')
+    const items = existing ? await existing.json() : []
+    items.push({ tag: doneTag, closeAt })
+    await cache.put('/close-pending', new Response(JSON.stringify(items)))
+  } catch (_) {}
+  // Best-effort SW timer backup
+  try {
+    const reg = await navigator.serviceWorker.ready
+    if (reg.active) reg.active.postMessage({ type: 'schedule-close', tag: doneTag, delay: 60000 })
+  } catch (_) {}
+  // App timer — fires only if app stays alive
   setTimeout(async () => {
     try {
       const reg = await navigator.serviceWorker.ready
       if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: doneTag })
     } catch (_) {}
   }, 60000)
+  await window.notifyWatch(`TIMER DE DESCANSO ${data.restSec}s`, data.name, { tag: doneTag, requireInteraction: false })
   if (data.sets && data.reps) {
     await window.notifyWatch(data.name, `${data.sets}×${data.reps}`, { restSeconds: data.restSec, tag: `cycle-${Date.now()}` })
   }
+}
+
+async function _cleanupStaleNotifications() {
+  try {
+    const cache = await caches.open('rest-timer')
+    const res = await cache.match('/close-pending')
+    if (!res) return
+    const items = await res.json()
+    const now = Date.now()
+    const active = items.filter(item => item.closeAt > now)
+    if (active.length === 0) {
+      await cache.delete('/close-pending')
+    } else {
+      await cache.put('/close-pending', new Response(JSON.stringify(active)))
+    }
+    for (const item of items) {
+      if (item.closeAt <= now) {
+        const reg = await navigator.serviceWorker.ready
+        if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: item.tag })
+      }
+    }
+  } catch (_) {}
 }
 
 document.addEventListener('DOMContentLoaded', init)

@@ -1,4 +1,4 @@
-const CACHE = 'v40'
+const CACHE = 'v41'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -65,6 +65,13 @@ self.addEventListener('message', (e) => {
       const notifs = await self.registration.getNotifications({ tag: e.data.tag })
       notifs.forEach(n => n.close())
     })())
+    return
+  }
+  if (e.data?.type === 'schedule-close') {
+    setTimeout(async () => {
+      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
+      notifs.forEach(n => n.close())
+    }, e.data.delay)
     return
   }
   if (e.data?.type === 'notify') {
