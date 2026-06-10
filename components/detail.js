@@ -102,11 +102,33 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     return wrap
   }
 
+  function initSwipe(el, onLeft, onRight) {
+    let startX = 0, startY = 0
+    el.addEventListener('touchstart', (e) => {
+      const t = e.touches[0]
+      startX = t.clientX
+      startY = t.clientY
+    }, { passive: true })
+    el.addEventListener('touchend', (e) => {
+      const target = e.target
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.closest('button') || target.closest('a')) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+      if (Math.abs(dx) < 50) return
+      if (Math.abs(dy) > Math.abs(dx) * 0.7) return
+      if (dx < 0 && onLeft) onLeft()
+      if (dx > 0 && onRight) onRight()
+    }, { passive: true })
+  }
+
   function render() {
     container.innerHTML = ''
     const scrollEl = document.createElement('div')
     scrollEl.style.cssText = `color:#fafafa;padding-bottom:40px`
     container.appendChild(scrollEl)
+
+    initSwipe(scrollEl, () => nextExercise && onNext(), () => prevExercise && onPrev())
 
     // Navigation prev/next pills
     scrollEl.appendChild(renderNavPills())
@@ -115,7 +137,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     const heroWrap = document.createElement('div')
     heroWrap.style.padding = '12px 14px 0'
     const searchUrl = encodeURIComponent(exercise.name + ' exercise')
-    const h = 240
+    const h = 360
     const hero = document.createElement('div')
     hero.style.cssText = `height:${h}px;border-radius:18px;overflow:hidden;position:relative;background:#161616;${loggedToday ? `border:1px solid ${accent};box-shadow:0 0 0 4px ${accent}1a,0 8px 32px ${accent}22` : 'border:0.5px solid rgba(255,255,255,0.06)'};box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between`
 
@@ -637,19 +659,14 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
 
   render()
 
-  // ── Coach FAB (top-right) ──
+  // ── Coach FAB (top-left, same style as warmup close button) ──
   const fab = document.createElement('button')
-  fab.style.cssText = `position:fixed;right:20px;top:72px;z-index:110;display:flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:9999px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;letter-spacing:-0.2px;box-shadow:0 8px 24px ${accent}55;touch-action:manipulation`
-  fab.innerHTML = `
-    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-      <path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z" stroke="#0a0a0a" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
-      <circle cx="9" cy="8.2" r="0.95" fill="#0a0a0a"/>
-      <circle cx="6" cy="8.2" r="0.95" fill="#0a0a0a"/>
-      <circle cx="12" cy="8.2" r="0.95" fill="#0a0a0a"/>
-    </svg>
-    Coach IA`
+  const overlay = container.parentElement?.parentElement?.parentElement
+  if (!overlay) return
+  fab.style.cssText = `position:absolute;top:14px;left:14px;width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:200;padding:0;color:rgba(255,255,255,0.85)`
+  fab.innerHTML = `<svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z"/><circle cx="9" cy="8.2" r="0.95" fill="currentColor"/><circle cx="6" cy="8.2" r="0.95" fill="currentColor"/><circle cx="12" cy="8.2" r="0.95" fill="currentColor"/></svg>`
   fab.addEventListener('click', () => openCoachChat(exercise, accent))
-  container.appendChild(fab)
+  overlay.appendChild(fab)
 }
 
 // ── Exercise Coach Chat Overlay ──
@@ -697,7 +714,7 @@ function openCoachChat(exercise, accent) {
     </div>
     <div style="flex-shrink:0;padding:6px 16px 28px;display:flex;align-items:flex-end;gap:9px">
       <div style="flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.12);border-radius:22px;padding:4px 6px 4px 16px;display:flex;align-items:center">
-        <input id="coach-input" type="text" placeholder="Escribe tu pregunta…" style="flex:1;background:transparent;border:0;outline:none;color:#fafafa;font-family:'Space Grotesk',sans-serif;font-size:14px;padding:8px 0;min-width:0">
+        <input id="coach-input" type="text" placeholder="Escribe tu pregunta…" style="flex:1;background:transparent;border:0;outline:none;color:#fafafa;font-family:'Space Grotesk',sans-serif;font-size:16px;padding:8px 0;min-width:0">
       </div>
       <button id="coach-send-btn" style="width:44px;height:44px;border-radius:50%;flex-shrink:0;padding:0;cursor:pointer;background:${accent};border:0;display:flex;align-items:center;justify-content:center;transition:background 0.15s">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 15V3M9 3l-5 5M9 3l5 5" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

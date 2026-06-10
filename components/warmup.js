@@ -30,160 +30,6 @@ function resolvePanelItems(muscles, mode) {
   return items.length > 0 ? items : (mode === 'warmup' ? GENERIC_WARMUP_ONLY : GENERIC_STRETCH_ONLY)
 }
 
-function makeCheckableRow(ex, tag, accent, { checked, onToggle }) {
-  const el = document.createElement('div')
-  el.style.cssText = 'display:flex;gap:14px;padding:14px;border-bottom:0.5px solid rgba(255,255,255,0.04);cursor:pointer;transition:opacity 0.2s'
-  el.style.opacity = checked ? '0.5' : '1'
-
-  const cb = document.createElement('div')
-  cb.style.cssText = `width:24px;height:24px;border-radius:50%;border:2px solid ${checked ? accent : 'rgba(255,255,255,0.2)'};flex-shrink:0;margin-top:4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;background:${checked ? accent : 'transparent'}`
-  if (checked) cb.innerHTML = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-
-  const imgWrap = document.createElement('div')
-  imgWrap.style.cssText = 'width:64px;height:64px;border-radius:12px;overflow:hidden;background:#1c1c1c;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.04)'
-  if (ex.imgUrl) {
-    const imgEl = document.createElement('img')
-    imgEl.src = ex.imgUrl
-    imgEl.alt = ex.name
-    imgEl.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'
-    imgWrap.appendChild(imgEl)
-  } else {
-    imgWrap.style.backgroundImage = 'repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 12px,rgba(255,255,255,0.05) 12px 24px)'
-  }
-
-  const info = document.createElement('div')
-  info.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px'
-
-  const nameRow = document.createElement('div')
-  nameRow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap'
-
-  const nameEl = document.createElement('div')
-  nameEl.style.cssText = `font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:${checked ? 'rgba(255,255,255,0.5)' : '#fafafa'};letter-spacing:-0.2px;line-height:1.3;overflow-wrap:break-word;text-decoration:${checked ? 'line-through' : 'none'}`
-  nameEl.textContent = ex.name
-  nameRow.appendChild(nameEl)
-
-  const isStallbar = ex.desc && ex.desc.startsWith('STALLBAR - ')
-  if (isStallbar) {
-    const stallbarBadge = document.createElement('span')
-    stallbarBadge.textContent = 'STALLBAR'
-    stallbarBadge.style.cssText = `align-self:flex-start;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;padding:1px 6px;border-radius:4px;background:#f59e0b;color:#0a0a0a;line-height:1.4`
-    nameRow.appendChild(stallbarBadge)
-  }
-
-  const tagEl = document.createElement('span')
-  tagEl.style.cssText = `align-self:flex-start;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:${accent || '#d4ff3a'}1a;color:${accent || '#d4ff3a'}`
-  tagEl.textContent = tag
-
-  const descEl = document.createElement('div')
-  descEl.style.cssText = `font-size:12px;color:${checked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'};line-height:1.45;margin-top:2px`
-  descEl.textContent = isStallbar ? ex.desc.slice(12) : (ex.desc || '')
-
-  info.appendChild(tagEl)
-  info.appendChild(nameRow)
-  info.appendChild(descEl)
-  el.appendChild(cb)
-  el.appendChild(imgWrap)
-  el.appendChild(info)
-
-  el.addEventListener('click', (e) => {
-    e.stopPropagation()
-    onToggle()
-  })
-
-  return { el, cb }
-}
-
-function makePanelContent({ muscles, accent, mode, onComplete }) {
-  const container = document.createElement('div')
-  container.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding-top:10px'
-
-  const items = resolvePanelItems(muscles, mode)
-  if (items.length === 0) {
-    container.innerHTML = `<div style="padding:14px 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center">No ${mode === 'warmup' ? 'calentamiento' : 'estiramiento'} sugerido para hoy</div>`
-    return container
-  }
-
-  const checkedSet = new Set()
-  const rows = []
-
-  function updateCompletion() {
-    const allDone = checkedSet.size === items.length
-    if (allDone && onComplete) onComplete()
-  }
-
-  const markAllBtn = document.createElement('button')
-  markAllBtn.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(255,255,255,0.6);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;transition:all 0.2s;align-self:flex-start;touch-action:manipulation`
-  markAllBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0.5" y="0.5" width="13" height="13" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Marcar todo como listo`
-
-  markAllBtn.addEventListener('click', (e) => {
-    e.stopPropagation()
-    checkedSet.clear()
-    items.forEach((_, idx) => checkedSet.add(idx))
-    rows.forEach(({ el, cb, index }) => {
-      const checked = true
-      cb.style.borderColor = accent
-      cb.style.background = accent
-      cb.innerHTML = `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-      el.style.opacity = '0.5'
-      el.querySelector('div:last-child div:nth-child(2) div:first-child').style.color = 'rgba(255,255,255,0.5)'
-      el.querySelector('div:last-child div:nth-child(2) div:first-child').style.textDecoration = 'line-through'
-      el.querySelector('div:last-child > div:last-child').style.color = 'rgba(255,255,255,0.3)'
-    })
-    updateCompletion()
-  })
-
-  const topRow = document.createElement('div')
-  topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between'
-  topRow.appendChild(markAllBtn)
-  container.appendChild(topRow)
-
-  items.forEach((ex, idx) => {
-    const result = makeCheckableRow(ex, ex.tag, accent, {
-      checked: checkedSet.has(idx),
-      onToggle: () => {
-        if (checkedSet.has(idx)) {
-          checkedSet.delete(idx)
-        } else {
-          checkedSet.add(idx)
-        }
-        renderCheckState(idx)
-        updateCompletion()
-      }
-    })
-    result.index = idx
-
-    function renderCheckState(index) {
-      const row = rows.find(r => r.index === index)
-      if (!row) return
-      const checked = checkedSet.has(index)
-      row.cb.style.borderColor = checked ? accent : 'rgba(255,255,255,0.2)'
-      row.cb.style.background = checked ? accent : 'transparent'
-      row.cb.innerHTML = checked ? `<svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5l3.5 3.5L11 1" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''
-      row.el.style.opacity = checked ? '0.5' : '1'
-      const nameEl = row.el.querySelector('div:last-child div:nth-child(2) div:first-child')
-      if (nameEl) {
-        nameEl.style.color = checked ? 'rgba(255,255,255,0.5)' : '#fafafa'
-        nameEl.style.textDecoration = checked ? 'line-through' : 'none'
-      }
-      const descEl = row.el.querySelector('div:last-child > div:last-child')
-      if (descEl) descEl.style.color = checked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.55)'
-    }
-
-    rows.push(result)
-    container.appendChild(result.el)
-  })
-
-  return container
-}
-
-function WarmupPanelContent({ muscles, accent, onComplete }) {
-  return makePanelContent({ muscles, accent, mode: 'warmup', onComplete })
-}
-
-function StretchingPanelContent({ muscles, accent, onComplete }) {
-  return makePanelContent({ muscles, accent, mode: 'stretch', onComplete })
-}
-
 // ── Warmup/Stretch Exercise Detail Sheet ──
 function mountWarmupDetail({ items, mode, accent, onComplete }) {
   if (!items || items.length === 0) return
@@ -197,11 +43,17 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
   overlay.appendChild(backdrop)
 
   const sheet = document.createElement('div')
-  sheet.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:#0e0e0e;border-radius:28px 28px 0 0;max-height:92%;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column'
+  sheet.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:#0e0e0e;border-radius:16px 16px 0 0;max-height:92%;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column'
 
   const handle = document.createElement('div')
   handle.style.cssText = 'width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,0.18);margin:10px auto 0;flex-shrink:0'
   sheet.appendChild(handle)
+
+  const closeBtn = document.createElement('button')
+  closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:200;padding:0;color:rgba(255,255,255,0.85)'
+  closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10M12 2L2 12"/></svg>'
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); close() })
+  overlay.appendChild(closeBtn)
 
   const body = document.createElement('div')
   body.style.cssText = 'overflow:auto;flex:1'
@@ -211,19 +63,114 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
   document.body.style.overflow = 'hidden'
 
   let _idx = 0
+  let _swiping = false
   const total = items.length
   const label = mode === 'warmup' ? 'calentamiento' : 'estiramiento'
+  initSwipe(body)
+
+  const WARMUP_GIF_MAP = {
+    "Flexiones Dinámicas Excéntricas contra Pared": "pectorals/push-up-wall",
+    "Dislocaciones de Pecho y Hombro con Banda": "pectorals/dynamic-chest-stretch-male",
+    "Estiramiento de Pecho en Esquina de Pared": "pectorals/chest-and-front-of-shoulder-stretch",
+    "Estiramiento Un Brazo Contra Pared": "lats/one-arm-against-wall",
+    "Apertura de Pecho Pasiva en Espaldera": "pectorals/behind-head-chest-stretch",
+    "Movilidad Escapular en Y-T-W": "delts/band-y-raise",
+    "Giros Externos con Banda Dinámicos": "delts/cable-standing-shoulder-external-rotation",
+    "Estiramiento del Deltoides Posterior Cruzado": "delts/rear-deltoid-stretch",
+    "Estiramiento del Deltoides Anterior Sentado": "pectorals/chest-and-front-of-shoulder-stretch",
+    "Tracción Escapular Colgado": "traps/scapular-pull-up",
+    "Flexiones en Diamante sobre Pared": "pectorals/push-up-wall",
+    "Extensiones de Codo al Aire Activas": "triceps/overhead-triceps-stretch",
+    "Estiramiento de Tríceps por Detrás de la Cabeza": "triceps/overhead-triceps-stretch",
+    "Elongación de Tríceps contra Pared": "triceps/triceps-stretch",
+    "Estiramiento de Bíceps en Pared con Pulgar Abajo": "lats/one-arm-against-wall",
+    "Gato-Camello Dinámico": "spine/spine-stretch",
+    "Oruga Walkout Dinámica": "abs/inchworm",
+    "Torsión Espinal en el Suelo Estática": "glutes/bent-knee-lying-twist-male",
+    "Colgado Asistido Descompresivo": "traps/scapular-pull-up",
+    "Desplazamiento Escapular de Pie": "serratus-anterior/scapula-push-up",
+    "Estiramiento de Espalda Media con Brazos Cruzados al Frente": "upper-back/upper-back-stretch",
+    "Inclinaciones Laterales en Flecha": "lats/standing-lateral-stretch",
+    "Estiramiento Lateral del Dorsal en Pared": "lats/kneeling-lat-stretch",
+    "Dorsales Inclinado en Barra Media": "lats/kneeling-lat-stretch",
+    "Encogimientos Escapulares Dinámicos": "traps/dumbbell-shrug",
+    "Depresiones Escapulares Activas de Pie": "traps/scapular-pull-up",
+    "Estiramiento del Trapecio Superior Asistido": "levator-scapulae/neck-side-stretch",
+    "Estiramiento de Trapecio Medio Cruzando Hombros": "upper-back/upper-back-stretch",
+    "Trapecio Superior por Inclinación Lateral": "levator-scapulae/neck-side-stretch",
+    "Desplantes Inversos Dinámicos": "glutes/barbell-rear-lunge",
+    "Estiramiento de Cuádriceps Acostado Boca Abajo": "quads/assisted-prone-lying-quads-stretch",
+    "Estiramiento de Cuádriceps Clásico de Pie": "quads/intermediate-hip-flexor-and-quad-stretch",
+    "Buenos Días Dinámicos con Manos en Nuca": "hamstrings/barbell-good-morning",
+    "Patadas Frankenstein Dinámicas": "glutes/frankenstein-squat",
+    "Estiramiento de Isquiotibiales con Banda en Suelo": "hamstrings/hamstring-stretch",
+    "Estiramiento Isquiotibial Unilateral en Banco": "hamstrings/leg-up-hamstring-stretch",
+    "Femoral Elevado en Barra Media": "hamstrings/leg-up-hamstring-stretch",
+    "Puentes de Glúteo Dinámicos con Pausa": "glutes/pelvic-tilt-into-bridge",
+    "Figura 4 Acostado Boca Arriba": "glutes/assisted-lying-gluteus-and-piriformis-stretch",
+    "Postura de la Paloma Pasiva en Suelo": "glutes/seated-piriformis-stretch",
+    "Elevaciones de Talón de Pie Continuas": "calves/bodyweight-standing-calf-raise",
+    "Estiramiento de Gemelo en Escalón Pasivo": "calves/calf-stretch-with-hands-against-wall",
+    "Estiramiento de Gemelo contra Pared con Pierna Recta": "calves/calf-stretch-with-hands-against-wall",
+    "Elevación de Talones Sentado al Aire": "calves/seated-calf-stretch-male",
+    "Estiramiento de Sóleo contra Pared con Rodilla Flexionada": "calves/calf-stretch-with-hands-against-wall",
+    "Escarabajo Muerto (Dead Bug) Básico": "abs/dead-bug",
+    "Plancha Alta con Toques de Hombro": "abs/shoulder-tap",
+    "Postura de la Cobra Estática en Suelo": "spine/sphinx",
+    "Cobra Abdominal Asistida en Barra Baja": "spine/upward-facing-dog",
+    "Círculos de Muñecas con Puños Cerrados": "forearms/wrist-circles",
+    "Estiramiento de Flexores de Muñeca de Rodillas": "forearms/side-wrist-pull-stretch",
+    "Estiramiento de Extensores de Muñeca": "forearms/side-wrist-pull-stretch",
+    "Estiramiento Lateral de Cuello Asistido": "levator-scapulae/neck-side-stretch",
+    "Estiramiento de la Musculatura Cervical Posterior": "levator-scapulae/side-push-neck-stretch",
+    "Tracción Cervical Angular por Inclinación de Torso": "levator-scapulae/neck-side-stretch",
+
+    // --- CDN-extended matches ---
+    "Tríceps Apoyado en Barra Alta": "triceps/overhead-triceps-stretch",
+    "Flexiones de Bíceps Dinámicas con Rotación": "biceps/dumbbell-alternate-biceps-curl",
+    "Rotaciones de Brazo Completo (Tornillo)": "delts/dumbbell-standing-around-world",
+    "Estiramiento de Bíceps Sentado con Manos Atrás": "pectorals/chest-and-front-of-shoulder-stretch",
+    "Bícep Invertido en Barra Baja": "lats/one-arm-against-wall",
+    "Postura del Niño con Enfoque Lumbar": "lats/kneeling-lat-stretch",
+    "Deslizamientos en Pared (Wall Angels)": "serratus-anterior/scapula-push-up",
+    "Estiramiento del Enhebrado de Aguja": "upper-back/upper-back-stretch",
+    "Tracción Escapular con Pies Apoyados": "traps/scapular-pull-up",
+    "Transición de Plancha Alta a Perro Boca Abajo": "glutes/pike-to-cobra-push-up",
+    "Postura de Cachorro con Codos Apoyados": "lats/kneeling-lat-stretch",
+    "Sentadillas Libres a Ritmo Controlado": "glutes/barbell-full-squat",
+    "Couch Stretch Asistido": "quads/intermediate-hip-flexor-and-quad-stretch",
+    "Patadas Hidrantes en Cuadrupedia": "glutes/glute-bridge-march",
+    "Figura 4 de Pie con Sentadilla Asistida": "glutes/seated-piriformis-stretch",
+    "Saltos Cortos sobre Metatarsos (Pogo Hops)": "calves/bodyweight-standing-calf-raise",
+    "Gemelo en Barra Inferior con Descenso de Talón": "calves/standing-calf-raise-on-a-staircase",
+    "Balanceo de Rodilla hacia Adelante en Cuclillas": "quads/squat-to-overhead-reach",
+    "Estiramiento de Sóleo en Cuclillas con Apoyo": "quads/all-fours-squad-stretch",
+    "Sóleo Profundo Asistido en Barra Inferior": "calves/calf-stretch-with-hands-against-wall",
+    "Estiramiento Corporal Completo en Supino": "spine/spine-stretch",
+    "Pulsaciones Rápidas de Apertura de Manos (Air Flashes)": "forearms/finger-curls",
+    "Flexores de Antebrazo en Barra Media": "forearms/side-wrist-pull-stretch",
+    "Retracciones Cervicales Activas (Chin Tucks)": "levator-scapulae/side-push-neck-stretch",
+    "Semicírculos Cervicales Inferiores": "levator-scapulae/neck-side-stretch",
+  }
+
+  function resolveGifUrl(name) {
+    const path = WARMUP_GIF_MAP[name]
+    if (path) return _GIF(path)
+    return ''
+  }
 
   function close() {
     document.body.style.overflow = ''
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
   }
 
-  function render() {
+  function render(slideFrom) {
     body.innerHTML = ''
+    if (_swiping) return
     const item = items[_idx]
+    item.gifUrl = resolveGifUrl(item.name)
 
-    // Nav pills
+    // Nav pills + Hecho button (between prev/next)
     const navWrap = document.createElement('div')
     navWrap.style.cssText = 'padding:10px 14px 0;display:flex;gap:8px'
 
@@ -238,7 +185,19 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
         : `<path d="M1 5h9m0 0L6 1m4 4L6 9" stroke="${arrowColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
       const btn = document.createElement('button')
       btn.style.cssText = `flex:1;min-width:0;background:${disabled ? 'rgba(255,255,255,0.02)' : '#141414'};border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 12px;cursor:${disabled ? 'default' : 'pointer'};color:inherit;text-align:left;display:flex;align-items:center;gap:9px;flex-direction:${isPrev ? 'row' : 'row-reverse'};opacity:${disabled ? 0.45 : 1}`
-      if (!disabled) btn.addEventListener('click', () => { _idx = targetIdx; render() })
+      if (!disabled) btn.addEventListener('click', () => {
+        if (_swiping) return
+        const c = body.querySelector('[data-sw]')
+        if (c) {
+          _swiping = true
+          c.style.transition = 'transform 0.15s ease, opacity 0.15s ease'
+          c.style.transform = `translateX(${isPrev ? '30%' : '-30%'})`
+          c.style.opacity = '0'
+          setTimeout(() => { _idx = targetIdx; _swiping = false; render(isPrev ? 'left' : 'right') }, 150)
+        } else {
+          _idx = targetIdx; render()
+        }
+      })
       btn.innerHTML = `
         <div style="width:26px;height:26px;border-radius:8px;background:${disabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)'};border:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="11" height="10" viewBox="0 0 11 10" fill="none" style="flex-shrink:0">${arrow}</svg>
@@ -251,29 +210,97 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
     }
 
     navWrap.appendChild(navPill('prev'))
+    // Hecho button — between prev and next, similar to Iniciar in detail
+    const hechoBtn = document.createElement('button')
+    hechoBtn.style.cssText = `flex-shrink:0;border:0;cursor:pointer;color:#0a0a0a;background:${accent};border-radius:12px;padding:8px 16px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;display:flex;align-items:center;gap:7px;touch-action:manipulation;box-shadow:0 4px 16px ${accent}44`
+    hechoBtn.innerHTML = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5l4 4L13 1.5" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Hecho`
+    hechoBtn.addEventListener('click', () => {
+      close()
+      if (onComplete) onComplete()
+    })
+    navWrap.appendChild(hechoBtn)
     navWrap.appendChild(navPill('next'))
     body.appendChild(navWrap)
 
-    // Counter badge
+    // Counter badge (stays outside swipeEl so it stays put)
     const counter = document.createElement('div')
     counter.style.cssText = 'padding:8px 14px 0;display:flex;align-items:center;gap:8px'
     counter.innerHTML = `
       <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,0.45);font-weight:500">${_idx + 1} / ${total}</div>
       <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden">
-        <div style="height:100%;border-radius:2px;background:${accent};width:${((_idx + 1) / total) * 100}%;transition:width 0.2s"></div>
+        <div style="height:100%;border-radius:2px;background:${accent};width:${((_idx + 1) / total) * 100}%"></div>
       </div>`
     body.appendChild(counter)
+
+    // Swipeable content wrapper
+    const sw = document.createElement('div')
+    sw.setAttribute('data-sw', '')
+    body.appendChild(sw)
 
     // Hero image
     const heroWrap = document.createElement('div')
     heroWrap.style.cssText = 'padding:12px 14px 0'
     const hero = document.createElement('div')
-    hero.style.cssText = 'height:280px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;justify-content:space-between'
+    hero.style.cssText = 'height:400px;border-radius:18px;overflow:hidden;position:relative;background:#161616;border:0.5px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;justify-content:space-between'
 
-    if (item.imgUrl) {
-      hero.style.background = `#161616 url(${item.imgUrl}) center/cover no-repeat`
-    } else {
-      hero.style.backgroundImage = 'repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 24px,rgba(255,255,255,0.04) 24px 48px)'
+    // Extract static poster from GIF first frame (perfect match)
+    function posterFromGif(url, cb) {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas')
+          c.width = img.naturalWidth; c.height = img.naturalHeight
+          c.getContext('2d').drawImage(img, 0, 0)
+          cb(c.toDataURL('image/jpeg', 0.85))
+        } catch (_) { cb('') }
+      }
+      img.onerror = () => cb('')
+      img.src = url
+    }
+
+    // Media layers — img (static poster), gif (animated overlay)
+    const media = document.createElement('div')
+    media.style.cssText = 'position:absolute;inset:0'
+    const imgLayer = document.createElement('div')
+    imgLayer.style.cssText = 'position:absolute;inset:0;transition:opacity .35s;pointer-events:none'
+    const gifLayer = document.createElement('div')
+    gifLayer.style.cssText = 'position:absolute;inset:0;transition:opacity .35s;pointer-events:none'
+
+    // Static poster: start with free-exercise-db image, upgrade to GIF first frame
+    if (item.imgUrl) imgLayer.style.background = `#161616 url(${item.imgUrl}) center/cover no-repeat`
+    if (item.gifUrl) {
+      posterFromGif(item.gifUrl, (dataUrl) => {
+        if (dataUrl) imgLayer.style.background = `#161616 url(${dataUrl}) center/cover no-repeat`
+      })
+    }
+    if (!item.imgUrl && !item.gifUrl) imgLayer.style.display = 'none'
+
+    if (item.gifUrl) {
+      const gifImg = document.createElement('img')
+      gifImg.src = item.gifUrl
+      gifImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;user-select:none'
+      gifLayer.appendChild(gifImg)
+    } else gifLayer.style.display = 'none'
+
+    let showGif = !!item.gifUrl
+    gifLayer.style.opacity = showGif ? '1' : '0'
+    imgLayer.style.opacity = showGif ? '0' : '1'
+    media.appendChild(imgLayer)
+    media.appendChild(gifLayer)
+    hero.appendChild(media)
+
+    if (item.gifUrl) {
+      const togglePill = document.createElement('button')
+      togglePill.style.cssText = 'position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:rgba(255,255,255,0.75)'
+      togglePill.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M2.5 12a9 9 0 0 1 15.5-5L21.5 8"/><path d="M2.5 22v-6h6"/><path d="M21.5 12a9 9 0 0 1-15.5 5L2.5 16"/></svg>'
+      togglePill.addEventListener('click', (e) => {
+        e.stopPropagation()
+        showGif = !showGif
+        gifLayer.style.opacity = showGif ? '1' : '0'
+        imgLayer.style.opacity = showGif ? '0' : '1'
+      })
+      hero.appendChild(togglePill)
     }
 
     // Top row: muscle tag + STALLBAR badge
@@ -292,7 +319,7 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
     hero.appendChild(bottomRow)
 
     heroWrap.appendChild(hero)
-    body.appendChild(heroWrap)
+    sw.appendChild(heroWrap)
 
     // Description
     const descWrap = document.createElement('div')
@@ -304,20 +331,88 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
         Cómo hacerlo
       </div>
       <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.05px">${descText}</div>`
-    body.appendChild(descWrap)
+    sw.appendChild(descWrap)
 
-    // Complete button
-    const btnWrap = document.createElement('div')
-    btnWrap.style.cssText = 'padding:18px 14px 30px'
-    const completeBtn = document.createElement('button')
-    completeBtn.style.cssText = `width:100%;padding:16px;border-radius:14px;border:0;cursor:pointer;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.2px;display:flex;align-items:center;justify-content:center;gap:10px;touch-action:manipulation;box-shadow:0 8px 32px ${accent}44`
-    completeBtn.innerHTML = `<svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 7l5.5 5.5L17 1.5" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Marcar ${label} como hecho`
-    completeBtn.addEventListener('click', () => {
-      close()
-      if (onComplete) onComplete()
-    })
-    btnWrap.appendChild(completeBtn)
-    body.appendChild(btnWrap)
+
+
+    // Slide-in animation
+    if (slideFrom) {
+      sw.style.transform = `translateX(${slideFrom === 'right' ? '60%' : '-60%'})`
+      sw.style.opacity = '0'
+      requestAnimationFrame(() => {
+        sw.style.transition = 'transform 0.35s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease'
+        sw.style.transform = 'translateX(0)'
+        sw.style.opacity = '1'
+        setTimeout(() => {
+          sw.style.transition = ''
+          sw.style.transform = ''
+          sw.style.opacity = ''
+        }, 400)
+      })
+    }
+  }
+
+  function initSwipe(el) {
+    let startX = 0, startY = 0
+    el.addEventListener('touchstart', (e) => {
+      const t = e.touches[0]
+      startX = t.clientX; startY = t.clientY
+    }, { passive: true })
+    el.addEventListener('touchmove', (e) => {
+      if (_swiping) return
+      const t = e.touches[0]
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+      if (Math.abs(dx) > Math.abs(dy) * 0.7) {
+        const c = el.querySelector('[data-sw]')
+        if (c) {
+          c.style.transform = `translateX(${dx * 0.3}px)`
+          c.style.opacity = `${1 - Math.abs(dx) * 0.002}`
+        }
+      }
+    }, { passive: true })
+    el.addEventListener('touchend', (e) => {
+      if (_swiping) return
+      const c = el.querySelector('[data-sw]')
+      const t = e.changedTouches[0]
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.7) {
+        if (c) {
+          c.style.transition = 'transform 0.25s ease, opacity 0.25s ease'
+          c.style.transform = 'translateX(0)'
+          c.style.opacity = '1'
+        }
+        return
+      }
+      if (dx < 0 && _idx < total - 1) {
+        _swiping = true
+        if (c) {
+          c.style.transition = 'transform 0.15s ease, opacity 0.15s ease'
+          c.style.transform = 'translateX(-30%)'
+          c.style.opacity = '0'
+          setTimeout(() => { _idx++; _swiping = false; render('right') }, 150)
+        } else {
+          _idx++; render()
+        }
+      } else if (dx > 0 && _idx > 0) {
+        _swiping = true
+        if (c) {
+          c.style.transition = 'transform 0.15s ease, opacity 0.15s ease'
+          c.style.transform = 'translateX(30%)'
+          c.style.opacity = '0'
+          setTimeout(() => { _idx--; _swiping = false; render('left') }, 150)
+        } else {
+          _idx--; render()
+        }
+      } else {
+        if (c) {
+          c.style.transition = 'transform 0.25s ease, opacity 0.25s ease'
+          c.style.transform = 'translateX(0)'
+          c.style.opacity = '1'
+        }
+      }
+    }, { passive: true })
   }
 
   render()

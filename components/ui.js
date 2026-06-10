@@ -121,10 +121,15 @@ function Sheet({ open, onClose, children }) {
   overlay.appendChild(backdrop)
 
   const sheet = document.createElement('div')
-  sheet.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:#0e0e0e;border-radius:28px 28px 0 0;max-height:92%;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column'
+  sheet.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:#0e0e0e;border-radius:16px 16px 0 0;max-height:92%;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,0.5);border:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column'
   const handle = document.createElement('div')
   handle.style.cssText = 'width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,0.18);margin:10px auto 0;flex-shrink:0'
   sheet.appendChild(handle)
+  const closeBtn = document.createElement('button')
+  closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:110;padding:0;color:rgba(255,255,255,0.75)'
+  closeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l10 10M12 2L2 12"/></svg>'
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); cleanup(); onClose() })
+  overlay.appendChild(closeBtn)
   const body = document.createElement('div')
   body.style.cssText = 'overflow:auto;flex:1'
   if (typeof children === 'string') body.innerHTML = children

@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.41 · 2026-06-08 · Auto-dismiss via Cache API + cleanup on visibilitychange'
+const APP_VERSION = 'v1.42 · 2026-06-09 · PhaseCard redesign + volume/PR stats + 25 warmup GIFs'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -802,7 +802,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     day_name: day.name || 'Entrenamiento',
     date: getToday(),
     duration_min: durationMin || 0,
-    effort,
+    effort: { easy: 'fácil', good: 'justo', heavy: 'pesado', failure: 'al fallo' }[effort] || effort,
     units,
     user_profile: {
       user_name: settings.userName || '',
