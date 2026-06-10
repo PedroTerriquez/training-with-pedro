@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.42 · 2026-06-09 · PhaseCard redesign + volume/PR stats + 25 warmup GIFs'
+const APP_VERSION = 'v1.43 · 2026-06-09 · Auto-expand today exercises in Plan accordion'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

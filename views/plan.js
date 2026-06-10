@@ -4,6 +4,7 @@
 
 let _planWeekIdx = 0
 let _planExpandedDayIdx = null
+let _planAutoExpanded = false
 let _planEditing = false
 let _planSelectedSwapIdx = null
 let _planEditingOrder = null
@@ -113,6 +114,7 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
       btn.addEventListener('click', async () => {
         _planWeekIdx = i
         _planExpandedDayIdx = null
+        _planAutoExpanded = false
         const s = await Storage.getSettings()
         s.currentWeekIdx = i
         await Storage.saveSettings(s)
@@ -122,6 +124,12 @@ function mountPlan(container, { program, weekIdx, dayIndex, accent, onOpenExerci
       tabs.appendChild(btn)
     })
     page.appendChild(tabs)
+
+    // Auto-expand today's day on initial render and week switches
+    if (_planExpandedDayIdx === null && !_planAutoExpanded) {
+      _planExpandedDayIdx = typeof dayIndex === 'number' && dayIndex >= 0 ? dayIndex : 0
+      _planAutoExpanded = true
+    }
 
     // Days grid — always 7 slots (Mon-Sun)
     const daysGrid = document.createElement('div')
