@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.47 · 2026-06-11 · Pencil icon next to user name in You'
+const APP_VERSION = 'v1.48 · 2026-06-11 · Rest timer visible banner at top of screen'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -24,6 +24,9 @@ let _appEl = null
 let _screenContainer = null
 let _tabBarEl = null
 let _deferredPrompt = null
+let _restTimerBannerEl = null
+let _restTimerEndTime = 0
+let _restTimerDuration = 0
 
 async function init() {
   _rootEl = document.getElementById('root')
@@ -984,11 +987,17 @@ async function _checkRestTimer() {
     } else {
       if (window._restTimerId) clearTimeout(window._restTimerId)
       window._restTimerId = setTimeout(_checkRestTimer, remaining)
+      if (!_restTimerBannerEl) {
+        _showRestTimerBanner(data, remaining)
+      } else {
+        _updateRestTimerBanner(remaining)
+      }
     }
   } catch (_) {}
 }
 
 async function _completeRest(data) {
+  _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
   // Clean up rest-pending cache
@@ -1040,8 +1049,7 @@ async function _checkPendingRest() {
       const timerData = await timerRes.json()
       const remaining = timerData.endTime - Date.now()
       if (remaining > 0) {
-        const sec = Math.ceil(remaining / 1000)
-        if (typeof showToast === 'function') showToast(`⏱️ ${sec}s · ${timerData.name}`)
+        _showRestTimerBanner(timerData, remaining)
         return
       }
     }
@@ -1053,6 +1061,59 @@ async function _checkPendingRest() {
       window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `cycle-${Date.now()}` })
     }
   } catch (_) {}
+}
+
+function _showRestTimerBanner(data, remainingMs) {
+  _hideRestTimerBanner()
+  _restTimerEndTime = data.endTime
+  _restTimerDuration = data.restSec * 1000
+  const remainingSec = Math.ceil(remainingMs / 1000)
+  const m = Math.floor(remainingSec / 60)
+  const s = remainingSec % 60
+  const pct = remainingMs / _restTimerDuration
+
+  const bar = document.createElement('div')
+  bar.id = 'rest-timer-banner'
+  bar.style.cssText = `position:fixed;top:56px;left:0;right:0;z-index:9998;height:52px;background:#141414;border-bottom:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 14px;gap:10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;`
+
+  bar.innerHTML = `
+    <span style="font-size:16px;line-height:1">⏱️</span>
+    <span style="font-size:13px;font-weight:600;color:#fafafa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${data.name}</span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#d4ff3a;font-weight:600">${m}:${String(s).padStart(2, '0')}</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" style="flex-shrink:0">
+      <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+      <circle id="timer-progress" cx="10" cy="10" r="8" fill="none" stroke="#d4ff3a" stroke-width="3"
+        stroke-dasharray="${2 * Math.PI * 8}"
+        stroke-dashoffset="${2 * Math.PI * 8 * pct}"
+        transform="rotate(-90 10 10)" stroke-linecap="round"/>
+    </svg>`
+
+  bar.addEventListener('click', async () => {
+    _hideRestTimerBanner()
+    if (data.tag) await window.cancelRestTimer(data.tag)
+    if (typeof showToast === 'function') showToast('Descanso cancelado')
+  })
+
+  if (_appEl) _appEl.appendChild(bar)
+  _restTimerBannerEl = bar
+}
+
+function _hideRestTimerBanner() {
+  const el = document.getElementById('rest-timer-banner')
+  if (el) el.remove()
+  _restTimerBannerEl = null
+}
+
+function _updateRestTimerBanner(remainingMs) {
+  if (!_restTimerBannerEl) return
+  const remainingSec = Math.ceil(remainingMs / 1000)
+  const m = Math.floor(remainingSec / 60)
+  const s = remainingSec % 60
+  const timeEl = _restTimerBannerEl.querySelector('span:nth-child(3)')
+  if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`
+  const pct = _restTimerDuration > 0 ? remainingMs / _restTimerDuration : 0
+  const progEl = _restTimerBannerEl.querySelector('#timer-progress')
+  if (progEl) progEl.setAttribute('stroke-dashoffset', String(2 * Math.PI * 8 * pct))
 }
 
 document.addEventListener('DOMContentLoaded', init)
