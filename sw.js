@@ -93,46 +93,39 @@ self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     let data = {}
     try {
-      const cache = await caches.open('push-pending')
-      const res = await cache.match('/pending')
-      if (res) {
-        data = await res.json()
-        await cache.delete('/pending')
-      }
+      if (e.data) data = e.data.json()
     } catch {}
+    if (!data.title && !data.body) {
+      try {
+        const cache = await caches.open('push-pending')
+        const res = await cache.match('/pending')
+        if (res) {
+          data = await res.json()
+          await cache.delete('/pending')
+        }
+      } catch {}
+    }
     const title = data.title || 'Coach Pedro AI'
     const body = data.body || ''
+    // If this notification carries exerciseData, store it in Cache API so the app can pick it up
+    if (data.exerciseData) {
+      try {
+        const store = await caches.open('rest-pending')
+        store.put('/pending', new Response(JSON.stringify(data.exerciseData)))
+      } catch {}
+    }
     const opts = {
       body,
       icon: 'icons/icon-192.png',
       tag: data.tag || `push-${Date.now()}`,
       requireInteraction: true,
-      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body },
-    }
-    if (data.restSeconds > 0) {
-      opts.actions = [{ action: 'start-rest', title: `Descansar ${data.restSeconds}s` }]
+      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body, exerciseData: data.exerciseData },
     }
     await self.registration.showNotification(title, opts)
   })())
 })
 
 self.addEventListener('notificationclick', (e) => {
-  const restSec = e.notification.data?.restSeconds || 0
-  if (restSec > 0) {
-    const name = e.notification.data?.title || e.notification.title || 'Ejercicio'
-    e.waitUntil(
-      (async () => {
-        await self.registration.showNotification(`⏱️ ${restSec}s · ${name}`, {
-          icon: 'icons/icon-192.png',
-          tag: 'rest-started',
-          requireInteraction: false,
-        })
-        await new Promise(r => setTimeout(r, 2000))
-        const notifs = await self.registration.getNotifications({ tag: 'rest-started' })
-        notifs.forEach(n => n.close())
-      })()
-    )
-    return
-  }
   e.notification.close()
+  e.waitUntil(clients.openWindow('./'))
 })
