@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.46 · 2026-06-10 · Pencil icon next to user name in You'
+const APP_VERSION = 'v1.47 · 2026-06-11 · Pencil icon next to user name in You'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
