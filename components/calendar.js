@@ -66,7 +66,7 @@ function computeWeekStreak(today, logsByDate) {
       if (logs.some(l => l.weight > 0 || l.exerciseId === '__day__')) total++
     }
 
-    if (total >= 5) {
+    if (total >= 4) {
       count++
     } else if (weekEnd <= today) {
       break
@@ -96,7 +96,7 @@ function computeBestWeekStreak(startDate, today, logsByDate) {
       if (logs.some(l => l.weight > 0 || l.exerciseId === '__day__')) total++
     }
 
-    if (total >= 5) {
+    if (total >= 4) {
       cur++
       best = Math.max(best, cur)
     } else if (weekEnd <= today) {
@@ -299,7 +299,7 @@ function renderCalendarView(container, { accent, logsByDate, program, weeks, wee
                     ? `Hoy toca <span style="color:${accent};font-weight:600">${selRec.day ? selRec.day.name : ''}</span> — no rompas la cadena`
                     : streak > 0
                       ? `Llevas <span style="color:${accent};font-weight:600">${streak} ${streak === 1 ? 'semana' : 'semanas'}</span> cumpliendo. ¡Sigue así!`
-                      : `Arranca esta semana con 5 sesiones para comenzar tu racha.`}
+                      : `Arranca esta semana con 4 sesiones para comenzar tu racha.`}
                 </div>
               </div>
             </div>

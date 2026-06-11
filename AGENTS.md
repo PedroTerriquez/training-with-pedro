@@ -375,6 +375,18 @@ cd push-worker && npx wrangler deploy
 - `views/you.js` displays `APP_VERSION` from the global constant defined in `app.js` (line 201: `const ver = typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''`). Only edit `app.js` to change the version.
 - **Before every commit**, run `bash scripts/bump-version.sh` to bump both `app.js` minor version and `sw.js` CACHE in sync.
 
+## Implementer Agent — Commit Policy
+
+When the `implementer` subagent finishes its work, it MUST:
+1. **Update `APP_VERSION`** in `app.js` (bump minor, update date, concise description of changes)
+2. **Update `CACHE`** in `sw.js` to match the new minor version
+3. **Run `bash scripts/bump-version.sh`** to automate steps 1–2 (if the script has bugs, do it manually)
+4. **`git add`** all changed files (only relevant ones, no untracked docs/artifacts)
+5. **`git commit`** with a descriptive message including the version
+6. **`git push`**
+
+Use `git status`, `git diff`, `git log --oneline -3` before committing to verify state. Never commit untracked files outside the scope of the task (e.g. docs/, training-with-pedro/).
+
 ## Rest Timer via Local Notifications (postMessage → SW)
 
 Added 2026-06-06, refactored 2026-06-08. Manual notification triggering from the exercise detail sheet. The user taps [⚡ Iniciar] to send a notification with the exercise name + sets/reps. The rest timer runs in the app's main thread (not SW `waitUntil` — iOS kills SW after ~30s). When the timer completes, the app shows a toast + sends "⏰ Descanso terminado" notification (auto-dismiss) AND re-shows the original exercise notification so the user can tap to start another rest cycle.

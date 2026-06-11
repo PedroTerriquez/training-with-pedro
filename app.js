@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.43 · 2026-06-09 · Auto-expand today exercises in Plan accordion'
+const APP_VERSION = 'v1.44 · 2026-06-09 · Streak threshold 5→4 days/week + implementer commit policy'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
