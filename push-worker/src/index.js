@@ -577,13 +577,13 @@ REGLAS DE RESPUESTA:
 
     if (url.pathname === '/api/rest-timer/start') {
       try {
-        const { endTime, deviceId, tag, title, body, exerciseId, sets, reps } = await req.json()
+        const { endTime, deviceId, tag, title, body, exerciseId, sets, reps, restSec } = await req.json()
         if (!endTime || !deviceId || !tag) return respond({ error: 'endTime, deviceId, tag required' }, 400)
         const now = Date.now()
         const delayMs = endTime - now
         if (delayMs <= 0) return respond({ error: 'endTime already passed' }, 400)
         const delaySec = Math.ceil(delayMs / 1000)
-        await env.REST_TIMER_QUEUE.send({ deviceId, tag, title, body, exerciseId, sets, reps }, { delaySeconds: delaySec })
+        await env.REST_TIMER_QUEUE.send({ deviceId, tag, title, body, exerciseId, sets, reps, restSec }, { delaySeconds: delaySec })
         return respond({ status: 'scheduled', delaySec })
       } catch (err) {
         return respond({ error: err.message }, 500)
@@ -595,7 +595,7 @@ REGLAS DE RESPUESTA:
 
   async queue(batch, env) {
     for (const msg of batch.messages) {
-      const { deviceId, tag, title, body, exerciseId, sets, reps } = msg.body
+      const { deviceId, tag, title, body, exerciseId, sets, reps, restSec } = msg.body
       const cancelled = await env.PUSH_KV.get(`cancel_${tag}`)
       if (cancelled) {
         await env.PUSH_KV.delete(`cancel_${tag}`)
@@ -611,7 +611,7 @@ REGLAS DE RESPUESTA:
       if (!vapidPub || !vapidPriv) { msg.retry({ delaySeconds: 10 }); continue }
       try {
         await sendWebPush(sub, { title: `⏰ ${title}`, body: 'Descanso terminado', tag: `done-${tag}`, url: './', restSeconds: 0, exerciseId }, vapidPub, vapidPriv, vapidEmail)
-        await sendWebPush(sub, { title, body: `${sets}×${reps} · Tap para iniciar descanso`, tag: `cycle-${Date.now()}`, url: './', restSeconds: 0, exerciseId, exerciseData: { exerciseId, title, sets, reps } }, vapidPub, vapidPriv, vapidEmail)
+        await sendWebPush(sub, { title, body: `${sets}×${reps} · Tap para iniciar descanso`, tag: `cycle-${Date.now()}`, url: './', restSeconds: 0, exerciseId, exerciseData: { exerciseId, title, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
       } catch (err) {
         if (err.statusCode === 410) await env.PUSH_KV.delete(`sub_${deviceId}`)
         msg.retry({ delaySeconds: 10 })

@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.51 · 2026-06-11 · Timer starts only via notification-tap flag from SW'
+const APP_VERSION = 'v1.52 · 2026-06-11 · Re-show notification restores pending data for next cycle'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -921,7 +921,7 @@ window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) =>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
-        exerciseId, sets, reps,
+        exerciseId, sets, reps, restSec,
       }),
     })
     if (!res.ok) console.warn('scheduleRestTimer worker error:', await res.text())
@@ -1001,10 +1001,16 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Clean up rest-pending cache
+  // Store exercise data so the re-shown notification can start a new timer
   try {
     const pendingCache = await caches.open('rest-pending')
-    await pendingCache.delete('/pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({
+      name: data.name,
+      restSec: data.restSec,
+      sets: data.sets,
+      reps: data.reps,
+      exerciseId: data.exerciseId
+    })))
   } catch (_) {}
   // Send "done" notification + re-show exercise via SW
   const doneTag = `done-${Date.now()}`
