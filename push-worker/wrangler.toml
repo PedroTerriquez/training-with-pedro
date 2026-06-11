@@ -13,3 +13,12 @@ id = "96139c40523448939c29acf202c4ff16"
 
 [vars]
 VAPID_EMAIL = "mailto:pedro@example.com"
+
+[[queues.producers]]
+binding = "REST_TIMER_QUEUE"
+queue = "rest-timers"
+
+[[queues.consumers]]
+queue = "rest-timers"
+max_batch_size = 1
+max_batch_timeout = 5
