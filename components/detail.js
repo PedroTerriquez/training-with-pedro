@@ -72,29 +72,35 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
         return
       }
-      // Try push first, subscribe if needed, fall back to local
+      // Block button for 3s to prevent double-tap
+      iniciarBtn.style.opacity = '0.5'
+      iniciarBtn.style.pointerEvents = 'none'
       const tag = `rest-${Date.now()}`
-      let sent = false
-      let usedLocal = false
+      const exerciseId = exercise.exerciseId || exercise.id || ''
+      // Queue server-side timer via Cloudflare Queues
+      if (typeof window.scheduleRestTimer === 'function' && exercise.rest > 0) {
+        window.scheduleRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps, exerciseId)
+      }
+      // Immediate push notification (no restSeconds — timer is server-side)
       if (typeof sendPushNotification === 'function') {
-        sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+        const sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag)
         if (!sent && typeof subscribePush === 'function') {
           const ok = await subscribePush()
-          if (ok) sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag, exercise.rest)
+          if (ok) sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag)
         }
-      }
-      if (!sent) {
+      } else {
         if (typeof window.notifyWatch === 'function') {
-          await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { restSeconds: exercise.rest, tag })
-          usedLocal = true
+          await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { tag })
         }
-      }
-      if (typeof window._startRestTimer === 'function' && exercise.rest > 0) {
-        window._startRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps)
       }
       if (typeof showToast === 'function') {
-        showToast(usedLocal ? `⚠ ${exercise.name} (local)` : `✓ ${exercise.name}`)
+        showToast(`✓ ${exercise.name}`)
       }
+      // Re-enable after 3s
+      setTimeout(() => {
+        iniciarBtn.style.opacity = '1'
+        iniciarBtn.style.pointerEvents = 'auto'
+      }, 3000)
     })
     wrap.appendChild(iniciarBtn)
 
