@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.44 · 2026-06-09 · Streak threshold 5→4 days/week + implementer commit policy'
+const APP_VERSION = 'v1.45 · 2026-06-10 · First log never considered PR'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -761,7 +761,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     const todayLog = logs.find(l => l.date === getToday())
     const weights = logs.filter(l => l.weight > 0).map(l => l.weight)
     const maxWeight = weights.length > 0 ? Math.max(...weights) : 0
-    const isPR = todayLog ? todayLog.weight >= maxWeight : false
+    const isPR = weights.length >= 2 && todayLog ? todayLog.weight >= maxWeight : false
 
     let plateauSessions = 0
     if (weights.length >= 3) {

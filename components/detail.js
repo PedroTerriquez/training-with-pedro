@@ -580,6 +580,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
 
   function renderHistoryTab(scrollEl) {
     const allTime = exercise.logs && exercise.logs.length ? Math.max(...exercise.logs.map((l) => l.weight)) : 0
+    const weightCount = exercise.logs ? exercise.logs.filter(l => l.weight > 0).length : 0
     const last = exercise.logs && exercise.logs.length ? exercise.logs[exercise.logs.length - 1] : null
     const first = exercise.logs && exercise.logs.length ? exercise.logs[0] : null
     const totalGain = first && last ? last.weight - first.weight : 0
@@ -633,7 +634,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         const idx = data.length - 1 - i
         const prev = idx > 0 ? data[idx - 1] : null
         const delta = prev ? +(sess.weight - prev.weight).toFixed(1) : null
-        const isPR = sess.weight === allTime
+        const isPR = weightCount >= 2 && sess.weight === allTime
         const isToday = sess.date === todayStr
         const srText = isToday && sess.sets && sess.reps ? `${sess.sets}×${sess.reps}` : null
         return `
