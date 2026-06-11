@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.49 · 2026-06-11 · Fix notification body + live banner countdown'
+const APP_VERSION = 'v1.50 · 2026-06-11 · Timer starts on notification tap, not ⚡'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1054,12 +1054,11 @@ async function _checkPendingRest() {
         return
       }
     }
-    // No timer — send notification that it's done
-    if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-    window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: `done-${Date.now()}`, requireInteraction: false })
-    // Re-show original exercise notification for next cycle
-    if (data.name && data.sets && data.reps) {
-      window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `cycle-${Date.now()}` })
+    // No timer — notification tap, start the timer now
+    const tag = `rest-${Date.now()}`
+    if (typeof window.scheduleRestTimer === 'function' && data.restSec > 0) {
+      window.scheduleRestTimer(data.name, data.restSec, tag, data.sets, data.reps, data.exerciseId)
+      _showRestTimerBanner({ endTime: Date.now() + data.restSec * 1000, name: data.name, tag, restSec: data.restSec, sets: data.sets, reps: data.reps, exerciseId: data.exerciseId }, data.restSec * 1000)
     }
   } catch (_) {}
 }

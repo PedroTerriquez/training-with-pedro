@@ -72,16 +72,14 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
         return
       }
-      // Block button for 3s to prevent double-tap
-      iniciarBtn.style.opacity = '0.5'
-      iniciarBtn.style.pointerEvents = 'none'
-      const tag = `rest-${Date.now()}`
       const exerciseId = exercise.exerciseId || exercise.id || ''
-      // Queue server-side timer via Cloudflare Queues
-      if (typeof window.scheduleRestTimer === 'function' && exercise.rest > 0) {
-        window.scheduleRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps, exerciseId)
-      }
-      // Immediate push notification (no restSeconds — timer is server-side)
+      // Store exercise data so timer starts when notification is tapped
+      try {
+        const cache = await caches.open('rest-pending')
+        await cache.put('/pending', new Response(JSON.stringify({ name: exercise.name, restSec: exercise.rest, sets: exercise.sets, reps: exercise.reps, exerciseId })))
+      } catch (_) {}
+      // Push notification — timer starts when user taps it
+      const tag = `rest-${Date.now()}`
       const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
       if (typeof sendPushNotification === 'function') {
         const sent = await sendPushNotification(exercise.name, body, tag)
@@ -97,11 +95,6 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       if (typeof showToast === 'function') {
         showToast(`✓ ${exercise.name}`)
       }
-      // Re-enable after 3s
-      setTimeout(() => {
-        iniciarBtn.style.opacity = '1'
-        iniciarBtn.style.pointerEvents = 'auto'
-      }, 3000)
     })
     wrap.appendChild(iniciarBtn)
 
