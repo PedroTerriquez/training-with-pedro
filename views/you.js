@@ -13,8 +13,21 @@ function mountYou(container, { accent, units, settings, onRefresh }) {
   header.style.padding = '56px 20px 16px'
   header.innerHTML = `
     <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.45);text-transform:uppercase">Perfil</div>
-    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px"><span id="user-name" contenteditable style="outline:none;border:0;caret-color:${accent};display:inline-block;min-width:50px">${settings.userName || 'Pedro'}</span>.</div>`
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;color:#fafafa;letter-spacing:-1.5px;line-height:1;margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span id="user-name" contenteditable style="outline:none;border:0;caret-color:${accent};display:inline-block;min-width:50px">${settings.userName || 'Pedro'}</span><svg id="user-edit-btn" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;cursor:pointer;margin-top:6px"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>`
   page.appendChild(header)
+  const userNameEl = document.getElementById('user-name')
+  const userEditBtn = document.getElementById('user-edit-btn')
+  if (userNameEl && userEditBtn) {
+    userEditBtn.addEventListener('click', () => {
+      userNameEl.focus()
+      const sel = window.getSelection()
+      const range = document.createRange()
+      range.selectNodeContents(userNameEl)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    })
+  }
 
   // Section tabs
   const tabs = document.createElement('div')
