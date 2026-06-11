@@ -890,6 +890,69 @@ window.notifyWatch = async (title, body, opts = {}) => {
   } catch (_) {}
 }
 
+window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
+  if (window._restTimerId) {
+    clearTimeout(window._restTimerId)
+    window._restTimerId = null
+  }
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.delete('/pending')
+  } catch (_) {}
+  if (window.pendingCancelTag) window.cancelRestTimer(window.pendingCancelTag)
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
+  } catch (_) {}
+  const endTime = Date.now() + restSec * 1000
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
+  } catch (_) {}
+  window.pendingCancelTag = tag
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/rest-timer/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
+        exerciseId, sets, reps,
+      }),
+    })
+    if (!res.ok) console.warn('scheduleRestTimer worker error:', await res.text())
+  } catch (e) {
+    console.warn('scheduleRestTimer failed:', e)
+  }
+  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+}
+
+window.cancelRestTimer = async (tag) => {
+  if (window._restTimerId) {
+    clearTimeout(window._restTimerId)
+    window._restTimerId = null
+  }
+  window.pendingCancelTag = null
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.delete('/pending')
+  } catch (_) {}
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.delete('/pending')
+  } catch (_) {}
+  if (tag) {
+    try {
+      await fetch(`${PUSH_SERVER_URL}/api/rest-timer/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag, deviceId: await _deviceId() }),
+      })
+    } catch (e) {
+      console.warn('cancelRestTimer failed:', e)
+    }
+  }
+}
+
 window._startRestTimer = async (name, restSec, tag, sets, reps) => {
   const endTime = Date.now() + restSec * 1000
   try {
