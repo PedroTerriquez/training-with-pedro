@@ -561,6 +561,16 @@ REGLAS DE RESPUESTA:
       }
     }
 
+    if (url.pathname === '/api/rest-timer/cancel') {
+      try {
+        const { tag } = await req.json()
+        if (tag) await env.PUSH_KV.put(`cancel_${tag}`, '1', { expirationTtl: 3600 })
+        return respond('ok')
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
     if (url.pathname === '/api/rest-timer/start') {
       try {
         const { endTime, deviceId, tag, title, body, exerciseId, sets, reps } = await req.json()
