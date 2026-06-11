@@ -90,6 +90,7 @@ async function init() {
   }
 
   _checkRestTimer()
+  _checkPendingRest()
   _cleanupStaleNotifications()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
@@ -953,14 +954,20 @@ window.cancelRestTimer = async (tag) => {
   }
 }
 
-window._startRestTimer = async (name, restSec, tag, sets, reps) => {
+window._startRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
   const endTime = Date.now() + restSec * 1000
   try {
     const cache = await caches.open('rest-timer')
-    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps })))
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
   } catch (_) {}
+  // Store exercise data for push notification
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
+  } catch (_) {}
+  window.pendingCancelTag = tag
   if (window._restTimerId) clearTimeout(window._restTimerId)
-  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000)
+  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
 }
 
 async function _checkRestTimer() {
@@ -982,32 +989,18 @@ async function _checkRestTimer() {
 }
 
 async function _completeRest(data) {
+  window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+  // Clean up rest-pending cache
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.delete('/pending')
+  } catch (_) {}
+  // Send "done" notification + re-show exercise via SW
   const doneTag = `done-${Date.now()}`
-  const closeAt = Date.now() + 60000
-  // Store close schedule so _cleanupStaleNotifications can close it
-  try {
-    const cache = await caches.open('rest-timer')
-    const existing = await cache.match('/close-pending')
-    const items = existing ? await existing.json() : []
-    items.push({ tag: doneTag, closeAt })
-    await cache.put('/close-pending', new Response(JSON.stringify(items)))
-  } catch (_) {}
-  // Best-effort SW timer backup
-  try {
-    const reg = await navigator.serviceWorker.ready
-    if (reg.active) reg.active.postMessage({ type: 'schedule-close', tag: doneTag, delay: 60000 })
-  } catch (_) {}
-  // App timer — fires only if app stays alive
-  setTimeout(async () => {
-    try {
-      const reg = await navigator.serviceWorker.ready
-      if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: doneTag })
-    } catch (_) {}
-  }, 60000)
-  await window.notifyWatch(`TIMER DE DESCANSO ${data.restSec}s`, data.name, { tag: doneTag, requireInteraction: false })
+  await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: doneTag, requireInteraction: false })
   if (data.sets && data.reps) {
-    await window.notifyWatch(data.name, `${data.sets}×${data.reps}`, { restSeconds: data.restSec, tag: `cycle-${Date.now()}` })
+    await window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `cycle-${Date.now()}` })
   }
 }
 
@@ -1029,6 +1022,35 @@ async function _cleanupStaleNotifications() {
         const reg = await navigator.serviceWorker.ready
         if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: item.tag })
       }
+    }
+  } catch (_) {}
+}
+
+async function _checkPendingRest() {
+  try {
+    const cache = await caches.open('rest-pending')
+    const res = await cache.match('/pending')
+    if (!res) return
+    const data = await res.json()
+    await cache.delete('/pending')
+    // Check if a timer is still active via rest-timer cache
+    const timerCache = await caches.open('rest-timer')
+    const timerRes = await timerCache.match('/pending')
+    if (timerRes) {
+      const timerData = await timerRes.json()
+      const remaining = timerData.endTime - Date.now()
+      if (remaining > 0) {
+        const sec = Math.ceil(remaining / 1000)
+        if (typeof showToast === 'function') showToast(`⏱️ ${sec}s · ${timerData.name}`)
+        return
+      }
+    }
+    // No timer — send notification that it's done
+    if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+    window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: `done-${Date.now()}`, requireInteraction: false })
+    // Re-show original exercise notification for next cycle
+    if (data.name && data.sets && data.reps) {
+      window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `cycle-${Date.now()}` })
     }
   } catch (_) {}
 }
