@@ -561,6 +561,21 @@ REGLAS DE RESPUESTA:
       }
     }
 
+    if (url.pathname === '/api/rest-timer/start') {
+      try {
+        const { endTime, deviceId, tag, title, body, exerciseId, sets, reps } = await req.json()
+        if (!endTime || !deviceId || !tag) return respond({ error: 'endTime, deviceId, tag required' }, 400)
+        const now = Date.now()
+        const delayMs = endTime - now
+        if (delayMs <= 0) return respond({ error: 'endTime already passed' }, 400)
+        const delaySec = Math.ceil(delayMs / 1000)
+        await env.REST_TIMER_QUEUE.send({ deviceId, tag, title, body, exerciseId, sets, reps }, { delaySeconds: delaySec })
+        return respond({ status: 'scheduled', delaySec })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
     return respond('Not Found', 404)
   },
 }
