@@ -473,7 +473,7 @@ async function unsubscribePush() {
   } catch (_) {}
 }
 
-async function sendPushNotification(title, body, tag, restSeconds) {
+async function sendPushNotification(title, body, tag) {
   const s = await Storage.getSettings()
   if (!s.pushSubscribed) {
     console.warn('sendPush: not subscribed')
@@ -488,7 +488,7 @@ async function sendPushNotification(title, body, tag, restSeconds) {
   // Write notification data to Cache API so SW can read it on empty push
   try {
     const cache = await caches.open('push-pending')
-    await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout', restSeconds })))
+    await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout' })))
   } catch (_) {}
   // Wait 2s before sending push so Apple Watch has time to sync
   await new Promise(r => setTimeout(r, 2000))
