@@ -1,4 +1,4 @@
-const CACHE = 'v50'
+const CACHE = 'v51'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -127,5 +127,9 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  e.waitUntil(clients.openWindow('./'))
+  e.waitUntil((async () => {
+    const cache = await caches.open('rest-pending')
+    await cache.put('/from-notification', new Response('1'))
+    await clients.openWindow('./')
+  })())
 })

@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.50 · 2026-06-11 · Timer starts on notification tap, not ⚡'
+const APP_VERSION = 'v1.51 · 2026-06-11 · Timer starts only via notification-tap flag from SW'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1037,13 +1037,8 @@ async function _cleanupStaleNotifications() {
 }
 
 async function _checkPendingRest() {
+  // 1. Always show banner if a timer is already running
   try {
-    const cache = await caches.open('rest-pending')
-    const res = await cache.match('/pending')
-    if (!res) return
-    const data = await res.json()
-    await cache.delete('/pending')
-    // Check if a timer is still active via rest-timer cache
     const timerCache = await caches.open('rest-timer')
     const timerRes = await timerCache.match('/pending')
     if (timerRes) {
@@ -1054,7 +1049,25 @@ async function _checkPendingRest() {
         return
       }
     }
-    // No timer — notification tap, start the timer now
+  } catch (_) {}
+  // 2. Only start a new timer if opened from notification tap
+  let fromNotification = false
+  try {
+    const flagCache = await caches.open('rest-pending')
+    const flagRes = await flagCache.match('/from-notification')
+    if (flagRes) {
+      fromNotification = true
+      await flagCache.delete('/from-notification')
+    }
+  } catch (_) {}
+  if (!fromNotification) return
+  // 3. Start the timer from pending data
+  try {
+    const cache = await caches.open('rest-pending')
+    const res = await cache.match('/pending')
+    if (!res) return
+    const data = await res.json()
+    await cache.delete('/pending')
     const tag = `rest-${Date.now()}`
     if (typeof window.scheduleRestTimer === 'function' && data.restSec > 0) {
       window.scheduleRestTimer(data.name, data.restSec, tag, data.sets, data.reps, data.exerciseId)
