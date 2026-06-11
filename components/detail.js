@@ -82,15 +82,16 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         window.scheduleRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps, exerciseId)
       }
       // Immediate push notification (no restSeconds — timer is server-side)
+      const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
       if (typeof sendPushNotification === 'function') {
-        const sent = await sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag)
+        const sent = await sendPushNotification(exercise.name, body, tag)
         if (!sent && typeof subscribePush === 'function') {
           const ok = await subscribePush()
-          if (ok) sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps}`, tag)
+          if (ok) sendPushNotification(exercise.name, body, tag)
         }
       } else {
         if (typeof window.notifyWatch === 'function') {
-          await window.notifyWatch(exercise.name, `${exercise.sets}×${exercise.reps}`, { tag })
+          await window.notifyWatch(exercise.name, body, { tag })
         }
       }
       if (typeof showToast === 'function') {

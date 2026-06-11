@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.48 · 2026-06-11 · Rest timer visible banner at top of screen'
+const APP_VERSION = 'v1.49 · 2026-06-11 · Fix notification body + live banner countdown'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -27,6 +27,7 @@ let _deferredPrompt = null
 let _restTimerBannerEl = null
 let _restTimerEndTime = 0
 let _restTimerDuration = 0
+let _restTimerTickId = null
 
 async function init() {
   _rootEl = document.getElementById('root')
@@ -1096,12 +1097,25 @@ function _showRestTimerBanner(data, remainingMs) {
 
   if (_appEl) _appEl.appendChild(bar)
   _restTimerBannerEl = bar
+  // Start 1-second tick for live countdown
+  if (_restTimerTickId) clearInterval(_restTimerTickId)
+  _restTimerTickId = setInterval(() => {
+    const rem = _restTimerEndTime - Date.now()
+    if (rem <= 0) {
+      clearInterval(_restTimerTickId)
+      _restTimerTickId = null
+      _checkRestTimer()
+    } else {
+      _updateRestTimerBanner(rem)
+    }
+  }, 1000)
 }
 
 function _hideRestTimerBanner() {
   const el = document.getElementById('rest-timer-banner')
   if (el) el.remove()
   _restTimerBannerEl = null
+  if (_restTimerTickId) { clearInterval(_restTimerTickId); _restTimerTickId = null }
 }
 
 function _updateRestTimerBanner(remainingMs) {
