@@ -222,43 +222,33 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const trainingDone = _phase >= 3
   const trainingLocked = hasWarmup && _phase < 2
   const trainingNext = !trainingDone && !trainingLocked
-  if (trainingDone) {
-    sectionsWrap.appendChild(PhaseCard({
-      kind: 'training',
-      phase: '02',
-      title: 'Entrenamiento',
-      subtitle: day.subtitle || `${day.exercises.length} ejercicios`,
-      accentColor: accent,
-      movements: day.exercises,
-      done: true,
-      locked: false,
-      isNext: false,
-      progress: { done: exercisesTotal, total: exercisesTotal },
-    }))
-  } else if (trainingLocked) {
-    sectionsWrap.appendChild(LockedPhase({
-      title: 'Termina el calentamiento primero',
-      detail: 'Tus ejercicios aparecerán cuando marques la Fase 01 como hecha.',
-    }))
-  } else {
-    const firstEx = day.exercises[0]
-    const firstResolved = firstEx ? { ...firstEx, ...(exercisesById[resolveExId(firstEx.exerciseId)] || {}) } : null
-    sectionsWrap.appendChild(PhaseCard({
-      kind: 'training',
-      phase: '02',
-      title: 'Entrenamiento',
-      subtitle: day.subtitle || `${day.exercises.length} ejercicios`,
-      accentColor: accent,
-      movements: day.exercises,
-      done: false,
-      locked: false,
-      isNext: trainingNext,
-      progress: { done: exDone, total: exercisesTotal },
-      onPlay: () => {
-        if (firstResolved) onOpenExercise(firstResolved)
-      },
-    }))
+
+  function openFirstUnloggedExercise() {
+    Storage.getLogsForDate(getToday()).then(todayLogs => {
+      const firstUnlogged = day.exercises.find(ex => {
+        const exId = resolveExId(ex.exerciseId || ex.id)
+        return !todayLogs.some(l => l.exerciseId === exId && l.weight > 0)
+      }) || day.exercises[0]
+      if (firstUnlogged) {
+        const resolved = { ...firstUnlogged, ...(exercisesById[resolveExId(firstUnlogged.exerciseId)] || {}) }
+        onOpenExercise(resolved)
+      }
+    })
   }
+
+  sectionsWrap.appendChild(PhaseCard({
+    kind: 'training',
+    phase: '02',
+    title: 'Entrenamiento',
+    subtitle: day.subtitle || `${day.exercises.length} ejercicios`,
+    accentColor: accent,
+    movements: day.exercises,
+    done: trainingDone,
+    locked: trainingLocked,
+    isNext: trainingNext,
+    progress: { done: exDone, total: exercisesTotal },
+    onPlay: trainingLocked ? undefined : openFirstUnloggedExercise,
+  }))
 
   // Stretch
   if (hasStretch) {
@@ -351,7 +341,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
     if (gen !== _mountGen) return
     const done = _phase >= 3 ? exercisesTotal : day.exercises.filter(ex => {
       const displayedId = resolveExId(ex.exerciseId || ex.id)
-      return logs.some(l => l.exerciseId === displayedId)
+      return logs.some(l => l.exerciseId === displayedId && l.weight > 0)
     }).length
     if (done !== _todayExDone) {
       const prev = _todayExDone
@@ -480,10 +470,10 @@ function PhaseCard({ kind, phase, title, subtitle, accentColor, done, onPlay, lo
   const meta = movements ? `${movements.length} movimientos` : subtitle
   const pct = progress ? (progress.total > 0 ? (progress.done / progress.total) * 100 : 0) : null
 
-  container.style.cssText = `flex:1;min-height:0;position:relative;overflow:hidden;border-radius:22px;cursor:pointer;padding:18px 18px 16px;box-sizing:border-box;background:${done ? `linear-gradient(150deg, ${a}1f 0%, #131313 60%)` : '#141414'};border:${done ? `1px solid ${a}` : isNext ? `1px solid ${a}66` : '0.5px solid rgba(255,255,255,0.07)'};box-shadow:${done ? `0 0 0 4px ${a}12, 0 10px 30px ${a}1a` : isNext ? `0 8px 28px ${a}12` : 'none'};display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s, box-shadow 0.3s, background 0.3s`
+  container.style.cssText = `flex:1;min-height:0;position:relative;overflow:hidden;border-radius:22px;cursor:${locked ? 'default' : 'pointer'};padding:18px 18px 16px;box-sizing:border-box;background:${done ? `linear-gradient(150deg, ${a}1f 0%, #131313 60%)` : '#141414'};border:${locked ? '0.5px dashed rgba(255,255,255,0.08)' : done ? `1px solid ${a}` : isNext ? `1px solid ${a}66` : '0.5px solid rgba(255,255,255,0.07)'};box-shadow:${locked ? 'none' : done ? `0 0 0 4px ${a}12, 0 10px 30px ${a}1a` : isNext ? `0 8px 28px ${a}12` : 'none'};opacity:${locked ? 0.55 : 1};display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.3s, box-shadow 0.3s, background 0.3s`
   container.innerHTML = `
     <div style="position:absolute;right:-18px;bottom:-22px;opacity:${done ? 0.16 : 0.05};color:${a};pointer-events:none;transition:opacity 0.3s">${kindGlyph(kind, a)}</div>
-    ${(done || isNext) ? `<div style="position:absolute;top:-70px;left:-40px;width:200px;height:200px;border-radius:50%;background:${a};opacity:${done ? 0.12 : 0.07};filter:blur(60px);pointer-events:none"></div>` : ''}
+    ${!locked && (done || isNext) ? `<div style="position:absolute;top:-70px;left:-40px;width:200px;height:200px;border-radius:50%;background:${a};opacity:${done ? 0.12 : 0.07};filter:blur(60px);pointer-events:none"></div>` : ''}
     <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px">
       <div style="display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:${done ? a : 'rgba(255,255,255,0.42)'};font-weight:600">
         <span>Fase ${phase}</span>
@@ -500,7 +490,7 @@ function PhaseCard({ kind, phase, title, subtitle, accentColor, done, onPlay, lo
         <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.3px;color:rgba(255,255,255,0.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${meta}</div>
         ${progress ? `<div style="margin-top:7px;display:flex;align-items:center;gap:7px"><div style="width:64px;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);overflow:hidden"><div style="height:100%;border-radius:2px;background:${a};width:${pct}%;transition:width 0.4s"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${progress.done > 0 ? a : 'rgba(255,255,255,0.45)'};letter-spacing:0.4px">${progress.done}/${progress.total}</span></div>` : ''}
       </div>
-      <div style="width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${done ? 'transparent' : a};border:${done ? `1.5px solid ${a}` : '0'};box-shadow:${done ? 'none' : `0 8px 22px ${a}55`};transition:all 0.2s">${done ? `<svg width="22" height="17" viewBox="0 0 22 17" fill="none"><path d="M1 9l6.5 6.5L21 1.5" stroke="${a}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" style="margin-left:3px"><path d="M3 2.6v16.8a1 1 0 001.52.85l13.8-8.4a1 1 0 000-1.7L4.52 1.75A1 1 0 003 2.6z" fill="#0a0a0a"/></svg>`}</div>
+      <div style="width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${done ? 'transparent' : locked ? 'rgba(255,255,255,0.05)' : a};border:${done ? `1.5px solid ${a}` : locked ? '0.5px solid rgba(255,255,255,0.08)' : '0'};box-shadow:${done || locked ? 'none' : `0 8px 22px ${a}55`};transition:all 0.2s">${done ? `<svg width="22" height="17" viewBox="0 0 22 17" fill="none"><path d="M1 9l6.5 6.5L21 1.5" stroke="${a}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>` : locked ? `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" style="margin-left:3px"><path d="M3 2.6v16.8a1 1 0 001.52.85l13.8-8.4a1 1 0 000-1.7L4.52 1.75A1 1 0 003 2.6z" fill="rgba(255,255,255,0.25)"/></svg>` : `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" style="margin-left:3px"><path d="M3 2.6v16.8a1 1 0 001.52.85l13.8-8.4a1 1 0 000-1.7L4.52 1.75A1 1 0 003 2.6z" fill="#0a0a0a"/></svg>`}</div>
     </div>`
 
   if (!locked && onPlay) {
