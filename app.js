@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.52 · 2026-06-11 · Re-show notification restores pending data for next cycle'
+const APP_VERSION = 'v1.53 · 2026-06-11 · Queue is sole notification sender; no local dupes'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1001,7 +1001,8 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Store exercise data so the re-shown notification can start a new timer
+  // Store exercise data so the next notification tap starts a new timer
+  // The Queue handles sending "Descanso terminado" + re-show notifications
   try {
     const pendingCache = await caches.open('rest-pending')
     await pendingCache.put('/pending', new Response(JSON.stringify({
@@ -1012,12 +1013,6 @@ async function _completeRest(data) {
       exerciseId: data.exerciseId
     })))
   } catch (_) {}
-  // Send "done" notification + re-show exercise via SW
-  const doneTag = `done-${Date.now()}`
-  await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: doneTag, requireInteraction: false })
-  if (data.sets && data.reps) {
-    await window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `cycle-${Date.now()}` })
-  }
 }
 
 async function _cleanupStaleNotifications() {
