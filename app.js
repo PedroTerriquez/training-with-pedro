@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.55 · 2026-06-12 · Today card fixes: first unlogged exercise, locked/gray button, weight>0 progress, always clickable'
+const APP_VERSION = 'v1.56 · 2026-06-12 · Add playwright end-to-end test suite'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
