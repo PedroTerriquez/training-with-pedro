@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.53 · 2026-06-11 · Queue is sole notification sender; no local dupes'
+const APP_VERSION = 'v1.54 · 2026-06-11 · Bigger rest timer banner (96px) with progress bar'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1088,19 +1088,12 @@ function _showRestTimerBanner(data, remainingMs) {
 
   const bar = document.createElement('div')
   bar.id = 'rest-timer-banner'
-  bar.style.cssText = `position:fixed;top:56px;left:0;right:0;z-index:9998;height:52px;background:#141414;border-bottom:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 14px;gap:10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;`
 
   bar.innerHTML = `
-    <span style="font-size:16px;line-height:1">⏱️</span>
-    <span style="font-size:13px;font-weight:600;color:#fafafa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${data.name}</span>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#d4ff3a;font-weight:600">${m}:${String(s).padStart(2, '0')}</span>
-    <svg width="20" height="20" viewBox="0 0 20 20" style="flex-shrink:0">
-      <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
-      <circle id="timer-progress" cx="10" cy="10" r="8" fill="none" stroke="#d4ff3a" stroke-width="3"
-        stroke-dasharray="${2 * Math.PI * 8}"
-        stroke-dashoffset="${2 * Math.PI * 8 * pct}"
-        transform="rotate(-90 10 10)" stroke-linecap="round"/>
-    </svg>`
+    <span class="rtb-emoji">⏱️</span>
+    <span class="rtb-name">${data.name}</span>
+    <span class="rtb-time">${m}:${String(s).padStart(2, '0')}</span>
+    <div class="rtb-bar"><div id="timer-progress" class="rtb-bar-fill" style="width:${pct * 100}%"></div></div>`
 
   bar.addEventListener('click', async () => {
     _hideRestTimerBanner()
@@ -1136,11 +1129,11 @@ function _updateRestTimerBanner(remainingMs) {
   const remainingSec = Math.ceil(remainingMs / 1000)
   const m = Math.floor(remainingSec / 60)
   const s = remainingSec % 60
-  const timeEl = _restTimerBannerEl.querySelector('span:nth-child(3)')
+  const timeEl = _restTimerBannerEl.querySelector('.rtb-time')
   if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`
   const pct = _restTimerDuration > 0 ? remainingMs / _restTimerDuration : 0
   const progEl = _restTimerBannerEl.querySelector('#timer-progress')
-  if (progEl) progEl.setAttribute('stroke-dashoffset', String(2 * Math.PI * 8 * pct))
+  if (progEl) progEl.style.width = `${pct * 100}%`
 }
 
 document.addEventListener('DOMContentLoaded', init)
