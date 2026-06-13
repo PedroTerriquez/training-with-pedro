@@ -100,26 +100,34 @@ const SEED = {
   },
 }
 
-async function seedIndexedDB(page, data) {
-  await page.evaluate((d) => {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open('coach-pedro-ai', 1)
-      req.onsuccess = () => {
-        const db = req.result
-        const tx = db.transaction(['exercises', 'exerciseLogs', 'programs', 'settings'], 'readwrite')
-        tx.objectStore('exercises').clear()
-        tx.objectStore('exerciseLogs').clear()
-        tx.objectStore('programs').clear()
-        tx.objectStore('settings').clear()
-        d.exercises.forEach(ex => tx.objectStore('exercises').put(ex))
-        tx.objectStore('programs').put(d.program)
-        tx.objectStore('settings').put(d.settings)
-        tx.oncomplete = () => { db.close(); resolve() }
-        tx.onerror = () => reject(tx.error)
-      }
-      req.onerror = () => reject(req.error)
-    })
-  }, data)
+async function seedIndexedDB(page, data, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await page.evaluate((d) => {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open('coach-pedro-ai', 1)
+          req.onsuccess = () => {
+            const db = req.result
+            const tx = db.transaction(['exercises', 'exerciseLogs', 'programs', 'settings'], 'readwrite')
+            tx.objectStore('exercises').clear()
+            tx.objectStore('exerciseLogs').clear()
+            tx.objectStore('programs').clear()
+            tx.objectStore('settings').clear()
+            d.exercises.forEach(ex => tx.objectStore('exercises').put(ex))
+            tx.objectStore('programs').put(d.program)
+            tx.objectStore('settings').put(d.settings)
+            tx.oncomplete = () => { db.close(); resolve() }
+            tx.onerror = () => reject(tx.error)
+          }
+          req.onerror = () => reject(req.error)
+        })
+      }, data)
+      return // success
+    } catch (e) {
+      if (attempt === retries) throw e
+      await page.waitForTimeout(1000)
+    }
+  }
 }
 
 test('full user flow: profile → warmup → week switch → training → stretch → coach → history', async ({ page }) => {
@@ -286,6 +294,13 @@ test('full user flow: profile → warmup → week switch → training → stretc
 
   await stretchHecho.click()
   await page.waitForTimeout(500)
+
+  // ── Step 7.5: Streak Celebration ──
+  const streakOverlay = page.locator('#streak-overlay')
+  await expect(streakOverlay).toBeVisible({ timeout: 5000 })
+  await expect(streakOverlay.locator('text=Días consecutivos')).toBeVisible()
+  // Wait for auto-dismiss
+  await expect(streakOverlay).not.toBeVisible({ timeout: 5000 })
 
   // ── Step 8: Effort Modal + Coach Card ──
   const effortOverlay = page.locator('#effort-overlay')

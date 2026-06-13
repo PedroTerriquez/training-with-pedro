@@ -4,3 +4,4 @@
 node_modules/
 .opencode/
 push-config.js
+test-results/
