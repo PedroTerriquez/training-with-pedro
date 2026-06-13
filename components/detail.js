@@ -92,9 +92,6 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
           await window.notifyWatch(exercise.name, body, { tag })
         }
       }
-      if (typeof showToast === 'function') {
-        showToast(`✓ ${exercise.name}`)
-      }
     })
     wrap.appendChild(iniciarBtn)
 

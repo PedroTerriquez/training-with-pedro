@@ -610,8 +610,7 @@ REGLAS DE RESPUESTA:
       const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
       if (!vapidPub || !vapidPriv) { msg.retry({ delaySeconds: 10 }); continue }
       try {
-        await sendWebPush(sub, { title: `⏰ ${title}`, body: 'Descanso terminado', tag: `done-${tag}`, url: './', restSeconds: 0, exerciseId }, vapidPub, vapidPriv, vapidEmail)
-        await sendWebPush(sub, { title, body: `${sets}×${reps} · Tap para iniciar descanso`, tag: `cycle-${Date.now()}`, url: './', restSeconds: 0, exerciseId, exerciseData: { exerciseId, title, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
+        await sendWebPush(sub, { title: `⏰ ${title}`, body: 'Descanso terminado — Tap para iniciar', tag: `cycle-${tag}`, url: './', restSeconds: 0, exerciseId, exerciseData: { exerciseId, title, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
       } catch (err) {
         if (err.statusCode === 410) await env.PUSH_KV.delete(`sub_${deviceId}`)
         msg.retry({ delaySeconds: 10 })

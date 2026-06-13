@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.56 · 2026-06-12 · Add playwright end-to-end test suite'
+const APP_VERSION = 'v1.57 · 2026-06-12 · Remove testing toast, consolidate rest notification to single push, add notification tests, fix _checkPendingRest on focus'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -99,8 +99,12 @@ async function init() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       _checkRestTimer()
+      _checkPendingRest()
       _cleanupStaleNotifications()
     }
+  })
+  window.addEventListener('focus', () => {
+    _checkPendingRest()
   })
 }
 

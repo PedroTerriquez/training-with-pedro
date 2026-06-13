@@ -383,7 +383,8 @@ When the `implementer` subagent finishes its work, it MUST:
 3. **Run `bash scripts/bump-version.sh`** to automate steps 1–2 (if the script has bugs, do it manually)
 4. **`git add`** all changed files (only relevant ones, no untracked docs/artifacts)
 5. **`git commit`** with a descriptive message including the version
-6. **`git push`**
+6. **Run `npm test`** (i.e. `npx playwright test`) — if it fails, fix the test. **Do NOT proceed to push until tests pass.**
+7. **`git push`** — only after all tests pass
 
 Use `git status`, `git diff`, `git log --oneline -3` before committing to verify state. Never commit untracked files outside the scope of the task (e.g. docs/, training-with-pedro/).
 
