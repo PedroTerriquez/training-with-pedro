@@ -287,6 +287,13 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await stretchHecho.click()
   await page.waitForTimeout(500)
 
+  // ── Step 7.5: Streak Celebration ──
+  const streakOverlay = page.locator('#streak-overlay')
+  await expect(streakOverlay).toBeVisible({ timeout: 5000 })
+  await expect(streakOverlay.locator('text=Días consecutivos')).toBeVisible()
+  // Wait for auto-dismiss
+  await expect(streakOverlay).not.toBeVisible({ timeout: 5000 })
+
   // ── Step 8: Effort Modal + Coach Card ──
   const effortOverlay = page.locator('#effort-overlay')
   await expect(effortOverlay).toBeVisible({ timeout: 5000 })

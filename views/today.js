@@ -372,40 +372,56 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
 
     // ── Coach Analysis trigger ──
     const allPhasesComplete = _phase >= (hasStretch ? 4 : 3)
-    if (allPhasesComplete && !_effortValue && !_coachCardMode && !_effortModalShowing && !document.getElementById('effort-overlay')) {
-      _effortModalShowing = true
-      setTimeout(() => {
-        if (gen !== _mountGen) return
-        if (_effortValue || _coachCardMode || document.getElementById('effort-overlay')) return
-        showEffortSelector({
-          accent,
-          day,
-          exercises,
-          onEffort: async (effort) => {
-            _coachDay = day
-            _coachEffort = effort
-            _effortValue = effort
-            _effortModalShowing = false
-            _coachLoading = true
-            _coachCardMode = true
-            _coachDay = day
-            _coachEffort = effort
-            refreshView()
-            runCoachAnalysis(day, effort, day.duration || 60, exercises, settings, swaps).then(async (result) => {
-              _coachResult = result
-              _coachLoading = false
-              const s = await Storage.getSettings()
-              s.lastCoachAnalysis = { date: getToday(), effort: _coachEffort, weekIdx, ...result }
-              await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
-              settings.lastCoachAnalysis = s.lastCoachAnalysis
+    if (allPhasesComplete && !_effortValue && !_coachCardMode && !_effortModalShowing && !document.getElementById('effort-overlay') && !document.getElementById('streak-overlay')) {
+      const showEffort = () => {
+        _effortModalShowing = true
+        setTimeout(() => {
+          if (gen !== _mountGen) return
+          if (_effortValue || _coachCardMode || document.getElementById('effort-overlay')) return
+          showEffortSelector({
+            accent,
+            day,
+            exercises,
+            onEffort: async (effort) => {
+              _coachDay = day
+              _coachEffort = effort
+              _effortValue = effort
+              _effortModalShowing = false
+              _coachLoading = true
+              _coachCardMode = true
+              _coachDay = day
+              _coachEffort = effort
               refreshView()
-            }).catch(() => {
-              _coachLoading = false
-              refreshView()
-            })
-          }
+              runCoachAnalysis(day, effort, day.duration || 60, exercises, settings, swaps).then(async (result) => {
+                _coachResult = result
+                _coachLoading = false
+                const s = await Storage.getSettings()
+                s.lastCoachAnalysis = { date: getToday(), effort: _coachEffort, weekIdx, ...result }
+                await Storage.saveCoachAnalysis(s.lastCoachAnalysis)
+                settings.lastCoachAnalysis = s.lastCoachAnalysis
+                refreshView()
+              }).catch(() => {
+                _coachLoading = false
+                refreshView()
+              })
+            }
+          })
+        }, 600)
+      }
+      const key = 'streak_shown_' + getToday()
+      if (!localStorage.getItem(key)) {
+        computeStreak(getToday()).then(streak => {
+          if (gen !== _mountGen) return
+          if (_effortValue || _coachCardMode || _effortModalShowing || document.getElementById('effort-overlay') || document.getElementById('streak-overlay')) return
+          showStreakCelebration({
+            streak: Math.max(1, streak),
+            accent,
+            onDone: showEffort,
+          })
         })
-      }, 600)
+      } else {
+        showEffort()
+      }
     }
   })
 }
@@ -683,6 +699,97 @@ function showEffortSelector({ accent, day, exercises, onEffort }) {
 }
 
 
+// ── Streak (weekly grouping) ──
+function getMonday(date) {
+  const d = new Date(date)
+  const monOffset = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - monOffset)
+  d.setHours(12, 0, 0, 0)
+  return d
+}
+
+function formatDate(d) { return d.toISOString().slice(0, 10) }
+
+async function computeStreak(todayDateStr) {
+  const allLogs = await Storage.getAllLogs()
+  const trained = new Set()
+  for (const log of allLogs) {
+    if (log.weight && log.weight > 0) trained.add(log.date)
+  }
+  const today = new Date(todayDateStr + 'T12:00:00Z')
+  const currentMonday = getMonday(today)
+  let streak = 0
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(currentMonday)
+    d.setDate(currentMonday.getDate() + i)
+    if (d > today) break
+    if (trained.has(formatDate(d))) streak++
+  }
+  let weekStart = new Date(currentMonday)
+  weekStart.setDate(weekStart.getDate() - 7)
+  while (true) {
+    let count = 0
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      if (trained.has(formatDate(d))) count++
+    }
+    if (count >= 4) { streak += 7; weekStart.setDate(weekStart.getDate() - 7) }
+    else break
+  }
+  return streak
+}
+
+function showStreakCelebration({ streak, accent, onDone }) {
+  const today = getToday()
+  if (localStorage.getItem('streak_shown_' + today)) { onDone(); return }
+  localStorage.setItem('streak_shown_' + today, '1')
+
+  const overlay = document.createElement('div')
+  overlay.id = 'streak-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.3s ease'
+
+  const box = document.createElement('div')
+  box.style.cssText = 'display:flex;flex-direction:column;align-items:center'
+
+  const flame = document.createElement('div')
+  flame.style.cssText = 'font-size:80px;line-height:1;animation:flameBounce 0.6s ease infinite alternate'
+  flame.textContent = '🔥'
+
+  const count = document.createElement('div')
+  count.style.cssText = "font-family:'Space Grotesk',sans-serif;font-size:96px;font-weight:700;color:#fafafa;letter-spacing:-4px;line-height:1;margin-top:4px"
+  count.textContent = '0'
+
+  const label = document.createElement('div')
+  label.style.cssText = "font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:6px"
+  label.textContent = 'Días consecutivos'
+
+  const sub = document.createElement('div')
+  sub.style.cssText = `font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:${accent};margin-top:14px;opacity:0;animation:fadeUp 0.4s ease 0.8s forwards`
+  sub.textContent = '¡Sigue así!'
+
+  box.append(flame, count, label, sub)
+  overlay.appendChild(box)
+  document.body.appendChild(overlay)
+
+  let current = 0
+  const steps = Math.min(streak, 30)
+  const inc = Math.max(1, Math.ceil(streak / steps))
+  const interval = setInterval(() => {
+    current = Math.min(current + inc, streak)
+    count.textContent = current
+    if (current >= streak) clearInterval(interval)
+  }, 40)
+
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.3s ease'
+    overlay.style.opacity = '0'
+    setTimeout(() => {
+      overlay.remove()
+      onDone()
+    }, 300)
+  }, 2600)
+}
 
 // ── Rest Day ──
 function renderRestDay(container, { weekDayName, dateStr, accent, weekObj, weekIdx }) {

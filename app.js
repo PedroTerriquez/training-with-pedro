@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.57 · 2026-06-12 · Remove testing toast, consolidate rest notification to single push, add notification tests, fix _checkPendingRest on focus'
+const APP_VERSION = 'v1.58 · 2026-06-13 · Add Duolingo-style streak animation after stretch, weekly-grouped streak calculation, tests'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
