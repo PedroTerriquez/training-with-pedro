@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.58 · 2026-06-13 · Add Duolingo-style streak animation after stretch, weekly-grouped streak calculation, tests'
+const APP_VERSION = 'v1.59 · 2026-06-14 · Add streak animation, random coach topic rotation, richer session data, flaky test fix'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -807,9 +807,61 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
   }, 0)
 
   const units = settings.units || 'kg'
+
+  // ── Topic rotation ──
+  const allLogs = await Storage.getAllLogs()
+  const s = await Storage.getSettings()
+  const today = getToday()
+  const TOPICS = ['comparativa','racha','esfuerzo_volumen','tiempo_intensidad','recuperacion','progreso_global','retrospectiva_semanal']
+  let topic
+  if (s.coachTopicDate === today && s.coachTopic) {
+    topic = s.coachTopic
+  } else {
+    const available = TOPICS.filter(t => t !== s.lastCoachTopic)
+    topic = available[Math.floor(Math.random() * available.length)]
+    s.coachTopic = topic
+    s.coachTopicDate = today
+    s.lastCoachTopic = topic
+    await Storage.saveSettings(s)
+  }
+
+  // ── Streak (weekly grouping) ──
+  const trainedDates = new Set()
+  for (const l of allLogs) if (l.weight && l.weight > 0) trainedDates.add(l.date)
+  const todayObj = new Date(today + 'T12:00:00Z')
+  const monOffset = (todayObj.getDay() + 6) % 7
+  const currentMonday = new Date(todayObj)
+  currentMonday.setDate(todayObj.getDate() - monOffset)
+  let streakDays = 0
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(currentMonday)
+    d.setDate(currentMonday.getDate() + i)
+    if (d > todayObj) break
+    if (trainedDates.has(d.toISOString().slice(0, 10))) streakDays++
+  }
+  let weekStart = new Date(currentMonday)
+  weekStart.setDate(weekStart.getDate() - 7)
+  while (true) {
+    let count = 0
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      if (trainedDates.has(d.toISOString().slice(0, 10))) count++
+    }
+    if (count >= 4) { streakDays += 7; weekStart.setDate(weekStart.getDate() - 7) }
+    else break
+  }
+
+  // ── Session count ──
+  const totalSessions = trainedDates.size
+
+  // ── Month accumulated weight ──
+  const monthPrefix = today.slice(0, 7)
+  const monthWeight = allLogs.filter(l => l.weight && l.weight > 0 && l.date.startsWith(monthPrefix)).reduce((s, l) => s + l.weight, 0)
+
   const sessionData = {
     day_name: day.name || 'Entrenamiento',
-    date: getToday(),
+    date: today,
     duration_min: durationMin || 0,
     effort: { easy: 'fácil', good: 'justo', heavy: 'pesado', failure: 'al fallo' }[effort] || effort,
     units,
@@ -823,6 +875,11 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     },
     exercises: exerciseData,
     total_volume: `${Math.round(totalVolume)}${units}`,
+    rotation_hint: topic,
+    streak_days: streakDays,
+    streak_weeks: Math.floor(streakDays / 7),
+    total_sessions: totalSessions,
+    month_total_weight: `${Math.round(monthWeight)}${units}`,
   }
 
   try {
