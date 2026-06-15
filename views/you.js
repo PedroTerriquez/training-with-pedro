@@ -427,8 +427,11 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         if (result.dictMissing) {
           dictMigrateStatus.textContent = '❌ Diccionario no cargado'
           dictMigrateStatus.style.color = '#ff6b6b'
+        } else if (result.alreadyDone) {
+          dictMigrateStatus.textContent = '⚠️ Ya aplicado — usa Forzar para re-ejecutar'
+          dictMigrateStatus.style.color = 'rgba(255,255,255,0.5)'
         } else {
-          dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · sin match ${result.skipped} · total ${result.total}`
+          dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · fusionados ${result.merged} · sin match ${result.skipped}`
           dictMigrateStatus.style.color = accent
           if (window.silentRefresh) await window.silentRefresh()
         }

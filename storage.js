@@ -90,14 +90,136 @@ const Storage = {
 
   async findOrCreateExerciseByName(name, muscle) {
     const all = await getAll('exercises')
+    const dictEntry = typeof findExerciseEntry === 'function' ? (findExerciseEntry(name) || findExerciseEntryFuzzy(name)) : null
+    const dictId = dictEntry ? 'dict_' + dictEntry.id : null
+
+    if (dictId) {
+      const existing = all.find((e) => e.dictId === dictId)
+      if (existing) return existing
+    }
+
     const match = all.find((e) => e.name.toLowerCase() === name.toLowerCase())
     if (match) return match
-    const dictEntry = typeof findExerciseEntry === 'function' ? (findExerciseEntry(name) || findExerciseEntryFuzzy(name)) : null
+
     const imgUrl = dictEntry?.image || ''
     const gifUrl = dictEntry?.gif || ''
-    const exercise = { id: await generateId(), name, muscle: muscle || dictEntry?.muscle || '', imgUrl, gifUrl, tips: dictEntry?.tips ? [...dictEntry.tips] : [], alternatives: dictEntry?.alternatives ? dictEntry.alternatives.map(a => ({...a})) : [] }
+    const exercise = { id: await generateId(), name, dictId, muscle: muscle || dictEntry?.muscle || '', imgUrl, gifUrl, tips: dictEntry?.tips ? [...dictEntry.tips] : [], alternatives: dictEntry?.alternatives ? dictEntry.alternatives.map(a => ({...a})) : [] }
     await put('exercises', exercise)
     return exercise
+  },
+
+  // ── Normalization sub-functions ──
+
+  async _assignDictIdsAndNormalize(exercises, force) {
+    let migrated = 0, skipped = 0
+    for (const ex of exercises) {
+      const dictEntry = findExerciseEntry(ex.name) || findExerciseEntryFuzzy(ex.name)
+      if (!dictEntry) { skipped++; continue }
+
+      let changed = false
+      const dictId = 'dict_' + dictEntry.id
+
+      if (ex.dictId !== dictId) { ex.dictId = dictId; changed = true }
+
+      if (force || ex.name !== dictEntry.es) {
+        if (ex.name !== dictEntry.es) { ex.name = dictEntry.es; changed = true }
+      }
+      if ((force || !ex.imgUrl) && dictEntry.image) {
+        ex.imgUrl = dictEntry.image; changed = true
+      }
+      if ((force || !ex.gifUrl) && dictEntry.gif) {
+        ex.gifUrl = dictEntry.gif; changed = true
+      }
+      if ((force || !ex.muscle) && dictEntry.muscle) {
+        ex.muscle = dictEntry.muscle; changed = true
+      }
+      if ((force || !ex.tips || ex.tips.length === 0) && dictEntry.tips && dictEntry.tips.length > 0) {
+        ex.tips = [...dictEntry.tips]; changed = true
+      }
+      if ((force || !ex.alternatives || ex.alternatives.length === 0) && dictEntry.alternatives && dictEntry.alternatives.length > 0) {
+        ex.alternatives = dictEntry.alternatives.map((a) => ({ ...a })); changed = true
+      }
+      if (ex.alternatives && ex.alternatives.length > 0) {
+        for (const alt of ex.alternatives) {
+          const altDict = findExerciseEntry(alt.name)
+          if (altDict && alt.name !== altDict.es) {
+            alt.name = altDict.es; changed = true
+          }
+        }
+      }
+
+      if (changed) {
+        await put('exercises', ex)
+        migrated++
+      }
+    }
+    return { migrated, skipped }
+  },
+
+  async _getDedupGroups() {
+    const exercises = await getAll('exercises')
+    const map = new Map()
+    for (const ex of exercises) {
+      const key = ex.dictId || ex.name.toLowerCase()
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(ex)
+    }
+    return [...map.values()].filter((g) => g.length > 1)
+  },
+
+  async _pickRoot(group) {
+    const counts = await Promise.all(
+      group.map(async (ex) => {
+        const logs = await getByIndex('exerciseLogs', 'exerciseId', ex.id)
+        return { ex, logCount: logs.length }
+      })
+    )
+    counts.sort((a, b) => b.logCount - a.logCount)
+    return counts[0].ex
+  },
+
+  async _reassignLogs(sourceId, rootId) {
+    const logs = await getByIndex('exerciseLogs', 'exerciseId', sourceId)
+    for (const log of logs) {
+      log.exerciseId = rootId
+      await put('exerciseLogs', log)
+    }
+    return logs.length
+  },
+
+  async _reassignProgramRefs(sourceId, rootId) {
+    const programs = await getAll('programs')
+    for (const prog of programs) {
+      let changed = false
+      for (const week of prog.weeks) {
+        for (const day of week.days) {
+          for (const ex of day.exercises) {
+            if (ex.exerciseId === sourceId) {
+              ex.exerciseId = rootId
+              changed = true
+            }
+          }
+        }
+      }
+      if (changed) await put('programs', prog)
+    }
+  },
+
+  async _deleteExerciseSafe(id) {
+    await del('exercises', id)
+  },
+
+  async _deduplicateGroup(group) {
+    const root = await this._pickRoot(group)
+    let merged = 0
+    for (const ex of group) {
+      if (ex.id === root.id) continue
+      await this._reassignLogs(ex.id, root.id)
+      await this._reassignProgramRefs(ex.id, root.id)
+      await this._deleteExerciseSafe(ex.id)
+      merged++
+    }
+    return merged
   },
 
   // ── Exercise Logs ──
@@ -172,57 +294,26 @@ const Storage = {
   // ── One-time migration: apply dictionary to existing IndexedDB exercises ──
   // Normal mode (force=false): only fill empty fields, never overwrite user data.
   // Force mode   (force=true): overwrite ALL fields from dictionary entry.
+  // Two phases: 1) assign dictId and normalize metadata, 2) deduplicate by dictId/name.
   async migrateExercisesToDictionary({ force = false } = {}) {
-    const FLAG = 'dict_migration_v1'
-    if (!force && localStorage.getItem(FLAG) === 'done') return { migrated: 0, skipped: 0, total: 0, alreadyDone: true }
-    if (typeof findExerciseEntry !== 'function') return { migrated: 0, skipped: 0, total: 0, dictMissing: true }
+    const FLAG = 'dict_migration_v2'
+    if (!force && localStorage.getItem(FLAG) === 'done') return { migrated: 0, merged: 0, skipped: 0, total: 0, alreadyDone: true }
+    if (typeof findExerciseEntry !== 'function') return { migrated: 0, merged: 0, skipped: 0, total: 0, dictMissing: true }
 
     const exercises = await getAll('exercises')
-    let migrated = 0
-    let skipped = 0
 
-    for (const ex of exercises) {
-      const dictEntry = findExerciseEntry(ex.name) || findExerciseEntryFuzzy(ex.name)
-      if (!dictEntry) { skipped++; continue }
+    const { migrated, skipped } = await this._assignDictIdsAndNormalize(exercises, force)
 
-      let changed = false
-
-      if (force || ex.name !== dictEntry.es) {
-        if (ex.name !== dictEntry.es) { ex.name = dictEntry.es; changed = true }
-      }
-      if ((force || !ex.imgUrl) && dictEntry.image) {
-        ex.imgUrl = dictEntry.image; changed = true
-      }
-      if ((force || !ex.gifUrl) && dictEntry.gif) {
-        ex.gifUrl = dictEntry.gif; changed = true
-      }
-      if ((force || !ex.muscle) && dictEntry.muscle) {
-        ex.muscle = dictEntry.muscle; changed = true
-      }
-      if ((force || !ex.tips || ex.tips.length === 0) && dictEntry.tips && dictEntry.tips.length > 0) {
-        ex.tips = [...dictEntry.tips]; changed = true
-      }
-      if ((force || !ex.alternatives || ex.alternatives.length === 0) && dictEntry.alternatives && dictEntry.alternatives.length > 0) {
-        ex.alternatives = dictEntry.alternatives.map((a) => ({ ...a })); changed = true
-      }
-      if (ex.alternatives && ex.alternatives.length > 0) {
-        for (const alt of ex.alternatives) {
-          const altDict = findExerciseEntry(alt.name)
-          if (altDict && alt.name !== altDict.es) {
-            alt.name = altDict.es; changed = true
-          }
-        }
-      }
-
-      if (changed) {
-        await put('exercises', ex)
-        migrated++
-      }
+    const groups = await this._getDedupGroups()
+    let merged = 0
+    for (const group of groups) {
+      merged += await this._deduplicateGroup(group)
     }
 
     localStorage.setItem(FLAG, 'done')
-    console.info(`[dictionary migration] migrated=${migrated} skipped=${skipped} total=${exercises.length}`)
-    return { migrated, skipped, total: exercises.length }
+    await backupAll()
+    console.info(`[dictionary migration] migrated=${migrated} merged=${merged} skipped=${skipped} total=${exercises.length}`)
+    return { migrated, merged, skipped, total: exercises.length }
   },
 
   // ── JSON Export/Import (cross-context migration) ──

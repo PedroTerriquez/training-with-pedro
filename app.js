@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.59 · 2026-06-14 · Add streak animation, random coach topic rotation, richer session data, flaky test fix'
+const APP_VERSION = 'v1.60 · 2026-06-15 · dictId dedup: normalize + merge duplicates by dictionary ID'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
