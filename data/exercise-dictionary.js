@@ -1812,6 +1812,14 @@ const _DICT_INDEX = (() => {
   return map
 })()
 
+const _DICT_BY_ID = (() => {
+  const map = new Map()
+  for (const entry of EXERCISE_DICTIONARY) {
+    map.set(entry.id, entry)
+  }
+  return map
+})()
+
 function normalizeExerciseName(s) {
   return _normExercise(s)
 }
@@ -1820,6 +1828,12 @@ function findExerciseEntry(name) {
   const key = _normExercise(name)
   if (!key) return null
   return _DICT_INDEX.get(key) || null
+}
+
+// dictId format: "dict_" + dictionary entry.id (e.g. "dict_press-banca-barra")
+function getEntryById(dictId) {
+  if (!dictId || !dictId.startsWith('dict_')) return null
+  return _DICT_BY_ID.get(dictId.slice('dict_'.length)) || null
 }
 
 // Token-based fuzzy match across the local dictionary (offline).
@@ -1876,10 +1890,20 @@ function getExerciseImageFromDictionary(name) {
   return e ? e.image : null
 }
 
+function resolveExerciseMedia(exercise) {
+  const entry = exercise?.dictId ? getEntryById(exercise.dictId) : null
+  return {
+    imgUrl: exercise?.imgUrl || entry?.image || getExerciseImageFromDictionary(exercise?.name || '') || '',
+    gifUrl: entry?.gif || getExerciseGifUrl(exercise?.name || '') || null,
+  }
+}
+
 window.EXERCISE_DICTIONARY = EXERCISE_DICTIONARY
 window.normalizeExerciseName = normalizeExerciseName
 window.findExerciseEntry = findExerciseEntry
 window.findExerciseEntryFuzzy = findExerciseEntryFuzzy
+window.getEntryById = getEntryById
+window.resolveExerciseMedia = resolveExerciseMedia
 window.translateExerciseToEnglish = translateExerciseToEnglish
 window.translateExerciseToSpanish = translateExerciseToSpanish
 window.getExerciseImageFromDictionary = getExerciseImageFromDictionary

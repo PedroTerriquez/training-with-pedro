@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.60 · 2026-06-15 · dictId dedup: normalize + merge duplicates by dictionary ID'
+const APP_VERSION = 'v1.61 · 2026-06-15 · dictId dedup: normalize + merge duplicates by dictionary ID'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -281,12 +281,13 @@ async function openDetailSheet(exercise) {
           if (prevProgEx) {
             const resolved = _state.exercises.find((e) => e.id === prevProgEx.exerciseId)
             if (resolved) {
+              const prevMedia = resolveExerciseMedia(resolved)
               prevExercise = {
                 ...prevProgEx,
                 name: resolved.name,
                 muscle: resolved.muscle,
-                imgUrl: resolved.imgUrl || getExerciseImageFromDictionary(resolved.name) || '',
-                gifUrl: getExerciseGifUrl(resolved.name) || null,
+                imgUrl: prevMedia.imgUrl,
+                gifUrl: prevMedia.gifUrl,
               }
             }
           }
@@ -294,12 +295,13 @@ async function openDetailSheet(exercise) {
           if (nextProgEx) {
             const resolved = _state.exercises.find((e) => e.id === nextProgEx.exerciseId)
             if (resolved) {
+              const nextMedia = resolveExerciseMedia(resolved)
               nextExercise = {
                 ...nextProgEx,
                 name: resolved.name,
                 muscle: resolved.muscle,
-                imgUrl: resolved.imgUrl || getExerciseImageFromDictionary(resolved.name) || '',
-                gifUrl: getExerciseGifUrl(resolved.name) || null,
+                imgUrl: nextMedia.imgUrl,
+                gifUrl: nextMedia.gifUrl,
               }
             }
           }
@@ -310,16 +312,16 @@ async function openDetailSheet(exercise) {
     }
   }
 
-  const gifUrl = getExerciseGifUrl(exercise.name) || null
+  const exMedia = resolveExerciseMedia(exercise)
 
   const detailEx = {
     ...exercise,
     sets: progEx?.sets || exercise.sets || 3,
     reps: progEx?.reps || exercise.reps || '10',
     rest: progEx?.rest || exercise.rest || 60,
-    imgUrl: exercise.imgUrl || getExerciseImageFromDictionary(exercise.name) || '',
+    imgUrl: exMedia.imgUrl,
     logs: logs.sort((a, b) => a.date.localeCompare(b.date)),
-    gifUrl,
+    gifUrl: exMedia.gifUrl,
   }
 
   const overlay = Sheet({

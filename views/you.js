@@ -710,7 +710,7 @@ function showExerciseEdit(exercise, accent, onRefresh) {
     if (!name) { showToast('⚠️ Ingresa un nombre de ejercicio primero'); return }
     const btn = document.getElementById('ex-img-search')
     btn.textContent = '⏳'
-    const url = await findExerciseImageUrl(name)
+    const url = getExerciseImageFromDictionary(name) || ''
     btn.textContent = '🔍'
     if (url && imgInput) {
       imgInput.value = url

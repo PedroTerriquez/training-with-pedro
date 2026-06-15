@@ -1,4 +1,4 @@
-const CACHE = 'v60'
+const CACHE = 'v61'
 const ASSETS = [
   './index.html',
   './styles.css',
