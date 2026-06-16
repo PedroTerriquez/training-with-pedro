@@ -137,6 +137,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
   const program = SEED.getProgram()
   const settings = SEED.getSettings()
   await page.goto('/')
+  await page.waitForTimeout(600)
   await seedIndexedDB(page, { exercises: SEED.exercises, program, settings })
 
   await page.waitForTimeout(200)

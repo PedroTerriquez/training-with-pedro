@@ -83,6 +83,7 @@ test.describe('Rest notification flow', () => {
     const today = new Date().toISOString().slice(0, 10)
     settings.sessionState = { date: today, phase: 2, todayExDone: 0 }
     await page.goto('/')
+    await page.waitForTimeout(600)
     await seedIndexedDB(page, { exercises: SEED.exercises, program, settings })
     await page.waitForTimeout(200)
     await page.reload()
