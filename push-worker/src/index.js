@@ -405,7 +405,7 @@ export default {
         if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
         const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
-        await fetch(sub.endpoint, {
+        const pushRes = await fetch(sub.endpoint, {
           method: 'POST',
           headers: {
             'Content-Length': '0',
@@ -413,12 +413,17 @@ export default {
             'TTL': '86400',
           },
         })
+        if (pushRes.status === 410) {
+          await env.PUSH_KV.delete(`sub_${deviceId}`)
+          return respond('Subscription expired — cleaned up', 410)
+        }
+        if (!pushRes.ok) {
+          const pushBody = await pushRes.text().catch(()=>'')
+          return respond(`Push service returned ${pushRes.status}: ${pushBody}`, 502)
+        }
         return respond('sent')
       } catch (err) {
-        if (err.statusCode === 410 && env.PUSH_KV) {
-          await env.PUSH_KV.delete(`sub_${deviceId}`)
-        }
-        return respond('Push failed: ' + (err.message || 'unknown'), 500)
+        return respond({ error: err.message || 'unknown' }, 500)
       }
     }
 

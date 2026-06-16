@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.67 · 2026-06-16 · Worker queue ADR + tests, _completeRest solo toast, loading state ⚡'
+const APP_VERSION = 'v1.68 · 2026-06-16 · Fix /api/push/send sin verificar respuesta push service'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -896,6 +896,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
 
     const result = {
       date: sessionData.date,
+      _topic: topic,
       analysis: data.analysis || 'Buen trabajo hoy. Sigue así.',
       verdict: data.verdict || 'neutral',
       _provider: data._provider || 'llama',
