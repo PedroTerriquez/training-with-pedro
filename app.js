@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.64 · 2026-06-15 · handle / in exercise names, add Pulley Rear Fly + Smith RDL dict entries, fix SKIP_KEYWORD'
+const APP_VERSION = 'v1.65 · 2026-06-16 · empty state, AI error handling, Coach FAB deferred mount + test, formats enum fix'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

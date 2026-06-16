@@ -34,7 +34,7 @@ const IMPORT_SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string' },
-          tag: { type: 'string', enum: ['VOLUMEN', 'FUERZA', 'RESISTENCIA', ''] },
+          tag: { type: 'string', enum: ['VOLUMEN', 'FUERZA', 'RESISTENCIA'] },
           days: {
             type: 'array',
             items: {
@@ -119,8 +119,8 @@ async function callAI(messages, env, opts = {}) {
     try {
       text = await callGemini(messages, env.GEMINI_API_KEY, { ...opts, maxTokens })
       provider = 'gemini'
-    } catch (_) {
-      // fallback to Llama
+    } catch (err) {
+      console.error('[AI] Gemini failed:', err.message, 'opts:', JSON.stringify(opts).slice(0, 300))
     }
   }
 
@@ -130,7 +130,15 @@ async function callAI(messages, env, opts = {}) {
       stream: false,
       max_tokens: maxTokens,
     })
-    text = aiRes?.response?.trim() || ''
+    if (aiRes && typeof aiRes.response === 'string') {
+      text = aiRes.response.trim()
+    } else if (aiRes?.choices?.[0]?.message?.content) {
+      text = aiRes.choices[0].message.content.trim()
+    } else {
+      const shape = aiRes ? JSON.stringify(aiRes).slice(0, 500) : 'null/undefined'
+      console.error('[AI] Unexpected aiRes shape:', shape)
+      text = ''
+    }
     provider = 'llama'
   }
 

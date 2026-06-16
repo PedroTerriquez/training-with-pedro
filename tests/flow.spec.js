@@ -234,6 +234,27 @@ test('full user flow: profile → warmup → week switch → training → stretc
   const googleHref = await googleBtn.getAttribute('href')
   expect(googleHref).toContain('google.com/search')
 
+  // ── Step 5.5: Coach IA FAB ──
+  const coachFab = page.locator('#coach-fab')
+  await expect(coachFab).toBeVisible({ timeout: 3000 })
+
+  // Click to open Coach IA overlay
+  await coachFab.click()
+  await page.waitForTimeout(400)
+
+  // Verify overlay shows "Coach IA" header + exercise-specific greeting
+  await expect(page.locator('text=Coach IA')).toBeVisible()
+  await expect(page.locator('text=¡Qué onda!')).toBeVisible()
+  await expect(page.locator('text=Mejorar técnica')).toBeVisible()
+  await expect(page.locator('text=¿Voy muy pesado?')).toBeVisible()
+
+  // Close overlay via close button
+  await page.locator('#coach-close-btn').click()
+  await page.waitForTimeout(200)
+
+  // Verify overlay is gone
+  await expect(page.locator('#coach-close-btn')).not.toBeVisible()
+
   // ── Step 6: Log Weights for Both Exercises ──
   // Exercise 1: Press Banca 5×5
   const stepperInc = page.locator('.stepper-inc').first()

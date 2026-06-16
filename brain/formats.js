@@ -4,7 +4,7 @@ const FORMAT_IMPORT = `Convierte la rutina del usuario a este JSON exacto. SOLO 
   "program_name": string,
   "weeks": [{
     "name": string,
-    "tag": "VOLUMEN" | "FUERZA" | "RESISTENCIA" | "",
+    "tag": "VOLUMEN" | "FUERZA" | "RESISTENCIA" | (omite si no aplica),
     "days": [{
       "name": string,
       "subtitle": string (músculos del día),

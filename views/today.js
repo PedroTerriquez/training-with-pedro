@@ -75,6 +75,11 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
   const dateStr = `${monthNames[now.getMonth()]} ${now.getDate()} · ${now.getFullYear()}`
   const weekDayName = dayNames[jsDay]
 
+  if (!program && (!exercises || exercises.length === 0)) {
+    renderEmptyState(page, { accent })
+    return
+  }
+
   if (!day || day.name === 'Rest' || day.name === 'Descanso') {
     renderRestDay(page, { weekDayName, dateStr, accent, weekObj, weekIdx })
     return
@@ -820,4 +825,39 @@ function renderRestDay(container, { weekDayName, dateStr, accent, weekObj, weekI
           </div>
         </div>`).join('')}
     </div>`
+}
+
+// ── Empty State (first-time user, no data) ──
+function renderEmptyState(page, { accent }) {
+  page.innerHTML = `
+    <div style="flex:1;display:flex;flex-direction:column;padding:58px 20px 0">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.8px;color:${accent};text-transform:uppercase;font-weight:600">Bienvenido</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:700;color:#fafafa;letter-spacing:-1.8px;line-height:1;margin-top:6px">Entrenemos.</div>
+      <div style="margin-top:20px;padding:24px;border-radius:22px;background:linear-gradient(155deg,#1a1a1a 0%,#0e0e0e 100%);border:0.5px solid rgba(255,255,255,0.08);position:relative;overflow:hidden">
+        <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:${accent};opacity:0.08;filter:blur(60px);pointer-events:none"></div>
+        <div style="position:relative;z-index:1">
+          <div style="width:40px;height:40px;border-radius:12px;background:${accent}1a;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;border:0.5px solid ${accent}33">🔒</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fafafa;letter-spacing:-0.6px;line-height:1.15">Tus datos, solo en tu teléfono</div>
+          <div style="margin-top:10px;font-size:13.5px;color:rgba(255,255,255,0.6);line-height:1.55">Esta app no almacena nada en servidores. Todo lo que registras — ejercicios, pesos, programas — vive únicamente en este celular.</div>
+          <div style="margin-top:18px;padding:14px;border-radius:14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.06)">
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px">
+              <span>📋</span>
+              <span>No pierdas tu progreso</span>
+            </div>
+            <div style="margin-top:6px;font-size:12.5px;color:rgba(255,255,255,0.5);line-height:1.5">Haz un respaldo cada 2 semanas desde <strong style="color:${accent}">Perfil → Datos → Exportar</strong>. Así siempre podrás recuperar tu historial si algo le pasa al teléfono.</div>
+          </div>
+          <button id="empty-state-start" style="margin-top:20px;width:100%;padding:15px;border-radius:14px;border:none;background:${accent};color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-0.2px">
+            Comenzar
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="margin-top:auto;text-align:center;padding:24px 0 30px">
+        <div style="font-size:12px;color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace;letter-spacing:1px">Toca Comenzar para configurar tu rutina</div>
+      </div>
+    </div>`
+  
+  document.getElementById('empty-state-start')?.addEventListener('click', () => {
+    window.location.hash = 'you'
+  })
 }
