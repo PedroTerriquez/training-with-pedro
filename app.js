@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.69 · 2026-06-16 · Push descanso 10s antes, fix /api/push/send'
+const APP_VERSION = 'v1.70 · 2026-06-16 · Fallback notifyWatch cuando sendPush falla, subscribe refresha suscripción'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -435,13 +435,14 @@ async function subscribePush() {
   }
   try {
     const reg = await navigator.serviceWorker.ready
-    let sub = await reg.pushManager.getSubscription()
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      })
+    const oldSub = await reg.pushManager.getSubscription()
+    if (oldSub) {
+      try { await oldSub.unsubscribe() } catch (_) {}
     }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    })
     const res = await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1072,7 +1073,16 @@ async function _completeRest(data) {
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
   // The Worker queue handles sending "⏰ Descanso terminado" push notification at the exact restSec delay.
-  // We only re-store exercise data so the next notification tap starts a new cycle.
+  // Local notifyWatch fallback covers cases where Web Push fails (expired sub, etc.)
+  if (typeof window.notifyWatch === 'function') {
+    try {
+      await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado — Tap para iniciar', {
+        tag: `done-${data.tag || Date.now()}`,
+        requireInteraction: false,
+      })
+    } catch (_) {}
+  }
+  // Re-store exercise data so the next notification tap starts a new cycle.
   try {
     const pendingCache = await caches.open('rest-pending')
     await pendingCache.put('/pending', new Response(JSON.stringify({

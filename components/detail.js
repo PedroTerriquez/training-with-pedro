@@ -93,13 +93,16 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         } catch (_) {}
         const tag = `rest-${Date.now()}`
         const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
-        if (typeof sendPushNotification === 'function') {
-          const sent = await sendPushNotification(exercise.name, body, tag)
-          if (!sent && typeof subscribePush === 'function') {
+        const sent = typeof sendPushNotification === 'function'
+          ? await sendPushNotification(exercise.name, body, tag)
+          : false
+        if (!sent) {
+          if (typeof subscribePush === 'function') {
             const ok = await subscribePush()
-            if (ok) sendPushNotification(exercise.name, body, tag)
+            if (ok && typeof sendPushNotification === 'function') {
+              await sendPushNotification(exercise.name, body, tag)
+            }
           }
-        } else {
           if (typeof window.notifyWatch === 'function') {
             await window.notifyWatch(exercise.name, body, { tag })
           }
