@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.62 · 2026-06-15 · exercise image keyword resolver + GIF fallback'
+const APP_VERSION = 'v1.63 · 2026-06-15 · fix Lateral Polea image, sort exercises A-Z, thumbnails'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

@@ -546,8 +546,13 @@ function renderExercises(container, { accent, units, onRefresh }) {
       filtered.forEach((e) => {
         const card = document.createElement('div')
         card.dataset.exerciseId = e.id
+        const media = typeof resolveExerciseMedia === 'function' ? resolveExerciseMedia(e) : { imgUrl: e.imgUrl || '' }
+        const thumb = media.imgUrl
+          ? `<img src="${media.imgUrl}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#0a0a0a">`
+          : `<div style="width:44px;height:44px;border-radius:8px;flex-shrink:0;background:#0a0a0a"></div>`
         card.style.cssText = `background:#141414;border-radius:14px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:12px`
         card.innerHTML = `
+          ${thumb}
           <div style="flex:1;min-width:0">
             <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px">${e.name}</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
@@ -573,6 +578,7 @@ function renderExercises(container, { accent, units, onRefresh }) {
       renderList(filtered)
     })
 
+    exercises.sort((a, b) => a.name.localeCompare(b.name, 'es'))
     renderList(exercises)
   })
 }

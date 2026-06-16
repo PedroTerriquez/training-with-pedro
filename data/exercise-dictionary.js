@@ -1975,6 +1975,12 @@ function resolveImageByKeywords(name) {
   return bestScore >= 0.3 ? best : null
 }
 
+// Entries where the keyword resolver finds a directory that exists but shows wrong content
+// (e.g., the free-exercise-db photo doesn't match the exercise)
+const SKIP_KEYWORD = new Set([
+  'elevaciones-laterales-polea',
+])
+
 function resolveExerciseMedia(exercise) {
   const entry = exercise?.dictId ? getEntryById(exercise.dictId) : null
 
@@ -1991,8 +1997,8 @@ function resolveExerciseMedia(exercise) {
     }
   }
 
-  // 3. Keyword-based resolver
-  if (!imgUrl) {
+  // 3. Keyword-based resolver (skip if directory exists but image is wrong)
+  if (!imgUrl && !SKIP_KEYWORD.has(exercise?.id)) {
     const keywordDir = resolveImageByKeywords(exercise?.name || '')
     if (keywordDir) imgUrl = _IMG(keywordDir)
   }
