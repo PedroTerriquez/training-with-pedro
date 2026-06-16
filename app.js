@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.63 · 2026-06-15 · fix Lateral Polea image, sort exercises A-Z, thumbnails'
+const APP_VERSION = 'v1.64 · 2026-06-15 · handle / in exercise names, add Pulley Rear Fly + Smith RDL dict entries, fix SKIP_KEYWORD'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

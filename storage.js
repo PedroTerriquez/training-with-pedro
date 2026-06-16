@@ -90,6 +90,30 @@ const Storage = {
 
   async findOrCreateExerciseByName(name, muscle) {
     const all = await getAll('exercises')
+
+    // Handle "A / B" pattern: use the part with a dictionary match,
+    // create unmatched parts as separate exercises
+    if (name.includes(' / ')) {
+      const parts = name.split(' / ').map(s => s.trim()).filter(Boolean)
+      for (const part of parts) {
+        const fn = typeof findExerciseEntry === 'function'
+        const entry = fn ? (findExerciseEntry(part) || findExerciseEntryFuzzy(part)) : null
+        if (entry) {
+          for (const other of parts) {
+            if (other !== part) {
+              const otherEntry = fn ? (findExerciseEntry(other) || findExerciseEntryFuzzy(other)) : null
+              if (!otherEntry && !all.find(e => e.name.toLowerCase() === other.toLowerCase())) {
+                const ex = { id: await generateId(), name: other, dictId: '', muscle, imgUrl: '', gifUrl: '', tips: [], alternatives: [] }
+                await put('exercises', ex)
+              }
+            }
+          }
+          name = part
+          break
+        }
+      }
+    }
+
     const dictEntry = typeof findExerciseEntry === 'function' ? (findExerciseEntry(name) || findExerciseEntryFuzzy(name)) : null
     const dictId = dictEntry ? 'dict_' + dictEntry.id : null
 

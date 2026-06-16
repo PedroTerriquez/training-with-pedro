@@ -433,7 +433,7 @@ const EXERCISE_DICTIONARY = [
     es: 'Pec Deck Invertido',
     en: 'Reverse Flyes',
     aliases: ['pec deck invertido', 'pec deck invertido (pájaros)', 'pec deck invertido (reverse pec deck)', 'reverse pec deck', 'reverse flyes'],
-    image: _IMG('Reverse_Flyes'),
+    image: _IMG('Cable_Rear_Delt_Fly'),
     gif: _GIF('delts/lever-seated-reverse-fly'),
     muscle: 'Hombro (Posterior)',
     tips: ['Frente a la máquina pec deck, empujando los agarres hacia atrás.', 'Imagina que quieres juntar los dorsos de tus manos detrás de ti; rango de movimiento corto.'],
@@ -460,6 +460,17 @@ const EXERCISE_DICTIONARY = [
     muscle: 'Hombro (Posterior)',
     tips: ['Inclina el torso horizontal. Jala abriendo los brazos hacia los lados en lugar de hacia atrás para aislar mecánicamente el deltoides posterior.'],
     alternatives: [{ name: 'Pec Deck Invertido', reason: '' }, { name: 'Face Pulls', reason: '' }],
+  },
+  {
+    id: 'pulley-rear-fly',
+    es: 'Pulley Rear Fly',
+    en: 'Cable Rear Delt Fly',
+    aliases: ['pulley rear fly', 'cable rear delt fly', 'cable reverse fly', 'pulley reverse fly'],
+    image: _IMG('Cable_Rear_Delt_Fly'),
+    gif: _GIF('delts/cable-rear-delt-row-with-rope'),
+    muscle: 'Hombro (Posterior)',
+    tips: ['Poleas en posición alta, jala hacia atrás activando deltoides posterior.', 'Controla la excéntrica y no uses impulso del torso.'],
+    alternatives: [{ name: 'Pec Deck Invertido', reason: '' }, { name: 'Pájaros con Mancuernas', reason: '' }],
   },
   {
     id: 'encogimientos-hombros',
@@ -952,6 +963,16 @@ const EXERCISE_DICTIONARY = [
     muscle: 'Isquiotibiales',
     tips: ['Desciende las mancuernas pegadas a tus piernas. Permite ajustar la línea de gravedad de manera más orgánica e individual que la barra rígida.'],
     alternatives: [{ name: 'Peso Muerto Rumano con Barra', reason: '' }, { name: 'Buenos Días con Barra', reason: '' }],
+  },
+  {
+    id: 'smith-machine-rdl',
+    es: 'Smith Machine Romanian Deadlift',
+    en: 'Smith Machine Romanian Deadlift',
+    aliases: ['smith machine rdl', 'smith machine romanian deadlift', 'rdl en smith', 'peso muerto rumano en smith'],
+    gif: _GIF('glutes/band-stiff-leg-deadlift'),
+    muscle: 'Isquiotibiales, Glúteos',
+    tips: ['Coloca la barra de la smith a media altura, tipo RDL.', 'Empuja cadera atrás deslizando la barra por los muslos.'],
+    alternatives: [{ name: 'Peso Muerto Rumano con Barra', reason: '' }, { name: 'RDL con Mancuernas', reason: '' }],
   },
   {
     id: 'buenos-dias',
@@ -1975,21 +1996,24 @@ function resolveImageByKeywords(name) {
   return bestScore >= 0.3 ? best : null
 }
 
-// Entries where the keyword resolver finds a directory that exists but shows wrong content
-// (e.g., the free-exercise-db photo doesn't match the exercise)
+// Entries where the free-exercise-db directory exists but the photo shows wrong content
+// (e.g., Cable_Seated_Lateral_Raise shows a bench press). Skips both dictionary image
+// and keyword resolver, falling through to GIF fallback.
 const SKIP_KEYWORD = new Set([
   'elevaciones-laterales-polea',
+  'smith-machine-rdl',
 ])
 
 function resolveExerciseMedia(exercise) {
   const entry = exercise?.dictId ? getEntryById(exercise.dictId) : null
+  const skipId = entry?.id
 
   // 1. User override
   let imgUrl = exercise?.imgUrl || ''
   if (!imgUrl) {
-    // 2. Dictionary entry image
+    // 2. Dictionary entry image (skip if image is known-wrong)
     const dictImage = entry?.image || getExerciseImageFromDictionary(exercise?.name || '') || ''
-    if (dictImage) {
+    if (dictImage && !SKIP_KEYWORD.has(skipId)) {
       const dirMatch = dictImage.match(/\/exercises\/(.+?)\/0\.jpg$/)
       if (dirMatch && FREE_EXERCISE_DIRS.has(dirMatch[1])) {
         imgUrl = dictImage
@@ -1998,7 +2022,7 @@ function resolveExerciseMedia(exercise) {
   }
 
   // 3. Keyword-based resolver (skip if directory exists but image is wrong)
-  if (!imgUrl && !SKIP_KEYWORD.has(exercise?.id)) {
+  if (!imgUrl && !SKIP_KEYWORD.has(skipId)) {
     const keywordDir = resolveImageByKeywords(exercise?.name || '')
     if (keywordDir) imgUrl = _IMG(keywordDir)
   }
