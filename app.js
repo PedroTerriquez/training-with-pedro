@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.68 · 2026-06-16 · Fix /api/push/send sin verificar respuesta push service'
+const APP_VERSION = 'v1.69 · 2026-06-16 · Push descanso 10s antes, fix /api/push/send'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -979,12 +979,13 @@ window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) =>
     await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
   } catch (_) {}
   window.pendingCancelTag = tag
+  const pushEndTime = endTime - 10000 // Push arrives 10s early
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/rest-timer/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        endTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
+        endTime: pushEndTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
         exerciseId, sets, reps, restSec,
       }),
     })
