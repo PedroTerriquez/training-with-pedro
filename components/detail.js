@@ -146,8 +146,15 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     const gifLayer = document.createElement('div')
     gifLayer.style.cssText = 'position:absolute;inset:0;transition:opacity .35s;pointer-events:none'
 
-    if (exercise.imgUrl) imgLayer.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
-    else imgLayer.style.display = 'none'
+    const isGifFallback = exercise.imgUrl && exercise.gifUrl && exercise.imgUrl === exercise.gifUrl
+
+    if (isGifFallback) {
+      imgLayer.style.display = 'none'
+    } else if (exercise.imgUrl) {
+      imgLayer.style.background = `#161616 url(${exercise.imgUrl}) center/cover no-repeat`
+    } else {
+      imgLayer.style.display = 'none'
+    }
 
     if (exercise.gifUrl) {
       const gifImg = document.createElement('img')
@@ -156,15 +163,15 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       gifLayer.appendChild(gifImg)
     } else gifLayer.style.display = 'none'
 
-    let showGif = false
-    gifLayer.style.opacity = '0'
-    imgLayer.style.opacity = '1'
+    let showGif = isGifFallback
+    gifLayer.style.opacity = showGif ? '1' : '0'
+    imgLayer.style.opacity = showGif ? '0' : '1'
     media.appendChild(imgLayer)
     media.appendChild(gifLayer)
     hero.appendChild(media)
 
-    // Crossfade toggle
-    const hasBoth = exercise.imgUrl && exercise.gifUrl
+    // Crossfade toggle (only when both static photo and GIF exist)
+    const hasBoth = !isGifFallback && exercise.imgUrl && exercise.gifUrl
     if (hasBoth) {
       const pill = document.createElement('button')
       pill.style.cssText = `position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0`

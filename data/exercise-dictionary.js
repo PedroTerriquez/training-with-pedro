@@ -390,7 +390,7 @@ const EXERCISE_DICTIONARY = [
     en: 'Cable Lateral Raise Behind Back',
     aliases: ['elevaciones laterales en polea por detrás de la espalda', 'elevaciones laterales por detrás'],
     image: _IMG('Cable_Seated_Lateral_Raise'),
-    gif: _GIF('delts/cable-standing-cross-over-high-reverse-fly'),
+    gif: _GIF('delts/cable-one-arm-lateral-raise'),
     muscle: 'Hombro (Lateral)',
     tips: ['Sujeta la polea baja colocando el cable por detrás de tu cuerpo.', 'Eleva el brazo de forma lateral hacia afuera.', 'Este ángulo modifica el perfil de resistencia dando máxima tensión al inicio del recorrido.'],
     alternatives: [{ name: 'Elevaciones Laterales con Polea', reason: '' }, { name: 'Elevaciones Laterales con Mancuernas', reason: '' }],
@@ -1371,7 +1371,7 @@ const EXERCISE_DICTIONARY = [
     en: 'Machine Hip Thrust',
     aliases: ['hip thrust maquina', 'hip thrust en maquina', 'machine hip thrust', 'hip thrust machine', 'glute thrust maquina'],
     image: _IMG('Barbell_Hip_Thrust'),
-    gif: _GIF('glutes/resistance-band-hip-thrusts-on-knees-female'),
+    gif: _GIF('glutes/barbell-glute-bridge'),
     muscle: 'Glúteos',
     tips: ['Asegúrate de que la bisagra principal ocurra en la cadera.', 'Mantén la barbilla metida y la mirada hacia adelante para evitar la hiperextensión lumbar en la parte alta.'],
     alternatives: [{ name: 'Leg Glute (Máquina)', reason: '' }, { name: 'Hack Squat', reason: '' }],
@@ -1382,7 +1382,7 @@ const EXERCISE_DICTIONARY = [
     en: 'Leg Glute Machine',
     aliases: ['leg glute maquina', 'leg glute maquina', 'gluteo femoral maquina', 'extension de gluteo en maquina', 'leg glute machine'],
     image: _IMG('Barbell_Glute_Bridge'),
-    gif: _GIF('glutes/sled-45-leg-press'),
+    gif: _GIF('glutes/barbell-glute-bridge'),
     muscle: 'Glúteos',
     tips: ['Extiende la cadera con un recorrido completo, apretando el glúteo al final.', 'Mantén el core estable para no usar la zona lumbar en la extensión.'],
     alternatives: [{ name: 'Hip Thrust Machine', reason: '' }, { name: 'Hip Abductor', reason: '' }],
@@ -1448,7 +1448,7 @@ const EXERCISE_DICTIONARY = [
     en: 'Unilateral Cable Row',
     aliases: ['cable row unilateral', 'cable row unilateral', 'remo en polea unilateral', 'unilateral cable row'],
     image: _IMG('Seated_Cable_Rows'),
-    gif: _GIF('delts/cable-upright-row'),
+    gif: _GIF('upper-back/cable-seated-row'),
     muscle: 'Dorsal',
     tips: ['Siéntate de lado si es necesario para alinear el cable con tus dorsales.', 'Jala llevando el codo pegado al torso hacia tu cadera de manera unilateral.'],
     alternatives: [{ name: 'Cable Row', reason: '' }, { name: 'Row (Máquina Chest-Supported)', reason: '' }],
@@ -1492,7 +1492,7 @@ const EXERCISE_DICTIONARY = [
     en: 'Cable Lateral Raise Crossover Behind Back',
     aliases: ['pulley module cable lateral raise crossover por detras', 'cable lateral raise crossover detras', 'elevaciones laterales polea crossover detras', 'cable lateral raise cross behind', 'Crossover por detrás'],
     image: _IMG('Cable_Seated_Lateral_Raise'),
-    gif: _GIF('delts/cable-standing-cross-over-high-reverse-fly'),
+    gif: _GIF('delts/cable-one-arm-lateral-raise'),
     muscle: 'Hombro (Medio)',
     tips: ['Cruza los cables por detrás de tu cuerpo para modificar el perfil de resistencia, maximizando la tensión en el rango medio-acortado del deltoides.'],
     alternatives: [{ name: 'Pulley Module (Cable Lateral Raise)', reason: '' }],
@@ -1890,12 +1890,119 @@ function getExerciseImageFromDictionary(name) {
   return e ? e.image : null
 }
 
+// Equipment keyword → directory prefix mapping for keyword resolver
+const EQUIPMENT_RULES = [
+  { test: (n) => /polea|poleas|cuerda/.test(n), prefix: 'Cable' },
+  { test: (n) => /mancuerna|mancuernas/.test(n), prefix: 'Dumbbell' },
+  { test: (n) => /barra/.test(n), prefix: 'Barbell' },
+  { test: (n) => /máquina|maquina/.test(n), prefix: 'Machine' },
+  { test: (n) => /smith/.test(n), prefix: 'Smith' },
+]
+
+// Spanish movement → English directory key fragments for better token matching
+const SPANISH_TO_EN_KEY = {
+  elevacion: ['raise', 'lateral'],
+  elevaciones: ['raise', 'lateral'],
+  laterales: ['lateral'],
+  lateral: ['lateral'],
+  jalon: ['pulldown', 'pull'],
+  remo: ['row'],
+  sentadilla: ['squat'],
+  zancada: ['lunge'],
+  peso: ['deadlift'],
+  plancha: ['plank'],
+  dominada: ['chin', 'pull'],
+  fondos: ['dip'],
+  fondo: ['dip'],
+  flexion: ['push'],
+  pantorrilla: ['calf'],
+  pantorrillas: ['calf'],
+  predicador: ['preacher'],
+  inclinado: ['incline'],
+  acostado: ['lying'],
+  sentado: ['seated'],
+  piernas: ['leg'],
+  pecho: ['chest'],
+  hombro: ['shoulder'],
+  hombros: ['shoulder'],
+  espalda: ['back'],
+  brazo: ['arm'],
+  brazos: ['arm'],
+  biceps: ['bicep'],
+  triceps: ['tricep'],
+  femoral: ['hamstring', 'leg'],
+  cuadriceps: ['quadricep', 'leg'],
+  gluteo: ['glute'],
+  gluteos: ['glute'],
+  abdominal: ['crunch', 'abs'],
+}
+
+function resolveImageByKeywords(name) {
+  if (!name) return null
+  const norm = _normExercise(name)
+  const tokens = norm.split(/\s+/).filter((t) => t.length > 2)
+  if (tokens.length === 0) return null
+
+  const equip = EQUIPMENT_RULES.find((r) => r.test(norm))
+  const equipPrefix = equip ? equip.prefix.toLowerCase() : null
+
+  let best = null
+  let bestScore = 0
+
+  for (const dir of FREE_EXERCISE_DIRS) {
+    const dl = dir.toLowerCase()
+    let score = 0
+
+    if (equipPrefix && dl.startsWith(equipPrefix)) score += 0.3
+
+    let matches = 0
+    for (const t of tokens) {
+      if (dl.includes(t)) {
+        matches++
+      } else {
+        const engKeys = SPANISH_TO_EN_KEY[t]
+        if (engKeys && engKeys.some((k) => dl.includes(k))) matches++
+      }
+    }
+    score += (matches / tokens.length) * 0.7
+
+    if (score > bestScore) {
+      bestScore = score
+      best = dir
+    }
+  }
+
+  return bestScore >= 0.3 ? best : null
+}
+
 function resolveExerciseMedia(exercise) {
   const entry = exercise?.dictId ? getEntryById(exercise.dictId) : null
-  return {
-    imgUrl: exercise?.imgUrl || entry?.image || getExerciseImageFromDictionary(exercise?.name || '') || '',
-    gifUrl: entry?.gif || getExerciseGifUrl(exercise?.name || '') || null,
+
+  // 1. User override
+  let imgUrl = exercise?.imgUrl || ''
+  if (!imgUrl) {
+    // 2. Dictionary entry image
+    const dictImage = entry?.image || getExerciseImageFromDictionary(exercise?.name || '') || ''
+    if (dictImage) {
+      const dirMatch = dictImage.match(/\/exercises\/(.+?)\/0\.jpg$/)
+      if (dirMatch && FREE_EXERCISE_DIRS.has(dirMatch[1])) {
+        imgUrl = dictImage
+      }
+    }
   }
+
+  // 3. Keyword-based resolver
+  if (!imgUrl) {
+    const keywordDir = resolveImageByKeywords(exercise?.name || '')
+    if (keywordDir) imgUrl = _IMG(keywordDir)
+  }
+
+  const gifUrl = entry?.gif || getExerciseGifUrl(exercise?.name || '') || null
+
+  // 4. GIF fallback — use GIF as static image when no valid photo
+  if (!imgUrl && gifUrl) imgUrl = gifUrl
+
+  return { imgUrl: imgUrl || '', gifUrl }
 }
 
 window.EXERCISE_DICTIONARY = EXERCISE_DICTIONARY

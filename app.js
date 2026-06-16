@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.61 · 2026-06-15 · dictId dedup: normalize + merge duplicates by dictionary ID'
+const APP_VERSION = 'v1.62 · 2026-06-15 · exercise image keyword resolver + GIF fallback'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
