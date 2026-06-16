@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.66 · 2026-06-16 · local notification fallback en _completeRest, error surfacing en scheduleRestTimer, test'
+const APP_VERSION = 'v1.66 · 2026-06-16 · push fallback en _completeRest, loading state en ⚡, error surfacing en scheduleRestTimer'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1069,14 +1069,9 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Local notification fallback — covers cases where Web Push fails
-  if (typeof window.notifyWatch === 'function') {
-    await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: `done-${Date.now()}`, requireInteraction: false })
-    // Re-show original exercise notification so user can tap for next rest cycle
-    if (data.name) {
-      await new Promise(r => setTimeout(r, 300))
-      await window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `rest-${Date.now()}`, requireInteraction: true })
-    }
+  // Send push notification as fallback — covers cases where Worker queue wasn't provisioned
+  if (typeof sendPushNotification === 'function') {
+    sendPushNotification(`⏰ ${data.name}`, `Descanso terminado — Tap para iniciar · ${data.sets}×${data.reps}`, `done-${data.tag || Date.now()}`)
   }
   // Store exercise data so the next notification tap starts a new timer
   try {

@@ -151,6 +151,10 @@ test.describe('Rest notification flow', () => {
     await page.waitForTimeout(500)
     await page.waitForFunction(() => typeof window.appRefresh === 'function')
 
+    await page.evaluate(() => {
+      window.sendPushNotification = async () => true
+    })
+
     const testData = { name: 'Press Banca', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench' }
 
     await page.evaluate(async (data) => {
@@ -249,7 +253,7 @@ test.describe('Rest notification flow', () => {
     })
   })
 
-  test('_completeRest sends local notification and re-shows exercise notification', async ({ page }) => {
+  test('_completeRest sends push notification as fallback', async ({ page }) => {
     await page.goto('/')
     await page.waitForTimeout(500)
     await page.waitForFunction(() => typeof window.appRefresh === 'function')
@@ -267,12 +271,11 @@ test.describe('Rest notification flow', () => {
       Notification.requestPermission = async () => 'granted'
     })
 
-    const notifyCalls = []
     await page.evaluate(() => {
-      const orig = window.notifyWatch
-      window.notifyWatch = async (title, body, opts) => {
-        window.__notifyCalls = window.__notifyCalls || []
-        window.__notifyCalls.push({ title, body, opts: opts || {} })
+      window.__pushCalls = []
+      window.sendPushNotification = async (title, body, tag) => {
+        window.__pushCalls.push({ title, body, tag })
+        return true
       }
     })
 
@@ -303,17 +306,11 @@ test.describe('Rest notification flow', () => {
     const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
     expect(toastText).toContain('Descanso terminado')
 
-    const calls = await page.evaluate(() => window.__notifyCalls || [])
-    console.log('notifyWatch calls:', JSON.stringify(calls))
+    const calls = await page.evaluate(() => window.__pushCalls || [])
+    console.log('push calls:', JSON.stringify(calls))
 
-    expect(calls.length).toBeGreaterThanOrEqual(2)
-    const doneCall = calls.find(c => c.body === 'Descanso terminado')
-    expect(doneCall).toBeDefined()
-    expect(doneCall.title).toContain('Press Banca')
-    expect(doneCall.opts.requireInteraction).toBe(false)
-
-    const exerciseCall = calls.find(c => c.title === 'Press Banca' && c.body.includes('Tap para iniciar'))
-    expect(exerciseCall).toBeDefined()
-    expect(exerciseCall.opts.requireInteraction).toBe(true)
+    expect(calls.length).toBe(1)
+    expect(calls[0].title).toContain('Press Banca')
+    expect(calls[0].body).toContain('Descanso terminado')
   })
 })

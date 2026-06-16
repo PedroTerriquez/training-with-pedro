@@ -57,9 +57,21 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
 
     // ⚡ Iniciar — sends push notification for rest timer
     const iniciarBtn = document.createElement('button')
-    iniciarBtn.style.cssText = `flex-shrink:0;background:${accent};border:0;border-radius:12px;padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation;transition:opacity 0.15s;white-space:nowrap`
+    const btnBaseStyle = `flex-shrink:0;border:0;border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:7px;color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation;white-space:nowrap`
+    iniciarBtn.style.cssText = `${btnBaseStyle};background:${accent};cursor:pointer;transition:opacity 0.15s;opacity:1`
     iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
+    function setBtnLoading(loading) {
+      iniciarBtn.disabled = loading
+      if (loading) {
+        iniciarBtn.style.cssText = `${btnBaseStyle};background:rgba(255,255,255,0.08);cursor:default;opacity:0.5`
+        iniciarBtn.innerHTML = `<span style="font-size:12px;line-height:1">⏳</span> Enviando...`
+      } else {
+        iniciarBtn.style.cssText = `${btnBaseStyle};background:${accent};cursor:pointer;opacity:1`
+        iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
+      }
+    }
     iniciarBtn.addEventListener('click', async () => {
+      if (iniciarBtn.disabled) return
       if (!('Notification' in window)) return
       if (Notification.permission === 'default') {
         const result = await Notification.requestPermission()
@@ -72,25 +84,28 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
         return
       }
-      const exerciseId = exercise.exerciseId || exercise.id || ''
-      // Store exercise data so timer starts when notification is tapped
+      setBtnLoading(true)
       try {
-        const cache = await caches.open('rest-pending')
-        await cache.put('/pending', new Response(JSON.stringify({ name: exercise.name, restSec: exercise.rest, sets: exercise.sets, reps: exercise.reps, exerciseId })))
-      } catch (_) {}
-      // Push notification — timer starts when user taps it
-      const tag = `rest-${Date.now()}`
-      const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
-      if (typeof sendPushNotification === 'function') {
-        const sent = await sendPushNotification(exercise.name, body, tag)
-        if (!sent && typeof subscribePush === 'function') {
-          const ok = await subscribePush()
-          if (ok) sendPushNotification(exercise.name, body, tag)
+        const exerciseId = exercise.exerciseId || exercise.id || ''
+        try {
+          const cache = await caches.open('rest-pending')
+          await cache.put('/pending', new Response(JSON.stringify({ name: exercise.name, restSec: exercise.rest, sets: exercise.sets, reps: exercise.reps, exerciseId })))
+        } catch (_) {}
+        const tag = `rest-${Date.now()}`
+        const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
+        if (typeof sendPushNotification === 'function') {
+          const sent = await sendPushNotification(exercise.name, body, tag)
+          if (!sent && typeof subscribePush === 'function') {
+            const ok = await subscribePush()
+            if (ok) sendPushNotification(exercise.name, body, tag)
+          }
+        } else {
+          if (typeof window.notifyWatch === 'function') {
+            await window.notifyWatch(exercise.name, body, { tag })
+          }
         }
-      } else {
-        if (typeof window.notifyWatch === 'function') {
-          await window.notifyWatch(exercise.name, body, { tag })
-        }
+      } finally {
+        setBtnLoading(false)
       }
     })
     wrap.appendChild(iniciarBtn)
