@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.65 · 2026-06-16 · empty state, AI error handling, Coach FAB deferred mount + test, formats enum fix'
+const APP_VERSION = 'v1.66 · 2026-06-16 · local notification fallback en _completeRest, error surfacing en scheduleRestTimer, test'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -987,9 +987,14 @@ window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) =>
         exerciseId, sets, reps, restSec,
       }),
     })
-    if (!res.ok) console.warn('scheduleRestTimer worker error:', await res.text())
+    if (!res.ok) {
+      const txt = await res.text()
+      console.warn('scheduleRestTimer worker error:', res.status, txt)
+      if (typeof showToast === 'function') showToast('Error al programar notificación: ' + txt, true)
+    }
   } catch (e) {
     console.warn('scheduleRestTimer failed:', e)
+    if (typeof showToast === 'function') showToast('Error de red al programar notificación', true)
   }
   window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
 }
@@ -1064,8 +1069,16 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+  // Local notification fallback — covers cases where Web Push fails
+  if (typeof window.notifyWatch === 'function') {
+    await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado', { tag: `done-${Date.now()}`, requireInteraction: false })
+    // Re-show original exercise notification so user can tap for next rest cycle
+    if (data.name) {
+      await new Promise(r => setTimeout(r, 300))
+      await window.notifyWatch(data.name, `${data.sets}×${data.reps} · Tap para iniciar descanso`, { tag: `rest-${Date.now()}`, requireInteraction: true })
+    }
+  }
   // Store exercise data so the next notification tap starts a new timer
-  // The Queue handles sending "Descanso terminado" + re-show notifications
   try {
     const pendingCache = await caches.open('rest-pending')
     await pendingCache.put('/pending', new Response(JSON.stringify({

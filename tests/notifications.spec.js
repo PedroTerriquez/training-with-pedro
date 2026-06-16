@@ -248,4 +248,72 @@ test.describe('Rest notification flow', () => {
       }
     })
   })
+
+  test('_completeRest sends local notification and re-shows exercise notification', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForTimeout(500)
+    await page.waitForFunction(() => typeof window.appRefresh === 'function')
+
+    await page.evaluate(() => {
+      try {
+        Object.defineProperty(Notification, 'permission', { get: () => 'granted', configurable: true })
+      } catch (e) {
+        window.Notification = class {
+          constructor() {}
+          static permission = 'granted'
+          static requestPermission = async () => 'granted'
+        }
+      }
+      Notification.requestPermission = async () => 'granted'
+    })
+
+    const notifyCalls = []
+    await page.evaluate(() => {
+      const orig = window.notifyWatch
+      window.notifyWatch = async (title, body, opts) => {
+        window.__notifyCalls = window.__notifyCalls || []
+        window.__notifyCalls.push({ title, body, opts: opts || {} })
+      }
+    })
+
+    const testData = { name: 'Press Banca', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench' }
+
+    await page.evaluate(async (data) => {
+      try {
+        const cache = await caches.open('rest-timer')
+        await cache.put('/pending', new Response(JSON.stringify({
+          endTime: Date.now() - 1000,
+          name: data.name,
+          tag: 'test-tag',
+          restSec: data.restSec,
+          sets: data.sets,
+          reps: data.reps,
+          exerciseId: data.exerciseId,
+        })))
+      } catch (e) { /* cache not available */ }
+    }, testData)
+
+    await page.evaluate(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      await new Promise(r => setTimeout(r, 300))
+    })
+    await page.waitForTimeout(1500)
+
+    const toast = page.locator('#backup-toast')
+    const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
+    expect(toastText).toContain('Descanso terminado')
+
+    const calls = await page.evaluate(() => window.__notifyCalls || [])
+    console.log('notifyWatch calls:', JSON.stringify(calls))
+
+    expect(calls.length).toBeGreaterThanOrEqual(2)
+    const doneCall = calls.find(c => c.body === 'Descanso terminado')
+    expect(doneCall).toBeDefined()
+    expect(doneCall.title).toContain('Press Banca')
+    expect(doneCall.opts.requireInteraction).toBe(false)
+
+    const exerciseCall = calls.find(c => c.title === 'Press Banca' && c.body.includes('Tap para iniciar'))
+    expect(exerciseCall).toBeDefined()
+    expect(exerciseCall.opts.requireInteraction).toBe(true)
+  })
 })

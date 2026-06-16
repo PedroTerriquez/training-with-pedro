@@ -238,6 +238,11 @@ binding = "PUSH_KV"
 id = "the-copied-id"
 ```
 
+#### 4.5 Create Queue for Delayed Notifications
+```bash
+npx wrangler queues create rest-timers
+```
+
 #### 5. Generate VAPID Keys
 ```bash
 npx web-push generate-vapid-keys
