@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.66 · 2026-06-16 · push fallback en _completeRest, loading state en ⚡, error surfacing en scheduleRestTimer'
+const APP_VERSION = 'v1.67 · 2026-06-16 · Worker queue ADR + tests, _completeRest solo toast, loading state ⚡'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1069,11 +1069,8 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Send push notification as fallback — covers cases where Worker queue wasn't provisioned
-  if (typeof sendPushNotification === 'function') {
-    sendPushNotification(`⏰ ${data.name}`, `Descanso terminado — Tap para iniciar · ${data.sets}×${data.reps}`, `done-${data.tag || Date.now()}`)
-  }
-  // Store exercise data so the next notification tap starts a new timer
+  // The Worker queue handles sending "⏰ Descanso terminado" push notification at the exact restSec delay.
+  // We only re-store exercise data so the next notification tap starts a new cycle.
   try {
     const pendingCache = await caches.open('rest-pending')
     await pendingCache.put('/pending', new Response(JSON.stringify({
