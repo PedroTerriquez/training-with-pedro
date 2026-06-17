@@ -19,6 +19,16 @@ let _warmupSheetShown = false
 let _stretchSheetShown = false
 let _mountGen = 0
 
+const TOPIC_LABELS = {
+  comparativa: 'comparativa',
+  racha: 'racha',
+  esfuerzo_volumen: 'esfuerzo/vol',
+  tiempo_intensidad: 'tiempo/intens',
+  recuperacion: 'recuperación',
+  progreso_global: 'progreso',
+  retrospectiva_semanal: 'retrospectiva',
+}
+
 function mountToday(container, { program, weekIdx, dayIndex, settings, accent, onOpenExercise, exercises, swaps, rescheduleOrder }) {
   swaps = swaps || {}
   const gen = ++_mountGen
@@ -583,7 +593,9 @@ async function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exe
       <div style="margin-top:12px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,0.9);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px">${resumen}</div>
       ${destacados.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px">${destacados.map(d => `<span style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:9999px;background:${accent}16;border:0.5px solid ${accent}3a;font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent}"><span style="width:4px;height:4px;border-radius:50%;background:${accent};display:inline-block"></span>${d}</span>`).join('')}</div>` : ''}
       ${consejos.length > 0 ? `<div style="margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(255,255,255,0.07)"><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45);font-weight:600;margin-bottom:10px">Consejos</div><div style="display:flex;flex-direction:column;gap:11px">${consejos.map((c, i) => `<div style="display:flex;gap:11px;align-items:flex-start"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${accent};opacity:0.7;width:16px;flex-shrink:0;padding-top:1px;text-align:right">${String(i + 1).padStart(2, '0')}</div><div style="flex:1;font-size:13px;line-height:1.5;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px">${c}</div></div>`).join('')}</div></div>` : ''}
-      <div style="margin-top:12px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;color:rgba(255,255,255,0.2);text-transform:uppercase">${analysis._provider || 'llama'}</div>`
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;text-transform:uppercase">
+        <span style="color:rgba(255,255,255,0.35)">${TOPIC_LABELS[analysis._topic] || analysis._topic || ''}</span>
+      </div>`
   }
 
   wrap.innerHTML = `

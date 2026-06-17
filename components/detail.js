@@ -54,65 +54,6 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     }
 
     wrap.appendChild(navPill('prev'))
-
-    // ⚡ Iniciar — sends push notification for rest timer
-    const iniciarBtn = document.createElement('button')
-    const btnBaseStyle = `flex-shrink:0;border:0;border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:7px;color:#0a0a0a;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:-0.1px;touch-action:manipulation;white-space:nowrap`
-    iniciarBtn.style.cssText = `${btnBaseStyle};background:${accent};cursor:pointer;transition:opacity 0.15s;opacity:1`
-    iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
-    function setBtnLoading(loading) {
-      iniciarBtn.disabled = loading
-      if (loading) {
-        iniciarBtn.style.cssText = `${btnBaseStyle};background:rgba(255,255,255,0.08);cursor:default;opacity:0.5`
-        iniciarBtn.innerHTML = `<span style="font-size:12px;line-height:1">⏳</span> Enviando...`
-      } else {
-        iniciarBtn.style.cssText = `${btnBaseStyle};background:${accent};cursor:pointer;opacity:1`
-        iniciarBtn.innerHTML = `<span style="font-size:15px;line-height:1">⚡</span> Iniciar`
-      }
-    }
-    iniciarBtn.addEventListener('click', async () => {
-      if (iniciarBtn.disabled) return
-      if (!('Notification' in window)) return
-      if (Notification.permission === 'default') {
-        const result = await Notification.requestPermission()
-        if (result !== 'granted') {
-          if (typeof showToast === 'function') showToast('Permiso necesario para notificaciones', true)
-          return
-        }
-      }
-      if (Notification.permission === 'denied') {
-        if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
-        return
-      }
-      setBtnLoading(true)
-      try {
-        const exerciseId = exercise.exerciseId || exercise.id || ''
-        try {
-          const cache = await caches.open('rest-pending')
-          await cache.put('/pending', new Response(JSON.stringify({ name: exercise.name, restSec: exercise.rest, sets: exercise.sets, reps: exercise.reps, exerciseId })))
-        } catch (_) {}
-        const tag = `rest-${Date.now()}`
-        const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
-        const sent = typeof sendPushNotification === 'function'
-          ? await sendPushNotification(exercise.name, body, tag)
-          : false
-        if (!sent) {
-          if (typeof subscribePush === 'function') {
-            const ok = await subscribePush()
-            if (ok && typeof sendPushNotification === 'function') {
-              await sendPushNotification(exercise.name, body, tag)
-            }
-          }
-          if (typeof window.notifyWatch === 'function') {
-            await window.notifyWatch(exercise.name, body, { tag })
-          }
-        }
-      } finally {
-        setBtnLoading(false)
-      }
-    })
-    wrap.appendChild(iniciarBtn)
-
     wrap.appendChild(navPill('next'))
     return wrap
   }
@@ -688,8 +629,8 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     fab.id = 'coach-fab'
     const overlay = container.parentElement?.parentElement?.parentElement
     if (!overlay) return
-    fab.style.cssText = `position:absolute;top:14px;left:14px;width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:200;padding:0;color:rgba(255,255,255,0.85)`
-    fab.innerHTML = `<svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z"/><circle cx="9" cy="8.2" r="0.95" fill="currentColor"/><circle cx="6" cy="8.2" r="0.95" fill="currentColor"/><circle cx="12" cy="8.2" r="0.95" fill="currentColor"/></svg>`
+    fab.style.cssText = `position:absolute;top:14px;left:14px;padding:0 12px 0 10px;height:32px;border-radius:9999px;border:0.5px solid ${accent}3a;background:${accent}1a;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;gap:6px;z-index:200`
+    fab.innerHTML = `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="${accent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg><span style="font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent};letter-spacing:-0.2px">Coach IA</span>`
     fab.addEventListener('click', () => openCoachChat(exercise, accent))
     overlay.appendChild(fab)
   }, 0)

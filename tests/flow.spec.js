@@ -56,8 +56,7 @@ const SEED = {
       goal: 'hipertrofia',
       experience: 'intermedio',
       occupation: 'Ingeniero',
-      pushSubscribed: false,
-      pushServerUrl: '',
+
       sessionState: null,
       lastCoachAnalysis: null,
       rescheduleWeekOrder: {},
@@ -144,6 +143,10 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.reload()
   await page.waitForTimeout(1000)
   await page.waitForFunction(() => typeof window.appRefresh === 'function')
+  // Wait for Service Worker to fully activate so it doesn't reload the page mid-test
+  await page.waitForFunction(() => {
+    return navigator.serviceWorker.controller !== null
+  }, { timeout: 5000 }).catch(() => {})
 
   // Intercept coach AI API
   await page.route('**/*.workers.dev/**', (route) => {
@@ -237,13 +240,15 @@ test('full user flow: profile → warmup → week switch → training → stretc
   // ── Step 5.5: Coach IA FAB ──
   const coachFab = page.locator('#coach-fab')
   await expect(coachFab).toBeVisible({ timeout: 3000 })
+  await expect(coachFab).toContainText('Coach IA')
+  await expect(coachFab).toHaveCSS('background-color', /212/)
 
   // Click to open Coach IA overlay
   await coachFab.click()
   await page.waitForTimeout(400)
 
-  // Verify overlay shows "Coach IA" header + exercise-specific greeting
-  await expect(page.locator('text=Coach IA')).toBeVisible()
+  // Verify overlay shows Coach IA content + exercise-specific greeting
+  await expect(page.locator('#coach-close-btn')).toBeVisible()
   await expect(page.locator('text=¡Qué onda!')).toBeVisible()
   await expect(page.locator('text=Mejorar técnica')).toBeVisible()
   await expect(page.locator('text=¿Voy muy pesado?')).toBeVisible()
@@ -332,6 +337,16 @@ test('full user flow: profile → warmup → week switch → training → stretc
   const coachCard = page.locator('#coach-card-regen')
   await expect(coachCard).toBeVisible({ timeout: 10000 })
   await expect(coachCard).toContainText('Resumen del coach')
+
+  // Verify rotation topic label is displayed (any random topic)
+  const cardText = await coachCard.textContent()
+  const topicLabels = ['comparativa','racha','esfuerzo/vol','tiempo/intens','recuperación','progreso','retrospectiva']
+  expect(topicLabels.some(l => cardText.includes(l))).toBe(true)
+
+  // Verify provider text is NOT displayed
+  expect(cardText).not.toContain('test')
+  expect(cardText).not.toContain('llama')
+  expect(cardText).not.toContain('gemini')
 
   // ── Step 9: History Verification ──
   await page.evaluate(() => { location.hash = '#history' })

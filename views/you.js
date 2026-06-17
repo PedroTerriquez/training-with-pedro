@@ -98,9 +98,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   quickCard.appendChild(row('units', 'Unidades', `<button id="units-btn" style="font-size:12px;color:rgba(255,255,255,0.55);font-family:'JetBrains Mono',monospace;background:none;border:0;cursor:pointer">${units === 'kg' ? 'Kilogramos (kg)' : 'Libras (lb)'}</button>`))
   quickCard.appendChild(row('accent', 'Color de acento', `<div style="display:flex;gap:6px;align-items:center"><input type="color" id="accent-input" value="${accent}" style="width:40px;height:28px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:0;background:transparent;cursor:pointer"></div>`))
   quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
-  const permLabel = Notification.permission === 'granted' ? 'Activadas' : Notification.permission === 'denied' ? 'Denegadas' : 'Preguntar'
-  quickCard.appendChild(row(null, 'Notificaciones', `<button id="notif-perm-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${Notification.permission === 'granted' ? `${accent}22` : 'transparent'};color:${Notification.permission === 'granted' ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${permLabel}</button>`))
-  quickCard.appendChild(row(null, 'Probar Push', `<div style="display:flex;gap:6px"><button id="test-push-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Vacío</button><button id="test-enc-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Encriptado</button></div>`))
+
   quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
   container.appendChild(quickCard)
 
@@ -275,70 +273,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
         watchToggleBtn.style.background = s.hasWatch ? `${accent}22` : 'transparent'
         watchToggleBtn.style.color = s.hasWatch ? accent : 'rgba(255,255,255,0.55)'
       })
-    }
-    const notifBtn = document.getElementById('notif-perm-btn')
-    if (notifBtn) {
-      notifBtn.addEventListener('click', async () => {
-        if (Notification.permission === 'granted') {
-          showToast('Notificaciones ya activadas')
-          return
-        }
-        if (Notification.permission === 'denied') {
-          showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
-          return
-        }
-        const result = await Notification.requestPermission()
-        if (result === 'granted') {
-          notifBtn.textContent = 'Activadas'
-          notifBtn.style.background = `${accent}22`
-          notifBtn.style.color = accent
-          // Also subscribe for push notifications
-          if (typeof subscribePush === 'function') await subscribePush()
-        } else {
-          notifBtn.textContent = 'Denegadas'
-        }
-      })
-    }
-    function onTestClick(fn, label) {
-      let busy = false
-      return async () => {
-        if (busy) return
-        busy = true
-        try { await fn() } finally { busy = false }
-      }
-    }
-    const testBtn = document.getElementById('test-push-btn')
-    if (testBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
-      testBtn.addEventListener('click', onTestClick(async () => {
-        testBtn.disabled = true; testBtn.textContent = '...'
-        try {
-          const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId: await _deviceId() }),
-          })
-          const data = await res.json()
-          showToast(`Vacío: ${data.status} ${data.body || ''}`)
-        } catch (e) {
-          showToast(`Error: ${e.message}`, true)
-        } finally {
-          testBtn.disabled = false; testBtn.textContent = 'Vacío'
-        }
-      }, 'Vacío'))
-    }
-    const testEncBtn = document.getElementById('test-enc-btn')
-    if (testEncBtn && typeof sendPushNotification === 'function') {
-      testEncBtn.addEventListener('click', onTestClick(async () => {
-        testEncBtn.disabled = true; testEncBtn.textContent = '...'
-        try {
-          const ok = await sendPushNotification('Coach Pedro AI', 'Push con datos funciona ✓', 'test-data', 0)
-          showToast(ok ? 'Push enviado ✓' : 'Push falló')
-        } catch (e) {
-          showToast(`Error: ${e.message}`, true)
-        } finally {
-          testEncBtn.disabled = false; testEncBtn.textContent = 'Encriptado'
-        }
-      }, 'Encriptado'))
     }
     const installBtn = document.getElementById('install-btn')
     if (installBtn) {
