@@ -239,4 +239,39 @@ test.describe('Rest notification flow', () => {
     // Completion must not schedule a new delayed push (the push drives the cycle).
     expect(restTimerCalled).toBe(false)
   })
+
+  // Regression: returning to the foreground fires focus + visibilitychange
+  // near-simultaneously. A single tap must schedule exactly ONE delayed push,
+  // not one per event (the "3 notifications" bug).
+  test('concurrent foreground events schedule only one rest cycle', async ({ page }) => {
+    let startCalls = 0
+    await page.route(/rest-timer\/start/, async (route) => {
+      startCalls++
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'scheduled' }) })
+    })
+    await page.route(/rest-timer\/cancel/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'ok' })
+    })
+
+    await page.goto('/')
+    await page.waitForTimeout(500)
+    await page.waitForFunction(() => typeof window.appRefresh === 'function')
+
+    await page.evaluate(async () => {
+      const cache = await caches.open('rest-pending')
+      await cache.put('/pending', new Response(JSON.stringify({
+        name: 'Press Banca', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench',
+      })))
+      await cache.put('/from-notification', new Response('1'))
+      // Fire the foreground events back-to-back, like iOS does on notification tap.
+      window.dispatchEvent(new Event('focus'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+      await new Promise(r => setTimeout(r, 500))
+    })
+    await page.waitForTimeout(1000)
+
+    await expect(page.locator('#rest-timer-banner')).toBeVisible({ timeout: 3000 })
+    expect(startCalls).toBe(1)
+  })
 })

@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.75 · 2026-06-17 · Fix: notificaciones vía push vacío + cache (el push encriptado no se muestra en iOS); ver docs/PUSH_NOTIFICATIONS_FINDINGS.md'
+const APP_VERSION = 'v1.76 · 2026-06-17 · Fix: condición de carrera al tocar la notificación generaba descansos duplicados (3 notifs); candado de reentrada + cancelar descanso previo + docs'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -977,6 +977,8 @@ function installPWA() {
 // It is the source of truth for "rest over"; the push lands ~10s early to
 // compensate for delivery/Apple Watch latency.
 window.scheduleDelayedPush = async (ex) => {
+  // Cancel any still-pending delayed push so cycles never overlap.
+  if (window.pendingCancelTag) await window.cancelRestTimer(window.pendingCancelTag)
   const tag = 'rest-' + Date.now()
   window.pendingCancelTag = tag
   // Stage the "Descanso terminado" spec for when the delayed empty push lands.
@@ -1050,7 +1052,13 @@ window.cancelRestTimer = async (tag) => {
 
 // Fired when the user taps a "Tap para iniciar descanso" notification (the SW
 // left a flag + the exercise payload in the rest-pending cache).
+// Reentrancy guard: returning to the foreground fires `focus` + `visibilitychange`
+// (and init) almost simultaneously; without this they'd all read the flag before
+// any deletes it and schedule duplicate rest cycles (3 taps → 3 timers).
+let _handlingStartTap = false
 async function onStartNotificationTap() {
+  if (_handlingStartTap) return
+  _handlingStartTap = true
   try {
     const cache = await caches.open('rest-pending')
     const flag = await cache.match('/from-notification')
@@ -1062,7 +1070,10 @@ async function onStartNotificationTap() {
     if (!ex.name || !(ex.restSec > 0)) return
     await window.scheduleDelayedPush(ex)
     await window.startRestBanner(ex)
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    _handlingStartTap = false
+  }
 }
 
 async function _checkRestTimer() {

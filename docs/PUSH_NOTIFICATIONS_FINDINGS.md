@@ -101,6 +101,37 @@ TAP "Descanso terminado" (kind:'done') → only opens the app, no timer.
 `sendEmptyPush()` is the only push sender. The old encrypted `sendWebPush` + manual
 HKDF/AES-GCM code and `[PUSH_DEBUG]` logs were removed.
 
+## Multi-device / multi-user isolation
+
+The system is **per-device by design** — multiple people can use the app and each one
+only receives their own rest notifications. There is no shared inbox and no risk of one
+user receiving another's notifications.
+
+How it works:
+
+- On first use, each device mints a random **`deviceId`** and stores it in `localStorage`
+  (`app.js` `_deviceId()`, e.g. `dev_l8x2k_a9f3`). Think of it as a personal locker number.
+- On subscribe, that device's push subscription is saved in the Worker's KV under
+  **`sub_${deviceId}`**.
+- Every push action (`/api/push/start`, `/api/rest-timer/start`, `/api/rest-timer/cancel`)
+  sends the caller's `deviceId`; the Worker only ever delivers to **that** device's
+  subscription. The Queue message also carries the `deviceId`, so the delayed push goes
+  back to the same device.
+- The staged notification text lives in **each device's own CacheStorage** (`push-pending`),
+  so notification content is never shared either.
+
+Caveats (not bugs, just properties of the design):
+
+- **Per-device, not per-account.** There is no login. One person on two devices = two
+  lockers (they'd be notified on both). Linking a user's devices would require adding
+  authentication/accounts.
+- **Clearing site data** drops the `deviceId`; the user must re-enable notifications (a new
+  id is minted). The old subscription stays orphaned in KV until it returns `410` on a send
+  and gets cleaned up.
+- **No auth on the deviceId.** It's the only key. Random + secret, so it's not guessable in
+  practice, but anyone who learned another device's id could trigger pushes to it. Add login
+  if you ever handle sensitive data.
+
 ## Gotchas / future notes
 
 - **If you ever need to send a real payload** (e.g. multi-device, or content the device

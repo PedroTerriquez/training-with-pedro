@@ -102,7 +102,7 @@ Open the app on workout day. The **Today** screen auto-detects the day and shows
 
 | Challenge | Solution |
 |---|---|
-| **Push notifications without a backend** | Cloudflare Worker handles Web Push Protocol — subscribe, encrypt, deliver. No server to maintain. |
+| **Push notifications without a backend** | Cloudflare Worker handles the Web Push Protocol (subscribe + VAPID-authenticated delivery, plus a Queue for delayed rest timers). No server to maintain. iOS doesn't reliably display encrypted payloads, so pushes are payload-less wake-ups and the Service Worker reads the notification text from a local cache — see [`docs/PUSH_NOTIFICATIONS_FINDINGS.md`](docs/PUSH_NOTIFICATIONS_FINDINGS.md). |
 | **AI inference without API keys** | Workers AI binding provides direct Llama 3.1 access. Free tier handles thousands of imports. |
 | **iOS purges IndexedDB** | Every write triggers a full backup to localStorage. On init, if data loss is detected, auto-restores from backup. |
 | **No build step = no ES modules** | Scripts loaded in dependency order via `<script>` tags. Shared global namespace across all files. |
@@ -125,7 +125,7 @@ Open the app on workout day. The **Today** screen auto-detects the day and shows
 
 - No internet = no AI. The app works fully offline for training/logging, but AI features need connectivity.
 - Switching phones? Export JSON from You → Datos → Exportar, transfer the file, and import on the new device.
-- Push notifications need a one-time Cloudflare Worker setup (guide in `push-worker/`).
+- Push notifications need a one-time Cloudflare Worker setup — see [`push-worker/README.md`](push-worker/README.md). Architecture and the iOS empty-push design are in [`docs/PUSH_NOTIFICATIONS_FINDINGS.md`](docs/PUSH_NOTIFICATIONS_FINDINGS.md).
 
 ---
 

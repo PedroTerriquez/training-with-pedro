@@ -53,19 +53,26 @@
 │                  Cloudflare Worker (serverless)                  │
 │  push-worker/src/index.js                                       │
 │                                                                 │
-│  POST /api/push/subscribe     → KV store (subscription)         │
+│  POST /api/push/subscribe     → KV store (sub_${deviceId})      │
 │  POST /api/push/unsubscribe   → KV delete                       │
-│  POST /api/push/send          → web-push → Apple/Google         │
+│  POST /api/push/start         → empty push (wake SW) → Apple    │
+│  POST /api/rest-timer/start   → Queue → delayed empty push      │
+│  POST /api/rest-timer/cancel  → KV cancel flag                  │
 │  POST /api/ai/import          → Workers AI → JSON program       │
 │  POST /api/ai/coach           → Workers AI → session analysis   │
 │  POST /api/ai/program-coach   → Workers AI → program mods       │
 │  POST /api/ai/exercise-coach  → Workers AI → multi-turn chat    │
 │                                                                 │
-│  Dependencies: web-push (npm), Workers AI (built-in binding)    │
+│  Push: payload-less (manual VAPID); SW reads text from cache    │
 │  Secrets: VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_EMAIL      │
-│  KV: PUSH_KV (single subscription key)                          │
+│  KV: PUSH_KV (per-device subs)  ·  Queue: rest-timers           │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+> **Push notifications:** per-device, payload-less wake-ups + local-cache rendering
+> (iOS drops encrypted payloads). Full architecture, the multi-device model, and the
+> "trust on-device display, not Apple's 201" finding are in
+> [`docs/PUSH_NOTIFICATIONS_FINDINGS.md`](docs/PUSH_NOTIFICATIONS_FINDINGS.md).
 
 ### Data Flow (runtime)
 
