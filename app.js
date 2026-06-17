@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.78 · 2026-06-17 · Timer rediseñado (anillo circular flotante) + fix duplicados: dedup en el worker (active_/sent_) para 1 sola notificación por descanso; sin toast redundante'
+const APP_VERSION = 'v1.79 · 2026-06-17 · Vibración corta de confirmación al dar clic en Iniciar (Android; iOS Safari no soporta vibrate)'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js

@@ -72,6 +72,8 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     }
     iniciarBtn.addEventListener('click', async () => {
       if (iniciarBtn.disabled) return
+      // Short haptic confirmation (Android; iOS Safari ignores vibrate).
+      if (navigator.vibrate) navigator.vibrate(40)
       setBtnLoading(true)
       try {
         // Only send the "Tap para iniciar descanso" notification. The rest
