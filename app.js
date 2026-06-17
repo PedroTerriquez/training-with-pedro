@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.72 · 2026-06-16 · Restore _checkPendingRest cycle; SW shows Original + Delayed on push'
+const APP_VERSION = 'v1.73 · 2026-06-17 · Add debug test-delayed + 5s button in Tú screen'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1036,6 +1036,23 @@ window._startRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
   if (window._restTimerId) clearTimeout(window._restTimerId)
   window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
   _checkRestTimer()
+}
+
+window.testDelayedPush = async () => {
+  if (!PUSH_SERVER_URL) { showToast('PUSH_SERVER_URL no configurado', true); return }
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/debug/test-delayed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId: await _deviceId() }),
+    })
+    const data = await res.json()
+    showToast(`Debug: ${data.status} · tag: ${data.tag || '?'} · ${data.delaySec || '?'}s`)
+    console.log('[DEBUG] testDelayedPush response:', JSON.stringify(data))
+  } catch (e) {
+    showToast(`Error: ${e.message}`, true)
+    console.error('[DEBUG] testDelayedPush failed:', e)
+  }
 }
 
 async function _checkPendingRest() {

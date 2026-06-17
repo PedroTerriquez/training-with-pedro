@@ -594,10 +594,23 @@ REGLAS DE RESPUESTA:
         if (!endTime || !deviceId || !tag) return respond({ error: 'endTime, deviceId, tag required' }, 400)
         const now = Date.now()
         const delayMs = endTime - now
-        if (delayMs <= 0) return respond({ error: 'endTime already passed' }, 400)
+        if (delayMs <= 0) return respond({ error: 'endTime already passed — client clock ' + delayMs + 'ms behind' }, 400)
         const delaySec = Math.ceil(delayMs / 1000)
         await env.REST_TIMER_QUEUE.send({ deviceId, tag, title, body, exerciseId, sets, reps, restSec }, { delaySeconds: delaySec })
-        return respond({ status: 'scheduled', delaySec })
+        return respond({ status: 'scheduled', delaySec, delayMs, clientEndTime: endTime, serverNow: now })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    // ── Debug: test queue delivery with short delay ──
+    if (url.pathname === '/api/debug/test-delayed') {
+      try {
+        const { deviceId } = await req.json()
+        if (!deviceId) return respond({ error: 'deviceId required' }, 400)
+        const tag = 'debug-' + Date.now()
+        await env.REST_TIMER_QUEUE.send({ deviceId, tag, title: 'Debug Test', body: '5s delay ✓', exerciseId: '', sets: 3, reps: '10', restSec: 5 }, { delaySeconds: 5 })
+        return respond({ status: 'queued', tag, delaySec: 5 })
       } catch (err) {
         return respond({ error: err.message }, 500)
       }
