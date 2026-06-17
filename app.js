@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.71 · 2026-06-16 · Remove local notifyWatch, keep only Worker queue for notifications'
+const APP_VERSION = 'v1.72 · 2026-06-16 · Restore _checkPendingRest cycle; SW shows Original + Delayed on push'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -93,17 +93,18 @@ async function init() {
     await Storage.saveSettings(_state.settings)
   }
 
-  _checkRestTimer()
   _checkPendingRest()
+  _checkRestTimer()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      _checkRestTimer()
       _checkPendingRest()
+      _checkRestTimer()
     }
   })
   window.addEventListener('focus', () => {
     _checkPendingRest()
-  })
+    _checkRestTimer()
+  }, { passive: true })
 }
 
 async function loadState() {
@@ -990,6 +991,7 @@ window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) =>
     if (typeof showToast === 'function') showToast('Error de red al programar notificación', true)
   }
   window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+  _checkRestTimer()
 }
 
 window.cancelRestTimer = async (tag) => {
@@ -1033,6 +1035,27 @@ window._startRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
   window.pendingCancelTag = tag
   if (window._restTimerId) clearTimeout(window._restTimerId)
   window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+  _checkRestTimer()
+}
+
+async function _checkPendingRest() {
+  try {
+    const flagCache = await caches.open('rest-pending')
+    const flagRes = await flagCache.match('/from-notification')
+    if (!flagRes) return
+    await flagCache.delete('/from-notification')
+    const pendingRes = await flagCache.match('/pending')
+    if (!pendingRes) return
+    const data = await pendingRes.json()
+    const name = data.name || data.title || ''
+    const restSec = data.restSec
+    const exerciseId = data.exerciseId
+    const sets = data.sets
+    const reps = data.reps
+    if (name && restSec > 0 && typeof window.scheduleRestTimer === 'function') {
+      await window.scheduleRestTimer(name, restSec, 'rest-' + Date.now(), sets, reps, exerciseId)
+    }
+  } catch (_) {}
 }
 
 async function _checkRestTimer() {
@@ -1062,56 +1085,10 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Re-store exercise data so the next notification tap starts a new cycle.
+  // Re-store in rest-pending so next notification tap can start a new cycle
   try {
     const pendingCache = await caches.open('rest-pending')
-    await pendingCache.put('/pending', new Response(JSON.stringify({
-      name: data.name,
-      restSec: data.restSec,
-      sets: data.sets,
-      reps: data.reps,
-      exerciseId: data.exerciseId
-    })))
-  } catch (_) {}
-}
-
-async function _checkPendingRest() {
-  // 1. Always show banner if a timer is already running
-  try {
-    const timerCache = await caches.open('rest-timer')
-    const timerRes = await timerCache.match('/pending')
-    if (timerRes) {
-      const timerData = await timerRes.json()
-      const remaining = timerData.endTime - Date.now()
-      if (remaining > 0) {
-        _showRestTimerBanner(timerData, remaining)
-        return
-      }
-    }
-  } catch (_) {}
-  // 2. Only start a new timer if opened from notification tap
-  let fromNotification = false
-  try {
-    const flagCache = await caches.open('rest-pending')
-    const flagRes = await flagCache.match('/from-notification')
-    if (flagRes) {
-      fromNotification = true
-      await flagCache.delete('/from-notification')
-    }
-  } catch (_) {}
-  if (!fromNotification) return
-  // 3. Start the timer from pending data
-  try {
-    const cache = await caches.open('rest-pending')
-    const res = await cache.match('/pending')
-    if (!res) return
-    const data = await res.json()
-    await cache.delete('/pending')
-    const tag = `rest-${Date.now()}`
-    if (typeof window.scheduleRestTimer === 'function' && data.restSec > 0) {
-      window.scheduleRestTimer(data.name, data.restSec, tag, data.sets, data.reps, data.exerciseId)
-      _showRestTimerBanner({ endTime: Date.now() + data.restSec * 1000, name: data.name, tag, restSec: data.restSec, sets: data.sets, reps: data.reps, exerciseId: data.exerciseId }, data.restSec * 1000)
-    }
+    await pendingCache.put('/pending', new Response(JSON.stringify({ name: data.name, restSec: data.restSec, tag: 'rest-' + Date.now(), sets: data.sets, reps: data.reps, exerciseId: data.exerciseId })))
   } catch (_) {}
 }
 

@@ -1,4 +1,4 @@
-const CACHE = 'v71'
+const CACHE = 'v72'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -81,19 +81,37 @@ self.addEventListener('push', (e) => {
     }
     const title = data.title || 'Coach Pedro AI'
     const body = data.body || ''
-    // If this notification carries exerciseData, store it in Cache API so the app can pick it up
     if (data.exerciseData) {
+      const ex = data.exerciseData
       try {
         const store = await caches.open('rest-pending')
-        store.put('/pending', new Response(JSON.stringify(data.exerciseData)))
+        await store.put('/pending', new Response(JSON.stringify(ex)))
       } catch {}
+      // Show "La delayed" — Descanso terminado
+      await self.registration.showNotification(`⏰ ${ex.title || title}`, {
+        body: 'Descanso terminado',
+        icon: 'icons/icon-192.png',
+        tag: data.tag || `rest-${Date.now()}`,
+        requireInteraction: true,
+        data: { url: './', exerciseData: ex },
+      })
+      // Show "La original" — Tap para iniciar descanso (appears alongside above)
+      const repsStr = ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''
+      await self.registration.showNotification(ex.title || title, {
+        body: repsStr ? `${repsStr} · Tap para iniciar descanso ▸` : 'Tap para iniciar descanso',
+        icon: 'icons/icon-192.png',
+        tag: `orig-${Date.now()}`,
+        requireInteraction: true,
+        data: { url: './', exerciseData: ex },
+      })
+      return
     }
     const opts = {
       body,
       icon: 'icons/icon-192.png',
       tag: data.tag || `push-${Date.now()}`,
       requireInteraction: true,
-      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body, exerciseData: data.exerciseData },
+      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body },
     }
     await self.registration.showNotification(title, opts)
   })())

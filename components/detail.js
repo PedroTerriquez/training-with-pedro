@@ -72,35 +72,17 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     }
     iniciarBtn.addEventListener('click', async () => {
       if (iniciarBtn.disabled) return
-      if (!('Notification' in window)) return
-      if (Notification.permission === 'default') {
-        const result = await Notification.requestPermission()
-        if (result !== 'granted') {
-          if (typeof showToast === 'function') showToast('Permiso necesario para notificaciones', true)
-          return
-        }
-      }
-      if (Notification.permission === 'denied') {
-        if (typeof showToast === 'function') showToast('Permiso denegado. Actívalo en Ajustes del sistema.', true)
-        return
-      }
       setBtnLoading(true)
       try {
         const exerciseId = exercise.exerciseId || exercise.id || ''
-        try {
-          const cache = await caches.open('rest-pending')
-          await cache.put('/pending', new Response(JSON.stringify({ name: exercise.name, restSec: exercise.rest, sets: exercise.sets, reps: exercise.reps, exerciseId })))
-        } catch (_) {}
         const tag = `rest-${Date.now()}`
-        const body = `${exercise.sets}×${exercise.reps} · Tap para iniciar descanso`
-        const sent = typeof sendPushNotification === 'function'
-          ? await sendPushNotification(exercise.name, body, tag)
-          : false
-        if (!sent && typeof subscribePush === 'function') {
-          const ok = await subscribePush()
-          if (ok && typeof sendPushNotification === 'function') {
-            await sendPushNotification(exercise.name, body, tag)
-          }
+        // 1. Send "La original" immediately (tap para iniciar descanso)
+        if (typeof window.sendPushNotification === 'function') {
+          window.sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps} · Tap para iniciar`, tag)
+        }
+        // 2. Schedule "La delayed" via Worker queue
+        if (typeof window.scheduleRestTimer === 'function') {
+          await window.scheduleRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps, exerciseId)
         }
       } finally {
         setBtnLoading(false)

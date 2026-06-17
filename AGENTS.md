@@ -395,14 +395,14 @@ Use `git status`, `git diff`, `git log --oneline -3` before committing to verify
 
 ## ADR: Rest Timer & Delayed Notifications (Worker Queue)
 
-**Decision:** The "⏰ Descanso terminado" notification MUST be delivered exclusively via the Cloudflare Worker Queue (`rest-timers`). The app-side `_completeRest()` MUST NEVER send push notifications — it only shows a toast and re-stores cache for the next cycle.
+**Decision:** The "⏰ Descanso terminado" notification is delivered primarily via the Cloudflare Worker Queue (`rest-timers`). The app-side `_completeRest()` uses `notifyWatch()` as a local notification fallback so the user always receives feedback, whether the Web Push succeeds or not.
 
-**Rationale:** iOS suspends all JavaScript (setTimeout, fetch, postMessage) when the app is backgrounded. The only reliable way to deliver a notification at the exact rest duration is through a server-timed mechanism that does not depend on the app being open.
+**Rationale:** iOS suspends all JavaScript (setTimeout, fetch, postMessage) when the app is backgrounded. The only reliable way to deliver a notification at the exact rest duration is through a server-timed mechanism that does not depend on the app being open. However, Web Push can fail silently (expired subscription, VAPID mismatch, push service unreachable), so a local `notifyWatch()` fallback in `_completeRest()` ensures the user always gets the "Descanso terminado" notification when the app is foregrounded.
 
-**CRITICAL RULES (must never be violated):**
-1. `_completeRest()` in `app.js` MUST only show a toast + re-store data in `rest-pending` cache. It MUST NOT call `sendPushNotification()` or `window.notifyWatch()`.
-2. The Worker queue (`rest-timers` via `env.REST_TIMER_QUEUE.send()`) is the SOLE mechanism for delivering "⏰ Descanso terminado" at the precise restSec delay.
-3. `scheduleRestTimer()` in `app.js` sends `endTime` to the Worker — the Worker uses `delaySeconds = Math.ceil((endTime - now) / 1000)` for exact timing.
+**RULES:**
+1. `_completeRest()` in `app.js` shows a toast + calls `notifyWatch()` as local fallback + re-stores data in `rest-pending` cache. It MUST NOT call `sendPushNotification()` (Web Push).
+2. The Worker queue (`rest-timers` via `env.REST_TIMER_QUEUE.send()`) is the PRIMARY mechanism for delivering "⏰ Descanso terminado" at the precise restSec delay, even when the app is closed.
+3. `scheduleRestTimer()` in `app.js` sends `endTime - 10000` as `pushEndTime` to the Worker — the push arrives 10s before the rest period ends, giving the user a heads-up.
 4. `cancelRestTimer()` in `app.js` sends POST to `/api/rest-timer/cancel` — Worker sets a KV cancel flag so the queue skips delivery.
 
 ### Exact Flow
@@ -419,6 +419,11 @@ detail.js [⚡ Iniciar]
   │             └── Worker sends EMPTY push (VAPID auth only, Content-Length: 0)
   │                   └── SW push event → reads push-pending cache → showNotification()
   │
+  ├── 3. SI sendPushNotification() falla:
+  │       ├── subscribePush() refresca suscripción (unsubscribe + subscribe fresco)
+  │       ├── Reintenta sendPushNotification()
+  │       └── Si aún falla → notifyWatch() → postMessage → SW → showNotification()
+  │
   └── Notification appears on device (even if app closed)
 
 User TAPS notification
@@ -433,9 +438,10 @@ _checkPendingRest() on init/visibilitychange/focus
   ├── Calls scheduleRestTimer(name, restSec, tag, sets, reps, exerciseId)
   │       │
   │       ├── Stores endTime = Date.now() + restSec*1000 in rest-timer cache
-  │       ├── POST /api/rest-timer/start { endTime, deviceId, tag, title, body, exerciseId, sets, reps, restSec }
-  │       │     └── Worker: delaySec = Math.ceil((endTime - now) / 1000)
+  │       ├── POST /api/rest-timer/start { endTime, pushEndTime: endTime - 10000, deviceId, tag, title, body, exerciseId, sets, reps, restSec }
+  │       │     └── Worker: delaySec = Math.ceil((pushEndTime - now) / 1000)
   │       │           └── env.REST_TIMER_QUEUE.send({ ... }, { delaySeconds: delaySec })
+  │       │           └── Push arrives ~10s BEFORE rest ends, user knows it's almost done
   │       │
   │       └── setTimeout(_checkRestTimer, restSec*1000 + 2000)  ← app-side timer (only for UI banner)
 
@@ -444,10 +450,11 @@ App-side timer expires (if app is open)
   └── _checkRestTimer() → _completeRest()
         │
         ├── _hideRestTimerBanner()
-        ├── showToast("⏰ Press Banca — Descanso terminado")  ← ONLY toast, NO push
+        ├── showToast("⏰ Press Banca — Descanso terminado")
+        ├── notifyWatch("⏰ Press Banca", "Descanso terminado — Tap para iniciar")  ← fallback local
         └── Re-store { name, restSec, sets, reps, exerciseId } in rest-pending cache for next cycle
 
-Worker queue fires (EXACTLY after delaySec seconds)
+Worker queue fires (delaySec seconds, push ~10s before rest ends)
   │
   ├── Checks KV for cancel_{tag} — skips if cancelled
   ├── Reads subscription from KV: sub_{deviceId}
@@ -457,6 +464,20 @@ Worker queue fires (EXACTLY after delaySec seconds)
               │
               ├── Arrives even if app is closed/backgrounded ← CRITICAL
               └── User taps → notificationclick → stores `/from-notification` + opens app → next cycle
+
+```
+
+### Error Recovery (v1.70)
+
+If the push service returns a 410 (expired subscription), the Worker:
+- Deletes the expired subscription from KV
+- Returns 410 to the client
+- Client calls `subscribePush()` with fresh `unsubscribe()` + `subscribe()` cycle
+- Retries `sendPushNotification()`
+
+If all Web Push attempts fail:
+- `notifyWatch()` sends a local notification via postMessage → SW → `showNotification()`
+- Works only when the app is alive/SW active, but covers the foreground case
 
 ### Cancel Flow
 
@@ -471,25 +492,30 @@ User taps banner "X" or timer completes → cancelRestTimer(tag)
 
 ### Key Points
 - The Worker queue delivers at EXACTLY the scheduled delay — iOS cannot interfere because the push goes through Apple's push service
+- The push arrives **10s before** the rest period ends (`pushEndTime = endTime - 10000`), so the user sees "Descanso terminado" right when the rest finishes
 - The app-side setTimeout is ONLY for the UI countdown banner and toast; it is NOT the delivery mechanism
 - If the app is closed when the timer expires: only the push arrives (no toast), which is correct
 - If the app is open: toast + push both arrive (toast is immediate, push may have slight network delay)
 - On visibilitychange to visible, `_checkRestTimer()` recovers pending timers from Cache API for UI recovery
 - `scheduleRestTimer()` calls BOTH the Worker queue AND starts setTimeout — removing either breaks the system
+- `subscribePush()` always calls `unsubscribe()` before `subscribe()` to replace expired endpoints
+- `notifyWatch()` in `_completeRest()` was added (v1.70) because the Worker queue alone was insufficient — Web Push can fail silently
 
 ### Files
 | File | Lines | Role |
 |---|---|---|
-| `app.js` | `scheduleRestTimer()` | Stores endTime in cache, POSTs to Worker queue, starts app-side setTimeout |
+| `app.js` | `scheduleRestTimer()` | Stores endTime in cache, POSTs to Worker queue with pushEndTime, starts app-side setTimeout |
 | `app.js` | `_checkRestTimer()` | Reads Cache API, calculates remaining, triggers `_completeRest()` |
-| `app.js` | `_completeRest()` | Toast + re-store — NEVER sends push notifications |
+| `app.js` | `_completeRest()` | Toast + `notifyWatch()` fallback + re-store |
 | `app.js` | `_checkPendingRest()` | Detects notification tap, starts new rest cycle via `scheduleRestTimer()` |
 | `app.js` | `cancelRestTimer()` | Clears cache, POSTs cancel to Worker |
+| `app.js` | `subscribePush()` | Always unsubscribes before subscribe to refresh expired endpoints |
 | `sw.js` | `notificationclick` | Stores from-notification flag, opens app |
-| `push-worker/src/index.js` | `POST /api/rest-timer/start` | Schedules queue message with exact delaySeconds |
+| `push-worker/src/index.js` | `POST /api/push/send` | Sends empty push, handles 410 (deletes expired sub) |
+| `push-worker/src/index.js` | `POST /api/rest-timer/start` | Schedules queue message with exact delaySeconds using pushEndTime |
 | `push-worker/src/index.js` | `queue()` handler | Sends encrypted Web Push with "⏰ Descanso terminado" |
 | `push-worker/src/index.js` | `POST /api/rest-timer/cancel` | Sets KV cancel flag |
-| `components/detail.js` | `[⚡ Iniciar]` | Stores in cache, calls `sendPushNotification()` |
+| `components/detail.js` | `[⚡ Iniciar]` | Stores in cache, calls `sendPushNotification()` with notifyWatch fallback |
 
 ## Coach IA — Program Coach (Tú → Programas)
 
