@@ -144,6 +144,25 @@ which is **reentrancy-guarded** and consumes a one-shot `/from-notification` fla
 multiple triggers for one tap still schedule exactly one rest cycle (this was the
 "3 duplicate notifications" bug: focus + visibilitychange + init all scheduled).
 
+## Exactly-once delivery (no duplicate notifications)
+
+Cloudflare Queues are **at-least-once** — a message can be delivered more than once —
+and the app can briefly run in more than one instance (PWA + a stray Safari tab), so a
+single rest could schedule/deliver the delayed push twice → **4 notifications** (2×
+"Descanso terminado" + 2× "Tap para iniciar"). Stable tags don't reliably collapse these
+on iOS.
+
+The Worker guarantees **one delivery per device's latest schedule**:
+
+- `POST /api/rest-timer/start` writes `active_${deviceId} = tag` (the newest tag wins).
+- The `queue` consumer, before sending, drops a message if:
+  - `sent_${tag}` exists → it's a Queue **redelivery** of one already sent; or
+  - `active_${deviceId} !== tag` → it's a **superseded / duplicate** schedule.
+- After a successful send it sets `sent_${tag}`.
+
+This also matches the intended UX: starting a new rest before the previous one finishes
+supersedes it (same as the client's cancel-previous). All flags use a 1h TTL in KV.
+
 ## Gotchas / future notes
 
 - **If you ever need to send a real payload** (e.g. multi-device, or content the device
