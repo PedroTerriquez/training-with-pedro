@@ -192,12 +192,10 @@ test.describe('Rest notification flow', () => {
     expect(payload.title).toBe('Press Banca')
     expect(payload.tag).toBeTruthy()
 
-    // Tapping the banner cancels the queued delayed push.
-    await page.evaluate(async () => {
-      const el = document.getElementById('rest-timer-banner')
-      if (el) el.click()
-      await new Promise(r => setTimeout(r, 500))
-    })
+    // The "Saltar" button cancels the queued delayed push (tapping the card
+    // itself no longer cancels — avoids accidental cancels).
+    await page.locator('#rest-timer-banner .rtb-skip').click()
+    await page.waitForTimeout(500)
     expect(cancelPayload).not.toBeNull()
     const cancelData = JSON.parse(cancelPayload)
     expect(cancelData.tag).toBeTruthy()
@@ -206,7 +204,7 @@ test.describe('Rest notification flow', () => {
 
   // 3. The decorative banner completing shows a toast but does NOT reschedule —
   //    the delayed push is the source of truth for the next cycle.
-  test('banner completion shows toast and does not reschedule', async ({ page }) => {
+  test('banner completion disappears silently and does not reschedule', async ({ page }) => {
     let restTimerCalled = false
     await page.route(/rest-timer\/start/, async (route) => {
       restTimerCalled = true
@@ -231,11 +229,14 @@ test.describe('Rest notification flow', () => {
     })
     await page.waitForTimeout(1500)
 
-    const toast = page.locator('#backup-toast')
-    const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
-    expect(toastText).toContain('Descanso terminado')
-
+    // Banner is decorative: it just disappears. No "Descanso terminado" toast —
+    // that message belongs to the delayed push (avoids a double notification).
     await expect(page.locator('#rest-timer-banner')).toHaveCount(0)
+    const toastText = await page.evaluate(() => {
+      const t = document.getElementById('backup-toast')
+      return t ? t.textContent : ''
+    })
+    expect(toastText).not.toContain('Descanso terminado')
     // Completion must not schedule a new delayed push (the push drives the cycle).
     expect(restTimerCalled).toBe(false)
   })

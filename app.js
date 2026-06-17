@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.77 · 2026-06-17 · Fix: el timer no arrancaba al abrir desde la notificación en iOS; el SW ahora avisa a la app por postMessage (no depende de focus)'
+const APP_VERSION = 'v1.78 · 2026-06-17 · Timer rediseñado (anillo circular flotante) + fix duplicados: dedup en el worker (active_/sent_) para 1 sola notificación por descanso; sin toast redundante'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -1105,35 +1105,57 @@ async function _checkRestTimer() {
 }
 
 async function _completeRest(data) {
-  // The decorative banner finished. The next cycle is driven by the delayed
-  // push (source of truth), so nothing is re-scheduled here.
+  // The banner is decorative: it just disappears when it reaches zero. The
+  // "Descanso terminado" message comes from the delayed push (source of truth),
+  // so we don't show a toast here — that would double up with the push.
   _hideRestTimerBanner()
   window.pendingCancelTag = null
-  if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+}
+
+// MM:SS for the countdown (ceil so it reads 0:00 only at the very end).
+function _fmtClock(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+// Remaining → 0..100 fraction of the ring still filled.
+function _restRingOffset(remainingMs) {
+  const pct = _restTimerDuration > 0 ? Math.max(0, Math.min(1, remainingMs / _restTimerDuration)) : 0
+  return 100 * (1 - pct)
 }
 
 function _showRestTimerBanner(data, remainingMs) {
   _hideRestTimerBanner()
   _restTimerEndTime = data.endTime
   _restTimerDuration = data.restSec * 1000
-  const remainingSec = Math.ceil(remainingMs / 1000)
-  const m = Math.floor(remainingSec / 60)
-  const s = remainingSec % 60
-  const pct = remainingMs / _restTimerDuration
+  const meta = data.sets && data.reps ? `${data.sets} × ${data.reps}` : ''
 
   const bar = document.createElement('div')
   bar.id = 'rest-timer-banner'
+  if (remainingMs <= 10000) bar.classList.add('is-ending')
 
   bar.innerHTML = `
-    <span class="rtb-emoji">⏱️</span>
-    <span class="rtb-name">${data.name}</span>
-    <span class="rtb-time">${m}:${String(s).padStart(2, '0')}</span>
-    <div class="rtb-bar"><div id="timer-progress" class="rtb-bar-fill" style="width:${pct * 100}%"></div></div>`
+    <div class="rtb-ring-wrap">
+      <svg class="rtb-ring" viewBox="0 0 56 56" aria-hidden="true">
+        <circle class="rtb-ring-track" cx="28" cy="28" r="24"></circle>
+        <circle class="rtb-ring-prog" cx="28" cy="28" r="24" pathLength="100" style="stroke-dashoffset:${_restRingOffset(remainingMs)}"></circle>
+      </svg>
+      <span class="rtb-time">${_fmtClock(remainingMs)}</span>
+    </div>
+    <div class="rtb-info">
+      <span class="rtb-label">Descanso</span>
+      <span class="rtb-name">${data.name}</span>
+      ${meta ? `<span class="rtb-meta">${meta}</span>` : ''}
+    </div>
+    <button class="rtb-skip" type="button" aria-label="Saltar descanso">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3.2l8 5.8-8 5.8V3.2z" fill="currentColor"/><rect x="12.5" y="3" width="2" height="12" rx="1" fill="currentColor"/></svg>
+    </button>`
 
-  bar.addEventListener('click', async () => {
+  bar.querySelector('.rtb-skip').addEventListener('click', async (e) => {
+    e.stopPropagation()
     _hideRestTimerBanner()
     if (data.tag) await window.cancelRestTimer(data.tag)
-    if (typeof showToast === 'function') showToast('Descanso cancelado')
+    if (typeof showToast === 'function') showToast('Descanso saltado')
   })
 
   if (_appEl) _appEl.appendChild(bar)
@@ -1161,14 +1183,11 @@ function _hideRestTimerBanner() {
 
 function _updateRestTimerBanner(remainingMs) {
   if (!_restTimerBannerEl) return
-  const remainingSec = Math.ceil(remainingMs / 1000)
-  const m = Math.floor(remainingSec / 60)
-  const s = remainingSec % 60
   const timeEl = _restTimerBannerEl.querySelector('.rtb-time')
-  if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`
-  const pct = _restTimerDuration > 0 ? remainingMs / _restTimerDuration : 0
-  const progEl = _restTimerBannerEl.querySelector('#timer-progress')
-  if (progEl) progEl.style.width = `${pct * 100}%`
+  if (timeEl) timeEl.textContent = _fmtClock(remainingMs)
+  const progEl = _restTimerBannerEl.querySelector('.rtb-ring-prog')
+  if (progEl) progEl.style.strokeDashoffset = `${_restRingOffset(remainingMs)}`
+  _restTimerBannerEl.classList.toggle('is-ending', remainingMs <= 10000)
 }
 
 document.addEventListener('DOMContentLoaded', init)

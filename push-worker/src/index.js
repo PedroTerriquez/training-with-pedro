@@ -413,6 +413,10 @@ REGLAS DE RESPUESTA:
         const delayMs = endTime - now
         if (delayMs <= 0) return respond({ error: 'endTime already passed — client clock ' + delayMs + 'ms behind' }, 400)
         const delaySec = Math.ceil(delayMs / 1000)
+        // Record this as the device's only "active" rest tag. The consumer drops
+        // any queued message whose tag is no longer the active one, so duplicate
+        // or superseded schedules (multi-tab, retries) never fire twice.
+        await env.PUSH_KV.put(`active_${deviceId}`, tag, { expirationTtl: 3600 })
         await env.REST_TIMER_QUEUE.send({ deviceId, tag, title, body, exerciseId, sets, reps, restSec }, { delaySeconds: delaySec })
         return respond({ status: 'scheduled', delaySec, delayMs, clientEndTime: endTime, serverNow: now })
       } catch (err) {
@@ -425,13 +429,19 @@ REGLAS DE RESPUESTA:
 
   async queue(batch, env) {
     for (const msg of batch.messages) {
-      const { deviceId, tag, title, body, exerciseId, sets, reps, restSec } = msg.body
+      const { deviceId, tag } = msg.body
+      // Cancelled by the client.
       const cancelled = await env.PUSH_KV.get(`cancel_${tag}`)
       if (cancelled) {
         await env.PUSH_KV.delete(`cancel_${tag}`)
         msg.ack()
         continue
       }
+      // Already delivered once (Queues are at-least-once → guard redeliveries).
+      if (await env.PUSH_KV.get(`sent_${tag}`)) { msg.ack(); continue }
+      // Superseded by a newer schedule for this device (multi-tab / re-tap).
+      const active = await env.PUSH_KV.get(`active_${deviceId}`)
+      if (active && active !== tag) { msg.ack(); continue }
       const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
       if (!raw) { msg.ack(); continue }
       const sub = JSON.parse(raw)
@@ -446,6 +456,8 @@ REGLAS DE RESPUESTA:
         msg.retry({ delaySeconds: 10 })
         continue
       }
+      // Mark delivered so a redelivery of this exact tag is a no-op.
+      await env.PUSH_KV.put(`sent_${tag}`, '1', { expirationTtl: 3600 })
       msg.ack()
     }
   },
