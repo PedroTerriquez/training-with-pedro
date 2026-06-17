@@ -147,96 +147,23 @@ async function callAI(messages, env, opts = {}) {
 
 // ── Web Push send (manual, no web-push library) ──
 
-async function sendWebPush(sub, payload, vapidPub, vapidPriv, vapidEmail) {
-  const { endpoint, keys } = sub
-  const p256dh = _base64UrlDecode(keys.p256dh)
-  const auth = _base64UrlDecode(keys.auth)
-
-  // 1. Encrypt payload (RFC 8291)
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-  const serverKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
-  const serverPub = new Uint8Array(await crypto.subtle.exportKey('raw', serverKeyPair.publicKey))
-  const clientPubKey = await crypto.subtle.importKey('raw', p256dh, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
-  const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: clientPubKey }, serverKeyPair.privateKey, 256))
-
-  // Manual HKDF using HMAC (bypass Web Crypto HKDF primitive)
-  async function _hmac(key, data) {
-    const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-    return new Uint8Array(await crypto.subtle.sign('HMAC', k, data))
-  }
-  async function _hkdfExpand(prk, info, len) {
-    let t = new Uint8Array(0)
-    let out = new Uint8Array(0)
-    for (let i = 1; out.length < len; i++) {
-      const concat = new Uint8Array(t.length + info.length + 1)
-      concat.set(t, 0)
-      concat.set(info, t.length)
-      concat[concat.length - 1] = i
-      t = await _hmac(prk, concat)
-      const tmp = new Uint8Array(out.length + t.length)
-      tmp.set(out, 0)
-      tmp.set(t, out.length)
-      out = tmp
-    }
-    return out.slice(0, len)
-  }
-  // Full HKDF: Extract(salt, ikm) → Expand(prk, info, len)
-  async function _hkdf(salt, ikm, info, len) {
-    const prk = await _hmac(salt, ikm)
-    return _hkdfExpand(prk, info, len)
-  }
-
-  // Web-push lib calls hkdf(ikm, salt, info, length) — order matters for HMAC key
-  // Our _hkdf(salt, ikm, info, length) matches the HMAC semantics: key=salt, data=ikm
-  //
-  // Step 1: PRK = HKDF(ikm=auth, salt=sharedSecret, "Content-Encoding: auth\0", 32)
-  //          → HMAC(key=sharedSecret, data=auth) → HKDF-Expand
-  const prk = await _hkdf(sharedSecret, auth, new TextEncoder().encode('Content-Encoding: auth\x00'), 32)
-  // Step 2: CEK = HKDF(ikm=saltBuf, salt=PRK, "Content-Encoding: aes128gcm\0", 16)
-  //          → HMAC(key=PRK, data=saltBuf) → HKDF-Expand
-  const cek = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'), 16)
-  // Step 3: Nonce = HKDF(ikm=saltBuf, salt=PRK, "Content-Encoding: nonce\0", 12)
-  //          → HMAC(key=PRK, data=saltBuf) → HKDF-Expand
-  const nonce = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
-
-  const content = new TextEncoder().encode(JSON.stringify(payload))
-  // RFC 8291: plaintext = content || 0x02 (padding delimiter)
-  const pad = new Uint8Array(content.length + 1)
-  pad.set(content, 0)
-  pad[pad.length - 1] = 0x02
-
-  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
-
-  // Build encrypted body (aes128gcm format)
-  const recordSize = 4096
-  const body = new Uint8Array(16 + 4 + 1 + 65 + ciphertext.length)
-  body.set(salt, 0)
-  body[16] = (recordSize >> 24) & 0xff
-  body[17] = (recordSize >> 16) & 0xff
-  body[18] = (recordSize >> 8) & 0xff
-  body[19] = recordSize & 0xff
-  body[20] = 65
-  body.set(serverPub, 21)
-  body.set(ciphertext, 86)
-
-  // 2. Create VAPID JWT
-  const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, endpoint)
-
-  // 3. Send via fetch
-  const res = await fetch(endpoint, {
+// Wake the device's Service Worker with a payload-less push (VAPID auth only).
+// The SW reads the notification spec from its local Cache. Encrypted payloads
+// (RFC 8291) are not reliably decrypted on iOS, so we avoid them entirely.
+async function sendEmptyPush(sub, vapidPub, vapidPriv, vapidEmail) {
+  const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
+  const res = await fetch(sub.endpoint, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Encoding': 'aes128gcm',
+      'Content-Length': '0',
       'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
-      'TTL': '2419200',
+      'TTL': '86400',
     },
-    body: body,
   })
-  const resBody = await res.text().catch(()=>'')
-  console.log('[PUSH_RESULT] endpoint:', endpoint.slice(0,50), 'status:', res.status, 'body:', resBody.slice(0,200))
+  const body = await res.text().catch(() => '')
+  console.log('[PUSH_RESULT] empty status:', res.status, 'endpoint:', sub.endpoint.slice(0, 40))
   if (res.status === 410) throw { statusCode: 410, message: 'Subscription expired' }
-  if (!res.ok) throw { message: `Push service returned ${res.status} ${resBody}` }
+  if (!res.ok) throw { message: `Push service returned ${res.status} ${body}` }
 }
 
 function _base64UrlDecode(str) {
@@ -340,16 +267,15 @@ export default {
       return respond('ok')
     }
 
-    // Immediate "Tap para iniciar descanso" notification (encrypted payload).
+    // Wake the SW so it shows the "Tap para iniciar descanso" notification it
+    // already staged in its local cache. Empty push (no decryption needed).
     if (url.pathname === '/api/push/start') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       let deviceId
       try {
         const body = await req.json()
         deviceId = body.deviceId
-        const exerciseData = body.exerciseData
         if (!deviceId) return respond('deviceId required', 400)
-        if (!exerciseData || !exerciseData.name) return respond('exerciseData required', 400)
         const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
         if (!raw) return respond('No subscription', 404)
         const sub = JSON.parse(raw)
@@ -358,7 +284,7 @@ export default {
         const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
         if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
-        await sendWebPush(sub, { kind: 'start', title: exerciseData.name, exerciseData }, vapidPub, vapidPriv, vapidEmail)
+        await sendEmptyPush(sub, vapidPub, vapidPriv, vapidEmail)
         return respond({ status: 'sent' })
       } catch (err) {
         if (err && err.statusCode === 410 && deviceId) {
@@ -514,7 +440,7 @@ REGLAS DE RESPUESTA:
       const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
       if (!vapidPub || !vapidPriv) { msg.retry({ delaySeconds: 10 }); continue }
       try {
-        await sendWebPush(sub, { kind: 'done', title, exerciseData: { name: title, exerciseId, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
+        await sendEmptyPush(sub, vapidPub, vapidPriv, vapidEmail)
       } catch (err) {
         if (err.statusCode === 410) await env.PUSH_KV.delete(`sub_${deviceId}`)
         msg.retry({ delaySeconds: 10 })

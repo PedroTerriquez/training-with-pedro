@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.74 · 2026-06-17 · Rework rest-notif flow: Iniciar solo envía start; tap arranca timer+delayed; tags estables; push encriptado unificado'
+const APP_VERSION = 'v1.75 · 2026-06-17 · Fix: notificaciones vía push vacío + cache (el push encriptado no se muestra en iOS); ver docs/PUSH_NOTIFICATIONS_FINDINGS.md'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -483,6 +483,16 @@ async function unsubscribePush() {
   } catch (_) {}
 }
 
+// Stage the spec the Service Worker should render on the next (payload-less)
+// push. iOS doesn't reliably show encrypted payloads, so the data travels via
+// the local Cache instead — this is a single-device PWA, so it's always here.
+async function _stageNotification(spec) {
+  try {
+    const cache = await caches.open('push-pending')
+    await cache.put('/pending', new Response(JSON.stringify(spec)))
+  } catch (_) {}
+}
+
 // Build the compact exercise payload carried by every rest notification.
 function _exerciseData(exercise) {
   return {
@@ -508,6 +518,9 @@ async function sendStartNotification(exercise) {
     return false
   }
   const exerciseData = _exerciseData(exercise)
+  // Stage the notification spec locally; the empty push just wakes the SW,
+  // which reads this from the cache (encrypted payloads don't show on iOS).
+  await _stageNotification({ kind: 'start', exerciseData })
   // Wait 2s so the Apple Watch has time to sync before the push arrives.
   await new Promise((r) => setTimeout(r, 2000))
   try {
@@ -966,6 +979,8 @@ function installPWA() {
 window.scheduleDelayedPush = async (ex) => {
   const tag = 'rest-' + Date.now()
   window.pendingCancelTag = tag
+  // Stage the "Descanso terminado" spec for when the delayed empty push lands.
+  await _stageNotification({ kind: 'done', exerciseData: ex })
   if (!PUSH_SERVER_URL) return
   const endTime = Date.now() + ex.restSec * 1000
   const pushEndTime = Math.max(endTime - 10000, Date.now() + 1000)

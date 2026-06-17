@@ -1,4 +1,4 @@
-const CACHE = 'v74'
+const CACHE = 'v75'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -110,6 +110,15 @@ self.addEventListener('push', (e) => {
     try {
       if (e.data) data = e.data.json()
     } catch {}
+    // Pushes are payload-less (iOS doesn't reliably show encrypted payloads):
+    // the client staged the notification spec in the cache before waking us.
+    if (!data.kind) {
+      try {
+        const cache = await caches.open('push-pending')
+        const res = await cache.match('/pending')
+        if (res) data = await res.json()
+      } catch {}
+    }
     const ex = data.exerciseData
     if (data.kind === 'start' && ex) {
       await showStartNotification(ex)

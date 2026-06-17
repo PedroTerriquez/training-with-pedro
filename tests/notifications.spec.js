@@ -117,15 +117,24 @@ test.describe('Rest notification flow', () => {
     // sendStartNotification waits 2s (Apple Watch sync) before the fetch.
     await page.waitForTimeout(2800)
 
+    // The POST only wakes the SW; it carries just the deviceId.
     expect(startPushPayload).not.toBeNull()
     const payload = JSON.parse(startPushPayload)
     expect(payload.deviceId).toBeTruthy()
-    expect(payload.exerciseData).toBeDefined()
-    expect(payload.exerciseData.name).toBe('Press Banca')
-    expect(payload.exerciseData.restSec).toBe(120)
-    expect(payload.exerciseData.sets).toBe(4)
-    expect(payload.exerciseData.reps).toBe('8-10')
-    expect(payload.exerciseData.exerciseId).toBe('ex-bench')
+
+    // The notification spec is staged in the push-pending cache for the SW.
+    const staged = await page.evaluate(async () => {
+      const cache = await caches.open('push-pending')
+      const res = await cache.match('/pending')
+      return res ? await res.json() : null
+    })
+    expect(staged).not.toBeNull()
+    expect(staged.kind).toBe('start')
+    expect(staged.exerciseData.name).toBe('Press Banca')
+    expect(staged.exerciseData.restSec).toBe(120)
+    expect(staged.exerciseData.sets).toBe(4)
+    expect(staged.exerciseData.reps).toBe('8-10')
+    expect(staged.exerciseData.exerciseId).toBe('ex-bench')
 
     // The click must NOT schedule the delayed push nor show the banner.
     expect(restTimerCalled).toBe(false)
