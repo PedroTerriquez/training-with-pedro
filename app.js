@@ -1,7 +1,11 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.73 · 2026-06-16 · Remove all rest timer / notification / Worker queue code'
+const APP_VERSION = 'v1.70 · 2026-06-16 · Fallback notifyWatch cuando sendPush falla, subscribe refresha suscripción'
+
+// ── Push Notification Config ──
+// PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
+// (loaded via <script> tag before this file in index.html)
 
 let _state = {
   route: 'today',
@@ -20,6 +24,10 @@ let _appEl = null
 let _screenContainer = null
 let _tabBarEl = null
 let _deferredPrompt = null
+let _restTimerBannerEl = null
+let _restTimerEndTime = 0
+let _restTimerDuration = 0
+let _restTimerTickId = null
 
 async function init() {
   _rootEl = document.getElementById('root')
@@ -65,6 +73,11 @@ async function init() {
     _deferredPrompt = e
   })
 
+  // Auto-subscribe for push if permission already granted (VAPID key required)
+  if (PUSH_SERVER_URL && VAPID_PUBLIC_KEY && 'Notification' in window && Notification.permission === 'granted') {
+    subscribePush()
+  }
+
   renderShell()
 
   window.addEventListener('hashchange', handleRoute)
@@ -80,6 +93,19 @@ async function init() {
     await Storage.saveSettings(_state.settings)
   }
 
+  _checkRestTimer()
+  _checkPendingRest()
+  _cleanupStaleNotifications()
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      _checkRestTimer()
+      _checkPendingRest()
+      _cleanupStaleNotifications()
+    }
+  })
+  window.addEventListener('focus', () => {
+    _checkPendingRest()
+  })
 }
 
 async function loadState() {
@@ -394,6 +420,107 @@ async function _deviceId() {
     localStorage.setItem('push_device_id', id)
   }
   return id
+}
+
+async function subscribePush() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    console.warn('subscribePush: permission not granted')
+    if (typeof showToast === 'function') showToast('Permiso de notificaciones no concedido', true)
+    return false
+  }
+  if (!('serviceWorker' in navigator) || !PUSH_SERVER_URL) {
+    console.warn('subscribePush: no SW or no PUSH_SERVER_URL')
+    if (typeof showToast === 'function') showToast('Service Worker o URL no disponible', true)
+    return false
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const oldSub = await reg.pushManager.getSubscription()
+    if (oldSub) {
+      try { await oldSub.unsubscribe() } catch (_) {}
+    }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    })
+    const res = await fetch(`${PUSH_SERVER_URL}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), deviceId: await _deviceId() }),
+    })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error('Push subscribe error:', res.status, txt)
+      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}`, true)
+      return false
+    }
+    const s = await Storage.getSettings()
+    s.pushSubscribed = true
+    await Storage.saveSettings(s)
+    return true
+  } catch (e) {
+    console.error('subscribePush failed:', e)
+    if (typeof showToast === 'function') showToast(`Error: ${e.message}`, true)
+    return false
+  }
+}
+
+async function unsubscribePush() {
+  if (!('serviceWorker' in navigator)) return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (sub) await sub.unsubscribe()
+    if (PUSH_SERVER_URL) {
+      await fetch(`${PUSH_SERVER_URL}/api/push/unsubscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: await _deviceId() }),
+      })
+    }
+    const s = await Storage.getSettings()
+    s.pushSubscribed = false
+    await Storage.saveSettings(s)
+  } catch (_) {}
+}
+
+async function sendPushNotification(title, body, tag) {
+  const s = await Storage.getSettings()
+  if (!s.pushSubscribed) {
+    console.warn('sendPush: not subscribed')
+    if (typeof showToast === 'function') showToast('No suscrito a push', true)
+    return false
+  }
+  if (!PUSH_SERVER_URL) {
+    console.warn('sendPush: no server URL')
+    if (typeof showToast === 'function') showToast('PUSH_SERVER_URL no configurado', true)
+    return false
+  }
+  // Write notification data to Cache API so SW can read it on empty push
+  try {
+    const cache = await caches.open('push-pending')
+    await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout' })))
+  } catch (_) {}
+  // Wait 2s before sending push so Apple Watch has time to sync
+  await new Promise(r => setTimeout(r, 2000))
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId: await _deviceId() }),
+    })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error('sendPush error:', res.status, txt)
+      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}: ${txt}`, true)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error('sendPush failed:', e)
+    if (typeof showToast === 'function') showToast(`Error: ${e.message}`, true)
+    return false
+  }
 }
 
 // ── AI Import ──
@@ -779,7 +906,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     await Storage.saveCoachAnalysis(result)
     return result
   } catch (err) {
-    const fallback = { date: sessionData.date, _topic: topic, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _provider: 'llama' }
+    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _provider: 'llama' }
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }
@@ -823,6 +950,270 @@ function installPWA() {
   document.body.appendChild(overlay)
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
   card.querySelector('#pwa-close').addEventListener('click', () => overlay.remove())
+}
+
+window.notifyWatch = async (title, body, opts = {}) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0, requireInteraction: opts.requireInteraction !== false })
+  } catch (_) {}
+}
+
+window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
+  if (window._restTimerId) {
+    clearTimeout(window._restTimerId)
+    window._restTimerId = null
+  }
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.delete('/pending')
+  } catch (_) {}
+  if (window.pendingCancelTag) window.cancelRestTimer(window.pendingCancelTag)
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
+  } catch (_) {}
+  const endTime = Date.now() + restSec * 1000
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
+  } catch (_) {}
+  window.pendingCancelTag = tag
+  const pushEndTime = endTime - 10000 // Push arrives 10s early
+  try {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/rest-timer/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endTime: pushEndTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
+        exerciseId, sets, reps, restSec,
+      }),
+    })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.warn('scheduleRestTimer worker error:', res.status, txt)
+      if (typeof showToast === 'function') showToast('Error al programar notificación: ' + txt, true)
+    }
+  } catch (e) {
+    console.warn('scheduleRestTimer failed:', e)
+    if (typeof showToast === 'function') showToast('Error de red al programar notificación', true)
+  }
+  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+}
+
+window.cancelRestTimer = async (tag) => {
+  if (window._restTimerId) {
+    clearTimeout(window._restTimerId)
+    window._restTimerId = null
+  }
+  window.pendingCancelTag = null
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.delete('/pending')
+  } catch (_) {}
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.delete('/pending')
+  } catch (_) {}
+  if (tag) {
+    try {
+      await fetch(`${PUSH_SERVER_URL}/api/rest-timer/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag, deviceId: await _deviceId() }),
+      })
+    } catch (e) {
+      console.warn('cancelRestTimer failed:', e)
+    }
+  }
+}
+
+window._startRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
+  const endTime = Date.now() + restSec * 1000
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
+  } catch (_) {}
+  // Store exercise data for push notification
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
+  } catch (_) {}
+  window.pendingCancelTag = tag
+  if (window._restTimerId) clearTimeout(window._restTimerId)
+  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+}
+
+async function _checkRestTimer() {
+  try {
+    const cache = await caches.open('rest-timer')
+    const res = await cache.match('/pending')
+    if (!res) return
+    const data = await res.json()
+    const remaining = data.endTime - Date.now()
+    if (remaining <= 0) {
+      await cache.delete('/pending')
+      if (window._restTimerId) { clearTimeout(window._restTimerId); window._restTimerId = null }
+      await _completeRest(data)
+    } else {
+      if (window._restTimerId) clearTimeout(window._restTimerId)
+      window._restTimerId = setTimeout(_checkRestTimer, remaining)
+      if (!_restTimerBannerEl) {
+        _showRestTimerBanner(data, remaining)
+      } else {
+        _updateRestTimerBanner(remaining)
+      }
+    }
+  } catch (_) {}
+}
+
+async function _completeRest(data) {
+  _hideRestTimerBanner()
+  window.pendingCancelTag = null
+  if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
+  // The Worker queue handles sending "⏰ Descanso terminado" push notification at the exact restSec delay.
+  // Local notifyWatch fallback covers cases where Web Push fails (expired sub, etc.)
+  if (typeof window.notifyWatch === 'function') {
+    try {
+      await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado — Tap para iniciar', {
+        tag: `done-${data.tag || Date.now()}`,
+        requireInteraction: false,
+      })
+    } catch (_) {}
+  }
+  // Re-store exercise data so the next notification tap starts a new cycle.
+  try {
+    const pendingCache = await caches.open('rest-pending')
+    await pendingCache.put('/pending', new Response(JSON.stringify({
+      name: data.name,
+      restSec: data.restSec,
+      sets: data.sets,
+      reps: data.reps,
+      exerciseId: data.exerciseId
+    })))
+  } catch (_) {}
+}
+
+async function _cleanupStaleNotifications() {
+  try {
+    const cache = await caches.open('rest-timer')
+    const res = await cache.match('/close-pending')
+    if (!res) return
+    const items = await res.json()
+    const now = Date.now()
+    const active = items.filter(item => item.closeAt > now)
+    if (active.length === 0) {
+      await cache.delete('/close-pending')
+    } else {
+      await cache.put('/close-pending', new Response(JSON.stringify(active)))
+    }
+    for (const item of items) {
+      if (item.closeAt <= now) {
+        const reg = await navigator.serviceWorker.ready
+        if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: item.tag })
+      }
+    }
+  } catch (_) {}
+}
+
+async function _checkPendingRest() {
+  // 1. Always show banner if a timer is already running
+  try {
+    const timerCache = await caches.open('rest-timer')
+    const timerRes = await timerCache.match('/pending')
+    if (timerRes) {
+      const timerData = await timerRes.json()
+      const remaining = timerData.endTime - Date.now()
+      if (remaining > 0) {
+        _showRestTimerBanner(timerData, remaining)
+        return
+      }
+    }
+  } catch (_) {}
+  // 2. Only start a new timer if opened from notification tap
+  let fromNotification = false
+  try {
+    const flagCache = await caches.open('rest-pending')
+    const flagRes = await flagCache.match('/from-notification')
+    if (flagRes) {
+      fromNotification = true
+      await flagCache.delete('/from-notification')
+    }
+  } catch (_) {}
+  if (!fromNotification) return
+  // 3. Start the timer from pending data
+  try {
+    const cache = await caches.open('rest-pending')
+    const res = await cache.match('/pending')
+    if (!res) return
+    const data = await res.json()
+    await cache.delete('/pending')
+    const tag = `rest-${Date.now()}`
+    if (typeof window.scheduleRestTimer === 'function' && data.restSec > 0) {
+      window.scheduleRestTimer(data.name, data.restSec, tag, data.sets, data.reps, data.exerciseId)
+      _showRestTimerBanner({ endTime: Date.now() + data.restSec * 1000, name: data.name, tag, restSec: data.restSec, sets: data.sets, reps: data.reps, exerciseId: data.exerciseId }, data.restSec * 1000)
+    }
+  } catch (_) {}
+}
+
+function _showRestTimerBanner(data, remainingMs) {
+  _hideRestTimerBanner()
+  _restTimerEndTime = data.endTime
+  _restTimerDuration = data.restSec * 1000
+  const remainingSec = Math.ceil(remainingMs / 1000)
+  const m = Math.floor(remainingSec / 60)
+  const s = remainingSec % 60
+  const pct = remainingMs / _restTimerDuration
+
+  const bar = document.createElement('div')
+  bar.id = 'rest-timer-banner'
+
+  bar.innerHTML = `
+    <span class="rtb-emoji">⏱️</span>
+    <span class="rtb-name">${data.name}</span>
+    <span class="rtb-time">${m}:${String(s).padStart(2, '0')}</span>
+    <div class="rtb-bar"><div id="timer-progress" class="rtb-bar-fill" style="width:${pct * 100}%"></div></div>`
+
+  bar.addEventListener('click', async () => {
+    _hideRestTimerBanner()
+    if (data.tag) await window.cancelRestTimer(data.tag)
+    if (typeof showToast === 'function') showToast('Descanso cancelado')
+  })
+
+  if (_appEl) _appEl.appendChild(bar)
+  _restTimerBannerEl = bar
+  // Start 1-second tick for live countdown
+  if (_restTimerTickId) clearInterval(_restTimerTickId)
+  _restTimerTickId = setInterval(() => {
+    const rem = _restTimerEndTime - Date.now()
+    if (rem <= 0) {
+      clearInterval(_restTimerTickId)
+      _restTimerTickId = null
+      _checkRestTimer()
+    } else {
+      _updateRestTimerBanner(rem)
+    }
+  }, 1000)
+}
+
+function _hideRestTimerBanner() {
+  const el = document.getElementById('rest-timer-banner')
+  if (el) el.remove()
+  _restTimerBannerEl = null
+  if (_restTimerTickId) { clearInterval(_restTimerTickId); _restTimerTickId = null }
+}
+
+function _updateRestTimerBanner(remainingMs) {
+  if (!_restTimerBannerEl) return
+  const remainingSec = Math.ceil(remainingMs / 1000)
+  const m = Math.floor(remainingSec / 60)
+  const s = remainingSec % 60
+  const timeEl = _restTimerBannerEl.querySelector('.rtb-time')
+  if (timeEl) timeEl.textContent = `${m}:${String(s).padStart(2, '0')}`
+  const pct = _restTimerDuration > 0 ? remainingMs / _restTimerDuration : 0
+  const progEl = _restTimerBannerEl.querySelector('#timer-progress')
+  if (progEl) progEl.style.width = `${pct * 100}%`
 }
 
 document.addEventListener('DOMContentLoaded', init)

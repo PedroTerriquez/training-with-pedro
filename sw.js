@@ -1,4 +1,4 @@
-const CACHE = 'v73'
+const CACHE = 'v70'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -60,6 +60,76 @@ self.addEventListener('message', (e) => {
     self.skipWaiting()
     return
   }
+  if (e.data?.type === 'close-tag') {
+    e.waitUntil((async () => {
+      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
+      notifs.forEach(n => n.close())
+    })())
+    return
+  }
+  if (e.data?.type === 'schedule-close') {
+    setTimeout(async () => {
+      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
+      notifs.forEach(n => n.close())
+    }, e.data.delay)
+    return
+  }
+  if (e.data?.type === 'notify') {
+    const opts = {
+      body: e.data.body,
+      icon: e.data.icon || 'icons/icon-192.png',
+      tag: e.data.tag || 'default',
+      requireInteraction: e.data.requireInteraction !== false,
+      data: { url: e.data.url || './', restSeconds: e.data.restSeconds || 0, title: e.data.title, body: e.data.body },
+    }
+    if (e.data.restSeconds > 0) {
+      opts.actions = [{ action: 'start-rest', title: `Descansar ${e.data.restSeconds}s` }]
+    }
+    self.registration.showNotification(e.data.title, opts)
+  }
 })
 
+self.addEventListener('push', (e) => {
+  e.waitUntil((async () => {
+    let data = {}
+    try {
+      if (e.data) data = e.data.json()
+    } catch {}
+    if (!data.title && !data.body) {
+      try {
+        const cache = await caches.open('push-pending')
+        const res = await cache.match('/pending')
+        if (res) {
+          data = await res.json()
+          await cache.delete('/pending')
+        }
+      } catch {}
+    }
+    const title = data.title || 'Coach Pedro AI'
+    const body = data.body || ''
+    // If this notification carries exerciseData, store it in Cache API so the app can pick it up
+    if (data.exerciseData) {
+      try {
+        const store = await caches.open('rest-pending')
+        store.put('/pending', new Response(JSON.stringify(data.exerciseData)))
+      } catch {}
+    }
+    const opts = {
+      body,
+      icon: 'icons/icon-192.png',
+      tag: data.tag || `push-${Date.now()}`,
+      requireInteraction: true,
+      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body, exerciseData: data.exerciseData },
+    }
+    await self.registration.showNotification(title, opts)
+  })())
+})
 
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  e.waitUntil((async () => {
+    const cache = await caches.open('rest-pending')
+    await cache.put('/from-notification', new Response('1'))
+    await clients.openWindow('./')
+  })())
+})
