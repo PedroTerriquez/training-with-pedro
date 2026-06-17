@@ -1,4 +1,4 @@
-const CACHE = 'v76'
+const CACHE = 'v77'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -151,10 +151,16 @@ self.addEventListener('notificationclick', (e) => {
       await cache.put('/pending', new Response(JSON.stringify(data.exerciseData)))
       await cache.put('/from-notification', new Response('1'))
     }
-    // Focus an existing window if open, otherwise open one.
+    // Focus an existing window if open, otherwise open one. Tell the page
+    // directly (postMessage) so it starts the timer without relying on the
+    // page's focus/visibilitychange events, which don't fire reliably on iOS.
     const all = await clients.matchAll({ type: 'window', includeUncontrolled: true })
     const existing = all.find((c) => 'focus' in c)
-    if (existing) await existing.focus()
-    else await clients.openWindow('./')
+    if (existing) {
+      await existing.focus()
+      if (data.kind === 'start') existing.postMessage({ type: 'rest-start' })
+    } else {
+      await clients.openWindow('./')
+    }
   })())
 })

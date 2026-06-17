@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.76 · 2026-06-17 · Fix: condición de carrera al tocar la notificación generaba descansos duplicados (3 notifs); candado de reentrada + cancelar descanso previo + docs'
+const APP_VERSION = 'v1.77 · 2026-06-17 · Fix: el timer no arrancaba al abrir desde la notificación en iOS; el SW ahora avisa a la app por postMessage (no depende de focus)'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -64,6 +64,11 @@ async function init() {
       if (refreshing) return
       refreshing = true
       window.location.reload()
+    })
+    // The SW pings us when a "start" notification is tapped — start the timer
+    // immediately, without waiting for (unreliable on iOS) focus events.
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'rest-start') onStartNotificationTap()
     })
   }
 

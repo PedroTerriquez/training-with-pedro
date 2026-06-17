@@ -60,7 +60,8 @@ CLICK "Iniciar"
 
 TAP "Tap para iniciar descanso"   (notificationclick, kind:'start')
   ├─ SW writes rest-pending /pending = exerciseData + /from-notification flag, focuses app
-  └─ app onStartNotificationTap():
+  ├─ SW postMessage({type:'rest-start'}) to the focused client  ← reliable trigger
+  └─ app onStartNotificationTap():  (also called on focus/visibilitychange/init as fallback)
         ├─ stage push-pending /pending = { kind:'done', exerciseData }
         ├─ POST /api/rest-timer/start  (endTime = now + rest*1000 − 10000)  → Worker Queue
         └─ startRestBanner()  (decorative, best-effort)
@@ -131,6 +132,17 @@ Caveats (not bugs, just properties of the design):
 - **No auth on the deviceId.** It's the only key. Random + secret, so it's not guessable in
   practice, but anyone who learned another device's id could trigger pushes to it. Add login
   if you ever handle sensitive data.
+
+## Detecting "opened from notification"
+
+Don't rely on the page's `focus` / `visibilitychange` events on iOS — they don't fire
+reliably when a standalone PWA returns to the foreground from a notification tap. The
+robust trigger is the SW **`postMessage({type:'rest-start'})`** to the focused client
+(`app.js` listens on `navigator.serviceWorker`). The page-event handlers and the
+`init()` call remain as fallbacks. All of them funnel into `onStartNotificationTap()`,
+which is **reentrancy-guarded** and consumes a one-shot `/from-notification` flag, so
+multiple triggers for one tap still schedule exactly one rest cycle (this was the
+"3 duplicate notifications" bug: focus + visibilitychange + init all scheduled).
 
 ## Gotchas / future notes
 
