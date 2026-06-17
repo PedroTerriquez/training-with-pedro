@@ -96,15 +96,10 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         const sent = typeof sendPushNotification === 'function'
           ? await sendPushNotification(exercise.name, body, tag)
           : false
-        if (!sent) {
-          if (typeof subscribePush === 'function') {
-            const ok = await subscribePush()
-            if (ok && typeof sendPushNotification === 'function') {
-              await sendPushNotification(exercise.name, body, tag)
-            }
-          }
-          if (typeof window.notifyWatch === 'function') {
-            await window.notifyWatch(exercise.name, body, { tag })
+        if (!sent && typeof subscribePush === 'function') {
+          const ok = await subscribePush()
+          if (ok && typeof sendPushNotification === 'function') {
+            await sendPushNotification(exercise.name, body, tag)
           }
         }
       } finally {
@@ -688,8 +683,8 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     fab.id = 'coach-fab'
     const overlay = container.parentElement?.parentElement?.parentElement
     if (!overlay) return
-    fab.style.cssText = `position:absolute;top:14px;left:14px;width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:200;padding:0;color:rgba(255,255,255,0.85)`
-    fab.innerHTML = `<svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z"/><circle cx="9" cy="8.2" r="0.95" fill="currentColor"/><circle cx="6" cy="8.2" r="0.95" fill="currentColor"/><circle cx="12" cy="8.2" r="0.95" fill="currentColor"/></svg>`
+    fab.style.cssText = `position:absolute;top:14px;left:14px;padding:0 12px 0 10px;height:32px;border-radius:9999px;border:0.5px solid ${accent}3a;background:${accent}1a;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;display:flex;align-items:center;gap:6px;z-index:200`
+    fab.innerHTML = `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="${accent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2c0-2.8 2.9-5 6.5-5s6.5 2.2 6.5 5-2.9 5-6.5 5c-.7 0-1.4-.08-2-.23L3.2 14.7l.5-2.4C2.95 11.4 2.5 9.9 2.5 8.2z"/><circle cx="9" cy="8.2" r="0.95" fill="${accent}"/><circle cx="6" cy="8.2" r="0.95" fill="${accent}"/><circle cx="12" cy="8.2" r="0.95" fill="${accent}"/></svg><span style="font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent};letter-spacing:-0.2px">Coach IA</span>`
     fab.addEventListener('click', () => openCoachChat(exercise, accent))
     overlay.appendChild(fab)
   }, 0)

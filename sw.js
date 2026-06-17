@@ -1,4 +1,4 @@
-const CACHE = 'v70'
+const CACHE = 'v71'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -60,33 +60,7 @@ self.addEventListener('message', (e) => {
     self.skipWaiting()
     return
   }
-  if (e.data?.type === 'close-tag') {
-    e.waitUntil((async () => {
-      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
-      notifs.forEach(n => n.close())
-    })())
-    return
-  }
-  if (e.data?.type === 'schedule-close') {
-    setTimeout(async () => {
-      const notifs = await self.registration.getNotifications({ tag: e.data.tag })
-      notifs.forEach(n => n.close())
-    }, e.data.delay)
-    return
-  }
-  if (e.data?.type === 'notify') {
-    const opts = {
-      body: e.data.body,
-      icon: e.data.icon || 'icons/icon-192.png',
-      tag: e.data.tag || 'default',
-      requireInteraction: e.data.requireInteraction !== false,
-      data: { url: e.data.url || './', restSeconds: e.data.restSeconds || 0, title: e.data.title, body: e.data.body },
-    }
-    if (e.data.restSeconds > 0) {
-      opts.actions = [{ action: 'start-rest', title: `Descansar ${e.data.restSeconds}s` }]
-    }
-    self.registration.showNotification(e.data.title, opts)
-  }
+
 })
 
 self.addEventListener('push', (e) => {

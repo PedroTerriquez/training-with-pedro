@@ -144,6 +144,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.reload()
   await page.waitForTimeout(1000)
   await page.waitForFunction(() => typeof window.appRefresh === 'function')
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {})
 
   // Intercept coach AI API
   await page.route('**/*.workers.dev/**', (route) => {
@@ -153,6 +154,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
       body: JSON.stringify({
         analysis: '¡Excelente sesión, TestUser! Trabajaste con buena intensidad en press banca. Sigue así y no olvides descansar bien.',
         verdict: 'positive',
+        _topic: 'comparativa',
         _provider: 'test',
       }),
     })
@@ -237,13 +239,14 @@ test('full user flow: profile → warmup → week switch → training → stretc
   // ── Step 5.5: Coach IA FAB ──
   const coachFab = page.locator('#coach-fab')
   await expect(coachFab).toBeVisible({ timeout: 3000 })
+  await expect(coachFab).toContainText('Coach IA')
 
   // Click to open Coach IA overlay
   await coachFab.click()
   await page.waitForTimeout(400)
 
-  // Verify overlay shows "Coach IA" header + exercise-specific greeting
-  await expect(page.locator('text=Coach IA')).toBeVisible()
+  // Verify overlay shows close button + exercise-specific greeting
+  await expect(page.locator('#coach-close-btn')).toBeVisible()
   await expect(page.locator('text=¡Qué onda!')).toBeVisible()
   await expect(page.locator('text=Mejorar técnica')).toBeVisible()
   await expect(page.locator('text=¿Voy muy pesado?')).toBeVisible()
@@ -332,6 +335,8 @@ test('full user flow: profile → warmup → week switch → training → stretc
   const coachCard = page.locator('#coach-card-regen')
   await expect(coachCard).toBeVisible({ timeout: 10000 })
   await expect(coachCard).toContainText('Resumen del coach')
+  // Verify provider text is NOT present (removed in favor of topic label)
+  await expect(coachCard.locator('text=llama')).not.toBeVisible()
 
   // ── Step 9: History Verification ──
   await page.evaluate(() => { location.hash = '#history' })

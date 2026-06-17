@@ -89,6 +89,7 @@ test.describe('Rest notification flow', () => {
     await page.reload()
     await page.waitForTimeout(1000)
     await page.waitForFunction(() => typeof window.appRefresh === 'function')
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {})
 
     // Mock Notification API for headless Chromium
     await page.evaluate(() => {

@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.70 · 2026-06-16 · Fallback notifyWatch cuando sendPush falla, subscribe refresha suscripción'
+const APP_VERSION = 'v1.71 · 2026-06-16 · Remove local notifyWatch, keep only Worker queue for notifications'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -95,12 +95,10 @@ async function init() {
 
   _checkRestTimer()
   _checkPendingRest()
-  _cleanupStaleNotifications()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       _checkRestTimer()
       _checkPendingRest()
-      _cleanupStaleNotifications()
     }
   })
   window.addEventListener('focus', () => {
@@ -906,7 +904,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     await Storage.saveCoachAnalysis(result)
     return result
   } catch (err) {
-    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _provider: 'llama' }
+    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _topic: topic, _provider: 'llama' }
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }
@@ -950,14 +948,6 @@ function installPWA() {
   document.body.appendChild(overlay)
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
   card.querySelector('#pwa-close').addEventListener('click', () => overlay.remove())
-}
-
-window.notifyWatch = async (title, body, opts = {}) => {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
-  try {
-    const reg = await navigator.serviceWorker.ready
-    if (reg.active) reg.active.postMessage({ type: 'notify', title, body, icon: 'icons/icon-192.png', tag: opts.tag || 'workout', restSeconds: opts.restSeconds || 0, requireInteraction: opts.requireInteraction !== false })
-  } catch (_) {}
 }
 
 window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
@@ -1072,16 +1062,6 @@ async function _completeRest(data) {
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // The Worker queue handles sending "⏰ Descanso terminado" push notification at the exact restSec delay.
-  // Local notifyWatch fallback covers cases where Web Push fails (expired sub, etc.)
-  if (typeof window.notifyWatch === 'function') {
-    try {
-      await window.notifyWatch(`⏰ ${data.name}`, 'Descanso terminado — Tap para iniciar', {
-        tag: `done-${data.tag || Date.now()}`,
-        requireInteraction: false,
-      })
-    } catch (_) {}
-  }
   // Re-store exercise data so the next notification tap starts a new cycle.
   try {
     const pendingCache = await caches.open('rest-pending')
@@ -1092,28 +1072,6 @@ async function _completeRest(data) {
       reps: data.reps,
       exerciseId: data.exerciseId
     })))
-  } catch (_) {}
-}
-
-async function _cleanupStaleNotifications() {
-  try {
-    const cache = await caches.open('rest-timer')
-    const res = await cache.match('/close-pending')
-    if (!res) return
-    const items = await res.json()
-    const now = Date.now()
-    const active = items.filter(item => item.closeAt > now)
-    if (active.length === 0) {
-      await cache.delete('/close-pending')
-    } else {
-      await cache.put('/close-pending', new Response(JSON.stringify(active)))
-    }
-    for (const item of items) {
-      if (item.closeAt <= now) {
-        const reg = await navigator.serviceWorker.ready
-        if (reg.active) reg.active.postMessage({ type: 'close-tag', tag: item.tag })
-      }
-    }
   } catch (_) {}
 }
 
