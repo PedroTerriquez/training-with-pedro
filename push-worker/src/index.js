@@ -145,21 +145,6 @@ async function callAI(messages, env, opts = {}) {
   return { text, provider }
 }
 
-// Simple in-memory dedup per-isolate to prevent duplicate pushes
-const _recent = new Map()
-function _dedup(deviceId, type) {
-  const key = `${type}:${deviceId}`
-  const now = Date.now()
-  const last = _recent.get(key)
-  if (last && now - last < 3000) return false
-  _recent.set(key, now)
-  if (_recent.size > 100) {
-    const cutoff = now - 10000
-    for (const [k, v] of _recent) if (v < cutoff) _recent.delete(k)
-  }
-  return true
-}
-
 // ── Web Push send (manual, no web-push library) ──
 
 async function sendWebPush(sub, payload, vapidPub, vapidPriv, vapidEmail) {
@@ -214,38 +199,13 @@ async function sendWebPush(sub, payload, vapidPub, vapidPriv, vapidEmail) {
   //          → HMAC(key=PRK, data=saltBuf) → HKDF-Expand
   const nonce = await _hkdf(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
-  function _hex(b) { return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') }
-  // Cross-check with Web Crypto native HKDF
-  async function _hkdfNative(salt, ikm, info) {
-    const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
-    return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, 256))
-  }
-  const prk_native = await _hkdfNative(sharedSecret, auth, new TextEncoder().encode('Content-Encoding: auth\x00'))
-  // web-push: hkdf(ikm=saltBuf, salt=PRK) → HMAC(key=PRK, data=saltBuf)
-  // So for Web Crypto: IKM=salt, salt=PRK
-  const cek_native = await _hkdfNative(prk, salt, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'))
-  const nonce_native = await _hkdfNative(prk, salt, new TextEncoder().encode('Content-Encoding: nonce\x00'))
-  console.log('[PUSH_DEBUG] salt:', _hex(salt))
-  console.log('[PUSH_DEBUG] serverPub:', _hex(serverPub))
-  console.log('[PUSH_DEBUG] sharedSecret:', _hex(sharedSecret))
-  console.log('[PUSH_DEBUG] auth:', _hex(auth))
-  console.log('[PUSH_DEBUG] PRK manual:', _hex(prk))
-  console.log('[PUSH_DEBUG] PRK native:', _hex(prk_native))
-  console.log('[PUSH_DEBUG] CEK manual:', _hex(cek))
-  console.log('[PUSH_DEBUG] CEK native:', _hex(cek_native.slice(0, 16)))
-  console.log('[PUSH_DEBUG] nonce manual:', _hex(nonce))
-  console.log('[PUSH_DEBUG] nonce native:', _hex(nonce_native.slice(0, 12)))
-  console.log('[PUSH_DEBUG] payload:', JSON.stringify(payload))
-
   const content = new TextEncoder().encode(JSON.stringify(payload))
   // RFC 8291: plaintext = content || 0x02 (padding delimiter)
   const pad = new Uint8Array(content.length + 1)
   pad.set(content, 0)
   pad[pad.length - 1] = 0x02
-  console.log('[PUSH_DEBUG] pad hex:', _hex(pad))
 
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']), pad))
-  console.log('[PUSH_DEBUG] ciphertext len:', ciphertext.length, 'hex:', _hex(ciphertext))
 
   // Build encrypted body (aes128gcm format)
   const recordSize = 4096
@@ -359,15 +319,6 @@ export default {
       try { return JSON.parse(text) } catch { return null }
     }
 
-
-
-    async function hkdf(salt, ikm, info, length) {
-      const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
-      return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: salt, info: new TextEncoder().encode(info) }, key, length * 8))
-    }
-
-
-
     if (url.pathname === '/api/push/subscribe') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
       try {
@@ -389,92 +340,32 @@ export default {
       return respond('ok')
     }
 
-    if (url.pathname === '/api/push/send') {
+    // Immediate "Tap para iniciar descanso" notification (encrypted payload).
+    if (url.pathname === '/api/push/start') {
       if (!env.PUSH_KV) return respond('Push KV not configured', 501)
+      let deviceId
       try {
-        const { deviceId } = await req.json()
+        const body = await req.json()
+        deviceId = body.deviceId
+        const exerciseData = body.exerciseData
         if (!deviceId) return respond('deviceId required', 400)
+        if (!exerciseData || !exerciseData.name) return respond('exerciseData required', 400)
         const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
-        if (!raw) {
-          return respond('No subscription', 404)
-        }
+        if (!raw) return respond('No subscription', 404)
         const sub = JSON.parse(raw)
         const vapidPub = env.VAPID_PUBLIC_KEY
         const vapidPriv = env.VAPID_PRIVATE_KEY
         const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
         if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
 
-        const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
-        const pushRes = await fetch(sub.endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Length': '0',
-            'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
-            'TTL': '86400',
-          },
-        })
-        if (pushRes.status === 410) {
+        await sendWebPush(sub, { kind: 'start', title: exerciseData.name, exerciseData }, vapidPub, vapidPriv, vapidEmail)
+        return respond({ status: 'sent' })
+      } catch (err) {
+        if (err && err.statusCode === 410 && deviceId) {
           await env.PUSH_KV.delete(`sub_${deviceId}`)
           return respond('Subscription expired — cleaned up', 410)
         }
-        if (!pushRes.ok) {
-          const pushBody = await pushRes.text().catch(()=>'')
-          return respond(`Push service returned ${pushRes.status}: ${pushBody}`, 502)
-        }
-        return respond('sent')
-      } catch (err) {
         return respond({ error: err.message || 'unknown' }, 500)
-      }
-    }
-
-    // Debug: send empty push (no payload, just VAPID auth) to test if Apple delivers at all
-    if (url.pathname === '/api/push/test-empty') {
-      if (!env.PUSH_KV) return respond('Push KV not configured', 501)
-      try {
-        const { deviceId } = await req.json()
-        if (!deviceId) return respond('deviceId required', 400)
-        if (!_dedup(deviceId, 'test-empty')) return respond({ status: 'ok', dedup: true })
-        const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
-        if (!raw) return respond('No subscription', 404)
-        const sub = JSON.parse(raw)
-        const vapidPub = env.VAPID_PUBLIC_KEY
-        const vapidPriv = env.VAPID_PRIVATE_KEY
-        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
-        if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
-
-        const vapidJwt = await _signVapid(vapidEmail, vapidPriv, vapidPub, sub.endpoint)
-        const res = await fetch(sub.endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Length': '0',
-            'Authorization': `vapid t=${vapidJwt}, k=${vapidPub}`,
-            'TTL': '86400',
-          },
-        })
-        return respond({ status: res.status, body: await res.text().catch(()=>'') })
-      } catch (err) {
-        return respond('Test failed: ' + (err.message || 'unknown'), 500)
-      }
-    }
-
-    if (url.pathname === '/api/push/test-encrypted') {
-      if (!env.PUSH_KV) return respond('Push KV not configured', 501)
-      try {
-        const { deviceId } = await req.json()
-        if (!deviceId) return respond('deviceId required', 400)
-        if (!_dedup(deviceId, 'test-enc')) return respond({ status: 'ok', dedup: true })
-        const raw = await env.PUSH_KV.get(`sub_${deviceId}`)
-        if (!raw) return respond('No subscription', 404)
-        const sub = JSON.parse(raw)
-        const vapidPub = env.VAPID_PUBLIC_KEY
-        const vapidPriv = env.VAPID_PRIVATE_KEY
-        const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
-        if (!vapidPub || !vapidPriv) return respond('VAPID keys not configured', 500)
-
-        await sendWebPush(sub, { title: 'Test', body: 'Encriptado ✓', tag: 'test-enc', url: './' }, vapidPub, vapidPriv, vapidEmail)
-        return respond({ status: 200, body: 'encrypted sent' })
-      } catch (err) {
-        return respond('Test failed: ' + (err.message || 'unknown'), 500)
       }
     }
 
@@ -603,19 +494,6 @@ REGLAS DE RESPUESTA:
       }
     }
 
-    // ── Debug: test queue delivery with short delay ──
-    if (url.pathname === '/api/debug/test-delayed') {
-      try {
-        const { deviceId } = await req.json()
-        if (!deviceId) return respond({ error: 'deviceId required' }, 400)
-        const tag = 'debug-' + Date.now()
-        await env.REST_TIMER_QUEUE.send({ deviceId, tag, title: 'Debug Test', body: '5s delay ✓', exerciseId: '', sets: 3, reps: '10', restSec: 5 }, { delaySeconds: 5 })
-        return respond({ status: 'queued', tag, delaySec: 5 })
-      } catch (err) {
-        return respond({ error: err.message }, 500)
-      }
-    }
-
     return respond('Not Found', 404)
   },
 
@@ -636,7 +514,7 @@ REGLAS DE RESPUESTA:
       const vapidEmail = env.VAPID_EMAIL || 'mailto:pedro@example.com'
       if (!vapidPub || !vapidPriv) { msg.retry({ delaySeconds: 10 }); continue }
       try {
-        await sendWebPush(sub, { title: `⏰ ${title}`, body: 'Descanso terminado — Tap para iniciar', tag: `cycle-${tag}`, url: './', restSeconds: 0, exerciseId, exerciseData: { exerciseId, title, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
+        await sendWebPush(sub, { kind: 'done', title, exerciseData: { name: title, exerciseId, sets, reps, restSec } }, vapidPub, vapidPriv, vapidEmail)
       } catch (err) {
         if (err.statusCode === 410) await env.PUSH_KV.delete(`sub_${deviceId}`)
         msg.retry({ delaySeconds: 10 })

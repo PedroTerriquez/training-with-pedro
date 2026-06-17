@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.73 · 2026-06-17 · Add debug test-delayed + 5s button in Tú screen'
+const APP_VERSION = 'v1.74 · 2026-06-17 · Rework rest-notif flow: Iniciar solo envía start; tap arranca timer+delayed; tags estables; push encriptado unificado'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -93,16 +93,16 @@ async function init() {
     await Storage.saveSettings(_state.settings)
   }
 
-  _checkPendingRest()
+  onStartNotificationTap()
   _checkRestTimer()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      _checkPendingRest()
+      onStartNotificationTap()
       _checkRestTimer()
     }
   })
   window.addEventListener('focus', () => {
-    _checkPendingRest()
+    onStartNotificationTap()
     _checkRestTimer()
   }, { passive: true })
 }
@@ -483,44 +483,53 @@ async function unsubscribePush() {
   } catch (_) {}
 }
 
-async function sendPushNotification(title, body, tag) {
+// Build the compact exercise payload carried by every rest notification.
+function _exerciseData(exercise) {
+  return {
+    name: exercise.name,
+    restSec: exercise.rest,
+    sets: exercise.sets,
+    reps: exercise.reps,
+    exerciseId: exercise.exerciseId || exercise.id || '',
+  }
+}
+
+// Click "Iniciar": after a 2s Apple-Watch-sync delay, send the immediate
+// "Tap para iniciar descanso" notification. Does NOT start the timer — that
+// happens only when the user taps the notification.
+async function sendStartNotification(exercise) {
   const s = await Storage.getSettings()
   if (!s.pushSubscribed) {
-    console.warn('sendPush: not subscribed')
     if (typeof showToast === 'function') showToast('No suscrito a push', true)
     return false
   }
   if (!PUSH_SERVER_URL) {
-    console.warn('sendPush: no server URL')
     if (typeof showToast === 'function') showToast('PUSH_SERVER_URL no configurado', true)
     return false
   }
-  // Write notification data to Cache API so SW can read it on empty push
+  const exerciseData = _exerciseData(exercise)
+  // Wait 2s so the Apple Watch has time to sync before the push arrives.
+  await new Promise((r) => setTimeout(r, 2000))
   try {
-    const cache = await caches.open('push-pending')
-    await cache.put('/pending', new Response(JSON.stringify({ title, body: body + ' ▸', tag: tag || 'workout' })))
-  } catch (_) {}
-  // Wait 2s before sending push so Apple Watch has time to sync
-  await new Promise(r => setTimeout(r, 2000))
-  try {
-    const res = await fetch(`${PUSH_SERVER_URL}/api/push/send`, {
+    const res = await fetch(`${PUSH_SERVER_URL}/api/push/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId: await _deviceId() }),
+      body: JSON.stringify({ deviceId: await _deviceId(), exerciseData }),
     })
     if (!res.ok) {
       const txt = await res.text()
-      console.error('sendPush error:', res.status, txt)
-      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}: ${txt}`, true)
+      console.error('sendStartNotification error:', res.status, txt)
+      if (typeof showToast === 'function') showToast(`Worker error: ${res.status}`, true)
       return false
     }
     return true
   } catch (e) {
-    console.error('sendPush failed:', e)
+    console.error('sendStartNotification failed:', e)
     if (typeof showToast === 'function') showToast(`Error: ${e.message}`, true)
     return false
   }
 }
+window.sendStartNotification = sendStartNotification
 
 // ── AI Import ──
 
@@ -951,46 +960,49 @@ function installPWA() {
   card.querySelector('#pwa-close').addEventListener('click', () => overlay.remove())
 }
 
-window.scheduleRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
-  if (window._restTimerId) {
-    clearTimeout(window._restTimerId)
-    window._restTimerId = null
-  }
-  try {
-    const cache = await caches.open('rest-timer')
-    await cache.delete('/pending')
-  } catch (_) {}
-  if (window.pendingCancelTag) window.cancelRestTimer(window.pendingCancelTag)
-  try {
-    const pendingCache = await caches.open('rest-pending')
-    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
-  } catch (_) {}
-  const endTime = Date.now() + restSec * 1000
-  try {
-    const cache = await caches.open('rest-timer')
-    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
-  } catch (_) {}
+// Schedule the delayed "Descanso terminado" push on the Worker queue.
+// It is the source of truth for "rest over"; the push lands ~10s early to
+// compensate for delivery/Apple Watch latency.
+window.scheduleDelayedPush = async (ex) => {
+  const tag = 'rest-' + Date.now()
   window.pendingCancelTag = tag
-  const pushEndTime = endTime - 10000 // Push arrives 10s early
+  if (!PUSH_SERVER_URL) return
+  const endTime = Date.now() + ex.restSec * 1000
+  const pushEndTime = Math.max(endTime - 10000, Date.now() + 1000)
   try {
     const res = await fetch(`${PUSH_SERVER_URL}/api/rest-timer/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        endTime: pushEndTime, deviceId: await _deviceId(), tag, title: name, body: `${sets}×${reps}`,
-        exerciseId, sets, reps, restSec,
+        endTime: pushEndTime, deviceId: await _deviceId(), tag,
+        title: ex.name, body: `${ex.sets}×${ex.reps}`,
+        exerciseId: ex.exerciseId, sets: ex.sets, reps: ex.reps, restSec: ex.restSec,
       }),
     })
     if (!res.ok) {
       const txt = await res.text()
-      console.warn('scheduleRestTimer worker error:', res.status, txt)
-      if (typeof showToast === 'function') showToast('Error al programar notificación: ' + txt, true)
+      console.warn('scheduleDelayedPush worker error:', res.status, txt)
+      if (typeof showToast === 'function') showToast('Error al programar notificación', true)
     }
   } catch (e) {
-    console.warn('scheduleRestTimer failed:', e)
+    console.warn('scheduleDelayedPush failed:', e)
     if (typeof showToast === 'function') showToast('Error de red al programar notificación', true)
   }
-  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
+}
+
+// Decorative in-app countdown banner (best-effort; only runs while the app is
+// open). The delayed push — not this — is authoritative.
+window.startRestBanner = async (ex) => {
+  if (window._restTimerId) { clearTimeout(window._restTimerId); window._restTimerId = null }
+  const endTime = Date.now() + ex.restSec * 1000
+  try {
+    const cache = await caches.open('rest-timer')
+    await cache.put('/pending', new Response(JSON.stringify({
+      endTime, name: ex.name, tag: window.pendingCancelTag,
+      restSec: ex.restSec, sets: ex.sets, reps: ex.reps, exerciseId: ex.exerciseId,
+    })))
+  } catch (_) {}
+  window._restTimerId = setTimeout(_checkRestTimer, ex.restSec * 1000 + 2000)
   _checkRestTimer()
 }
 
@@ -1008,7 +1020,7 @@ window.cancelRestTimer = async (tag) => {
     const pendingCache = await caches.open('rest-pending')
     await pendingCache.delete('/pending')
   } catch (_) {}
-  if (tag) {
+  if (tag && PUSH_SERVER_URL) {
     try {
       await fetch(`${PUSH_SERVER_URL}/api/rest-timer/cancel`, {
         method: 'POST',
@@ -1021,57 +1033,20 @@ window.cancelRestTimer = async (tag) => {
   }
 }
 
-window._startRestTimer = async (name, restSec, tag, sets, reps, exerciseId) => {
-  const endTime = Date.now() + restSec * 1000
+// Fired when the user taps a "Tap para iniciar descanso" notification (the SW
+// left a flag + the exercise payload in the rest-pending cache).
+async function onStartNotificationTap() {
   try {
-    const cache = await caches.open('rest-timer')
-    await cache.put('/pending', new Response(JSON.stringify({ endTime, name, tag, restSec, sets, reps, exerciseId })))
-  } catch (_) {}
-  // Store exercise data for push notification
-  try {
-    const pendingCache = await caches.open('rest-pending')
-    await pendingCache.put('/pending', new Response(JSON.stringify({ name, restSec, tag, sets, reps, exerciseId })))
-  } catch (_) {}
-  window.pendingCancelTag = tag
-  if (window._restTimerId) clearTimeout(window._restTimerId)
-  window._restTimerId = setTimeout(_checkRestTimer, restSec * 1000 + 2000)
-  _checkRestTimer()
-}
-
-window.testDelayedPush = async () => {
-  if (!PUSH_SERVER_URL) { showToast('PUSH_SERVER_URL no configurado', true); return }
-  try {
-    const res = await fetch(`${PUSH_SERVER_URL}/api/debug/test-delayed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId: await _deviceId() }),
-    })
-    const data = await res.json()
-    showToast(`Debug: ${data.status} · tag: ${data.tag || '?'} · ${data.delaySec || '?'}s`)
-    console.log('[DEBUG] testDelayedPush response:', JSON.stringify(data))
-  } catch (e) {
-    showToast(`Error: ${e.message}`, true)
-    console.error('[DEBUG] testDelayedPush failed:', e)
-  }
-}
-
-async function _checkPendingRest() {
-  try {
-    const flagCache = await caches.open('rest-pending')
-    const flagRes = await flagCache.match('/from-notification')
-    if (!flagRes) return
-    await flagCache.delete('/from-notification')
-    const pendingRes = await flagCache.match('/pending')
+    const cache = await caches.open('rest-pending')
+    const flag = await cache.match('/from-notification')
+    if (!flag) return
+    await cache.delete('/from-notification')
+    const pendingRes = await cache.match('/pending')
     if (!pendingRes) return
-    const data = await pendingRes.json()
-    const name = data.name || data.title || ''
-    const restSec = data.restSec
-    const exerciseId = data.exerciseId
-    const sets = data.sets
-    const reps = data.reps
-    if (name && restSec > 0 && typeof window.scheduleRestTimer === 'function') {
-      await window.scheduleRestTimer(name, restSec, 'rest-' + Date.now(), sets, reps, exerciseId)
-    }
+    const ex = await pendingRes.json()
+    if (!ex.name || !(ex.restSec > 0)) return
+    await window.scheduleDelayedPush(ex)
+    await window.startRestBanner(ex)
   } catch (_) {}
 }
 
@@ -1099,14 +1074,11 @@ async function _checkRestTimer() {
 }
 
 async function _completeRest(data) {
+  // The decorative banner finished. The next cycle is driven by the delayed
+  // push (source of truth), so nothing is re-scheduled here.
   _hideRestTimerBanner()
   window.pendingCancelTag = null
   if (typeof showToast === 'function') showToast(`⏰ ${data.name} — Descanso terminado`)
-  // Re-store in rest-pending so next notification tap can start a new cycle
-  try {
-    const pendingCache = await caches.open('rest-pending')
-    await pendingCache.put('/pending', new Response(JSON.stringify({ name: data.name, restSec: data.restSec, tag: 'rest-' + Date.now(), sets: data.sets, reps: data.reps, exerciseId: data.exerciseId })))
-  } catch (_) {}
 }
 
 function _showRestTimerBanner(data, remainingMs) {

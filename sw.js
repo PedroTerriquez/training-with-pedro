@@ -1,4 +1,4 @@
-const CACHE = 'v73'
+const CACHE = 'v74'
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -63,65 +63,89 @@ self.addEventListener('message', (e) => {
 
 })
 
+// ── Rest-timer notification helpers ──
+
+const START_TAG = 'rest-start'
+const DONE_TAG = 'rest-done'
+
+function _repsLabel(ex) {
+  return ex && ex.sets && ex.reps ? `${ex.sets}×${ex.reps} · ` : ''
+}
+
+// "Tap para iniciar descanso" — always one visible (stable tag, replaces previous).
+function showStartNotification(ex) {
+  return self.registration.showNotification(ex.name || 'Coach Pedro AI', {
+    body: `${_repsLabel(ex)}Tap para iniciar descanso ▸`,
+    icon: 'icons/icon-192.png',
+    tag: START_TAG,
+    renotify: true,
+    requireInteraction: true,
+    data: { kind: 'start', url: './', exerciseData: ex },
+  })
+}
+
+// "Descanso terminado" — stable tag so it never stacks.
+function showDoneNotification(ex) {
+  return self.registration.showNotification(`⏰ ${ex.name || 'Descanso'}`, {
+    body: 'Descanso terminado',
+    icon: 'icons/icon-192.png',
+    tag: DONE_TAG,
+    renotify: true,
+    requireInteraction: false,
+    data: { kind: 'done', url: './' },
+  })
+}
+
+// Best-effort auto-dismiss of the "terminado" notification (reliable on desktop,
+// not guaranteed on iOS where the SW may be killed first).
+async function closeDoneAfter(ms) {
+  await new Promise((r) => setTimeout(r, ms))
+  const ns = await self.registration.getNotifications({ tag: DONE_TAG })
+  ns.forEach((n) => n.close())
+}
+
 self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     let data = {}
     try {
       if (e.data) data = e.data.json()
     } catch {}
-    if (!data.title && !data.body) {
-      try {
-        const cache = await caches.open('push-pending')
-        const res = await cache.match('/pending')
-        if (res) {
-          data = await res.json()
-          await cache.delete('/pending')
-        }
-      } catch {}
-    }
-    const title = data.title || 'Coach Pedro AI'
-    const body = data.body || ''
-    if (data.exerciseData) {
-      const ex = data.exerciseData
-      try {
-        const store = await caches.open('rest-pending')
-        await store.put('/pending', new Response(JSON.stringify(ex)))
-      } catch {}
-      // Show "La delayed" — Descanso terminado
-      await self.registration.showNotification(`⏰ ${ex.title || title}`, {
-        body: 'Descanso terminado',
-        icon: 'icons/icon-192.png',
-        tag: data.tag || `rest-${Date.now()}`,
-        requireInteraction: true,
-        data: { url: './', exerciseData: ex },
-      })
-      // Show "La original" — Tap para iniciar descanso (appears alongside above)
-      const repsStr = ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''
-      await self.registration.showNotification(ex.title || title, {
-        body: repsStr ? `${repsStr} · Tap para iniciar descanso ▸` : 'Tap para iniciar descanso',
-        icon: 'icons/icon-192.png',
-        tag: `orig-${Date.now()}`,
-        requireInteraction: true,
-        data: { url: './', exerciseData: ex },
-      })
+    const ex = data.exerciseData
+    if (data.kind === 'start' && ex) {
+      await showStartNotification(ex)
       return
     }
-    const opts = {
-      body,
+    if (data.kind === 'done' && ex) {
+      await showDoneNotification(ex)
+      await showStartNotification(ex)
+      await closeDoneAfter(20000)
+      return
+    }
+    // Generic fallback notification.
+    await self.registration.showNotification(data.title || 'Coach Pedro AI', {
+      body: data.body || '',
       icon: 'icons/icon-192.png',
       tag: data.tag || `push-${Date.now()}`,
       requireInteraction: true,
-      data: { url: data.url || './', restSeconds: data.restSeconds || 0, title, body },
-    }
-    await self.registration.showNotification(title, opts)
+      data: { url: data.url || './' },
+    })
   })())
 })
 
 self.addEventListener('notificationclick', (e) => {
+  const data = e.notification.data || {}
   e.notification.close()
   e.waitUntil((async () => {
-    const cache = await caches.open('rest-pending')
-    await cache.put('/from-notification', new Response('1'))
-    await clients.openWindow('./')
+    // Only the "start" notification arms the next rest cycle.
+    if (data.kind === 'start' && data.exerciseData) {
+      const cache = await caches.open('rest-pending')
+      await cache.put('/pending', new Response(JSON.stringify(data.exerciseData)))
+      await cache.put('/from-notification', new Response('1'))
+    }
+    // Focus an existing window if open, otherwise open one.
+    const all = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const existing = all.find((c) => 'focus' in c)
+    if (existing) await existing.focus()
+    else await clients.openWindow('./')
   })())
 })

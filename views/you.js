@@ -100,7 +100,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
   quickCard.appendChild(row('watch', 'Smartwatch', `<button id="watch-toggle-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${settings.hasWatch ? `${accent}22` : 'transparent'};color:${settings.hasWatch ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${settings.hasWatch ? 'Sí' : 'No'}</button>`))
   const permLabel = Notification.permission === 'granted' ? 'Activadas' : Notification.permission === 'denied' ? 'Denegadas' : 'Preguntar'
   quickCard.appendChild(row(null, 'Notificaciones', `<button id="notif-perm-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:${Notification.permission === 'granted' ? `${accent}22` : 'transparent'};color:${Notification.permission === 'granted' ? accent : 'rgba(255,255,255,0.55)'};font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">${permLabel}</button>`))
-  quickCard.appendChild(row(null, 'Probar Push', `<div style="display:flex;gap:6px;flex-wrap:wrap"><button id="test-push-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Vacío</button><button id="test-enc-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Encriptado</button><button id="test-delay-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">5s retraso</button></div>`))
   quickCard.appendChild(row(null, 'Instalar app', `<button id="install-btn" style="padding:6px 12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.1);cursor:pointer;background:transparent;color:rgba(255,255,255,0.55);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;touch-action:manipulation">Añadir</button>`))
   container.appendChild(quickCard)
 
@@ -298,66 +297,6 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
           notifBtn.textContent = 'Denegadas'
         }
       })
-    }
-    function onTestClick(fn, label) {
-      let busy = false
-      return async () => {
-        if (busy) return
-        busy = true
-        try { await fn() } finally { busy = false }
-      }
-    }
-    const testBtn = document.getElementById('test-push-btn')
-    if (testBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
-      testBtn.addEventListener('click', onTestClick(async () => {
-        testBtn.disabled = true; testBtn.textContent = '...'
-        try {
-          const res = await fetch(`${PUSH_SERVER_URL}/api/push/test-empty`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId: await _deviceId() }),
-          })
-          const data = await res.json()
-          showToast(`Vacío: ${data.status} ${data.body || ''}`)
-        } catch (e) {
-          showToast(`Error: ${e.message}`, true)
-        } finally {
-          testBtn.disabled = false; testBtn.textContent = 'Vacío'
-        }
-      }, 'Vacío'))
-    }
-    const testEncBtn = document.getElementById('test-enc-btn')
-    if (testEncBtn && typeof sendPushNotification === 'function') {
-      testEncBtn.addEventListener('click', onTestClick(async () => {
-        testEncBtn.disabled = true; testEncBtn.textContent = '...'
-        try {
-          const ok = await sendPushNotification('Coach Pedro AI', 'Push con datos funciona ✓', 'test-data', 0)
-          showToast(ok ? 'Push enviado ✓' : 'Push falló')
-        } catch (e) {
-          showToast(`Error: ${e.message}`, true)
-        } finally {
-          testEncBtn.disabled = false; testEncBtn.textContent = 'Encriptado'
-        }
-      }, 'Encriptado'))
-    }
-    const testDelayBtn = document.getElementById('test-delay-btn')
-    if (testDelayBtn && typeof _deviceId === 'function' && typeof PUSH_SERVER_URL !== 'undefined') {
-      testDelayBtn.addEventListener('click', onTestClick(async () => {
-        testDelayBtn.disabled = true; testDelayBtn.textContent = '...'
-        try {
-          const res = await fetch(`${PUSH_SERVER_URL}/api/debug/test-delayed`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId: await _deviceId() }),
-          })
-          const data = await res.json()
-          showToast(`⏱️ Cola: ${data.status} (${data.delaySec || '?'}s)`)
-        } catch (e) {
-          showToast(`Error: ${e.message}`, true)
-        } finally {
-          testDelayBtn.disabled = false; testDelayBtn.textContent = '5s retraso'
-        }
-      }, '5s retraso'))
     }
     const installBtn = document.getElementById('install-btn')
     if (installBtn) {

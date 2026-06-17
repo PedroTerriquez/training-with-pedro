@@ -74,15 +74,10 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
       if (iniciarBtn.disabled) return
       setBtnLoading(true)
       try {
-        const exerciseId = exercise.exerciseId || exercise.id || ''
-        const tag = `rest-${Date.now()}`
-        // 1. Send "La original" immediately (tap para iniciar descanso)
-        if (typeof window.sendPushNotification === 'function') {
-          window.sendPushNotification(exercise.name, `${exercise.sets}×${exercise.reps} · Tap para iniciar`, tag)
-        }
-        // 2. Schedule "La delayed" via Worker queue
-        if (typeof window.scheduleRestTimer === 'function') {
-          await window.scheduleRestTimer(exercise.name, exercise.rest, tag, exercise.sets, exercise.reps, exerciseId)
+        // Only send the "Tap para iniciar descanso" notification. The rest
+        // timer and the delayed push are armed when the user taps it.
+        if (typeof window.sendStartNotification === 'function') {
+          await window.sendStartNotification(exercise)
         }
       } finally {
         setBtnLoading(false)

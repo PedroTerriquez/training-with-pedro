@@ -77,11 +77,26 @@ async function seedIndexedDB(page, data) {
 }
 
 test.describe('Rest notification flow', () => {
-  test('iniciar button stores exercise data in cache without toast', async ({ page, context }) => {
+  // 1. Click "Iniciar" only sends the start push (with exercise data). It must
+  //    NOT start the timer or schedule the delayed push at click time.
+  test('iniciar sends a start push with exercise data and arms nothing', async ({ page }) => {
     const program = SEED.getProgram()
     const settings = SEED.getSettings()
+    settings.pushSubscribed = true
     const today = new Date().toISOString().slice(0, 10)
     settings.sessionState = { date: today, phase: 2, todayExDone: 0 }
+
+    let startPushPayload = null
+    await page.route(/\/api\/push\/start/, async (route) => {
+      startPushPayload = route.request().postData()
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'sent' }) })
+    })
+    let restTimerCalled = false
+    await page.route(/rest-timer\/start/, async (route) => {
+      restTimerCalled = true
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'scheduled' }) })
+    })
+
     await page.goto('/')
     await page.waitForTimeout(600)
     await seedIndexedDB(page, { exercises: SEED.exercises, program, settings })
@@ -91,21 +106,6 @@ test.describe('Rest notification flow', () => {
     await page.waitForFunction(() => typeof window.appRefresh === 'function')
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {})
 
-    // Mock Notification API for headless Chromium
-    await page.evaluate(() => {
-      try {
-        Object.defineProperty(Notification, 'permission', { get: () => 'granted', configurable: true })
-      } catch (e) {
-        // Fallback: override the entire Notification
-        window.Notification = class {
-          constructor() {}
-          static permission = 'granted'
-          static requestPermission = async () => 'granted'
-        }
-      }
-      Notification.requestPermission = async () => 'granted'
-    })
-
     await page.evaluate(() => { location.hash = '#today' })
     await page.waitForTimeout(300)
     await page.evaluate(() => { location.hash = '#detail=ex-bench' })
@@ -113,115 +113,50 @@ test.describe('Rest notification flow', () => {
 
     const iniciarBtn = page.locator('button:has-text("Iniciar")')
     await expect(iniciarBtn).toBeVisible({ timeout: 3000 })
-
-    // Verify permission is granted so the handler doesn't bail early
-    const permDebug = await page.evaluate(() => Notification.permission)
-    console.log('Notification.permission:', permDebug)
-    expect(permDebug).toBe('granted')
-
     await iniciarBtn.click()
-    await page.waitForTimeout(800)
+    // sendStartNotification waits 2s (Apple Watch sync) before the fetch.
+    await page.waitForTimeout(2800)
 
-    // Verify NO toast with ✓ appears
-    const toast = page.locator('#backup-toast')
-    const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
-    expect(toastText).not.toContain('✓')
+    expect(startPushPayload).not.toBeNull()
+    const payload = JSON.parse(startPushPayload)
+    expect(payload.deviceId).toBeTruthy()
+    expect(payload.exerciseData).toBeDefined()
+    expect(payload.exerciseData.name).toBe('Press Banca')
+    expect(payload.exerciseData.restSec).toBe(120)
+    expect(payload.exerciseData.sets).toBe(4)
+    expect(payload.exerciseData.reps).toBe('8-10')
+    expect(payload.exerciseData.exerciseId).toBe('ex-bench')
 
-    // Verify data stored in rest-pending cache
-    const stored = await page.evaluate(async () => {
-      const out = {}
-      try {
-        const cache = await caches.open('rest-pending')
-        const res = await cache.match('/pending')
-        if (!res) { out.matchNull = true; return out }
-        out.data = await res.json()
-      } catch (e) { out.error = e.message }
-      return out
-    })
-    console.log('cache post-click:', JSON.stringify(stored))
-    expect(stored.data).toBeDefined()
-    expect(stored.data.name).toBe('Press Banca')
-    expect(stored.data.restSec).toBe(120)
-    expect(stored.data.sets).toBe(4)
-    expect(stored.data.reps).toBe('8-10')
-    expect(stored.data.exerciseId).toBe('ex-bench')
+    // The click must NOT schedule the delayed push nor show the banner.
+    expect(restTimerCalled).toBe(false)
+    await expect(page.locator('#rest-timer-banner')).toHaveCount(0)
   })
 
-  test('rest timer completion shows toast and re-stores data for next cycle', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForTimeout(500)
-    await page.waitForFunction(() => typeof window.appRefresh === 'function')
-
-    const testData = { name: 'Press Banca', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench' }
-
-    await page.evaluate(async (data) => {
-      try {
-        const cache = await caches.open('rest-timer')
-        await cache.put('/pending', new Response(JSON.stringify({
-          endTime: Date.now() - 1000,
-          name: data.name,
-          tag: 'test-tag',
-          restSec: data.restSec,
-          sets: data.sets,
-          reps: data.reps,
-          exerciseId: data.exerciseId,
-        })))
-      } catch (e) { /* cache not available */ }
-    }, testData)
-
-    await page.evaluate(async () => {
-      document.dispatchEvent(new Event('visibilitychange'))
-      await new Promise(r => setTimeout(r, 100))
-    })
-    await page.waitForTimeout(1500)
-
-    const toast = page.locator('#backup-toast')
-    const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
-    expect(toastText).toContain('Descanso terminado')
-
-    const stored = await page.evaluate(async () => {
-      try {
-        const cache = await caches.open('rest-pending')
-        const res = await cache.match('/pending')
-        if (!res) return null
-        return await res.json()
-      } catch (e) { return { error: e.message } }
-    })
-    expect(stored).not.toBeNull()
-    expect(stored.name).toBe('Press Banca')
-    expect(stored.restSec).toBe(120)
-    expect(stored.sets).toBe(4)
-  })
-
-  test('notification tap triggers new rest cycle via _checkPendingRest', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForTimeout(500)
-    await page.waitForFunction(() => typeof window.appRefresh === 'function')
-
+  // 2. Tapping a "start" notification schedules the delayed push (~10s early)
+  //    and shows the decorative banner.
+  test('tap start notification schedules delayed push 10s early and shows banner', async ({ page }) => {
     let startTimerPayload = null
     await page.route(/rest-timer\/start/, async (route) => {
       startTimerPayload = route.request().postData()
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'scheduled' }) })
     })
-
-    await page.evaluate(async () => {
-      try {
-        const cache = await caches.open('rest-pending')
-        await cache.put('/pending', new Response(JSON.stringify({
-          name: 'Press Banca',
-          restSec: 120,
-          sets: 4,
-          reps: '8-10',
-          exerciseId: 'ex-bench',
-        })))
-      } catch (e) { /* cache not available */ }
+    let cancelPayload = null
+    await page.route(/rest-timer\/cancel/, async (route) => {
+      cancelPayload = route.request().postData()
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'ok' })
     })
 
+    await page.goto('/')
+    await page.waitForTimeout(500)
+    await page.waitForFunction(() => typeof window.appRefresh === 'function')
+
+    // The SW writes the exercise payload + flag when a start notification is tapped.
     await page.evaluate(async () => {
-      try {
-        const cache = await caches.open('rest-pending')
-        await cache.put('/from-notification', new Response('1'))
-      } catch (e) { /* cache not available */ }
+      const cache = await caches.open('rest-pending')
+      await cache.put('/pending', new Response(JSON.stringify({
+        name: 'Press Banca', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench',
+      })))
+      await cache.put('/from-notification', new Response('1'))
     })
 
     await page.evaluate(async () => {
@@ -235,100 +170,64 @@ test.describe('Rest notification flow', () => {
     await expect(banner).toContainText('Press Banca')
 
     expect(startTimerPayload).not.toBeNull()
-    if (startTimerPayload) {
-      const payload = JSON.parse(startTimerPayload)
-      expect(payload.exerciseId).toBe('ex-bench')
-      expect(payload.restSec).toBe(120)
-      expect(payload.sets).toBe(4)
-      expect(payload.reps).toBe('8-10')
-    }
+    const payload = JSON.parse(startTimerPayload)
+    // endTime targets ~10s before the real rest end (latency compensation).
+    expect(typeof payload.endTime).toBe('number')
+    expect(payload.endTime).toBeGreaterThan(Date.now() + 100 * 1000)
+    expect(payload.endTime).toBeLessThan(Date.now() + 120 * 1000)
+    expect(payload.deviceId).toBeTruthy()
+    expect(payload.exerciseId).toBe('ex-bench')
+    expect(payload.restSec).toBe(120)
+    expect(payload.sets).toBe(4)
+    expect(payload.reps).toBe('8-10')
+    expect(payload.title).toBe('Press Banca')
+    expect(payload.tag).toBeTruthy()
 
+    // Tapping the banner cancels the queued delayed push.
     await page.evaluate(async () => {
-      if (typeof window.cancelRestTimer === 'function') {
-        await window.cancelRestTimer(window.pendingCancelTag || '')
-      }
+      const el = document.getElementById('rest-timer-banner')
+      if (el) el.click()
+      await new Promise(r => setTimeout(r, 500))
     })
+    expect(cancelPayload).not.toBeNull()
+    const cancelData = JSON.parse(cancelPayload)
+    expect(cancelData.tag).toBeTruthy()
+    expect(cancelData.deviceId).toBeTruthy()
   })
 
-  test('scheduleRestTimer sends endTime via POST for Worker queue delay', async ({ page }) => {
+  // 3. The decorative banner completing shows a toast but does NOT reschedule —
+  //    the delayed push is the source of truth for the next cycle.
+  test('banner completion shows toast and does not reschedule', async ({ page }) => {
+    let restTimerCalled = false
+    await page.route(/rest-timer\/start/, async (route) => {
+      restTimerCalled = true
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'scheduled' }) })
+    })
+
     await page.goto('/')
     await page.waitForTimeout(500)
     await page.waitForFunction(() => typeof window.appRefresh === 'function')
 
-    let startTimerPayload = null
-    await page.route(/rest-timer\/start/, async (route) => {
-      startTimerPayload = route.request().postData()
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'scheduled' }) })
-    })
-
-    let cancelPayload = null
-    await page.route(/rest-timer\/cancel/, async (route) => {
-      cancelPayload = route.request().postData()
-      await route.fulfill({ status: 200, contentType: 'application/json', body: 'ok' })
+    await page.evaluate(async () => {
+      const cache = await caches.open('rest-timer')
+      await cache.put('/pending', new Response(JSON.stringify({
+        endTime: Date.now() - 1000,
+        name: 'Press Banca', tag: 'test-tag', restSec: 120, sets: 4, reps: '8-10', exerciseId: 'ex-bench',
+      })))
     })
 
     await page.evaluate(async () => {
-      try {
-        const cache = await caches.open('rest-pending')
-        await cache.put('/pending', new Response(JSON.stringify({
-          name: 'Press Banca',
-          restSec: 120,
-          sets: 4,
-          reps: '8-10',
-          exerciseId: 'ex-bench',
-        })))
-      } catch (e) { /* cache not available */ }
+      document.dispatchEvent(new Event('visibilitychange'))
+      await new Promise(r => setTimeout(r, 100))
     })
+    await page.waitForTimeout(1500)
 
-    await page.evaluate(async () => {
-      try {
-        const cache = await caches.open('rest-pending')
-        await cache.put('/from-notification', new Response('1'))
-      } catch (e) { /* cache not available */ }
-    })
+    const toast = page.locator('#backup-toast')
+    const toastText = await toast.evaluate(el => el ? el.textContent : '').catch(() => '')
+    expect(toastText).toContain('Descanso terminado')
 
-    await page.evaluate(async () => {
-      window.dispatchEvent(new Event('focus'))
-      await new Promise(r => setTimeout(r, 300))
-    })
-    await page.waitForTimeout(1000)
-
-    const banner = page.locator('#rest-timer-banner')
-    await expect(banner).toBeVisible({ timeout: 3000 })
-
-    expect(startTimerPayload).not.toBeNull()
-    if (startTimerPayload) {
-      const payload = JSON.parse(startTimerPayload)
-      // Must send endTime for Worker queue delaySeconds calculation
-      expect(payload.endTime).toBeDefined()
-      expect(typeof payload.endTime).toBe('number')
-      expect(payload.endTime).toBeGreaterThan(Date.now())
-      // Must send deviceId for KV subscription lookup
-      expect(payload.deviceId).toBeDefined()
-      expect(typeof payload.deviceId).toBe('string')
-      expect(payload.deviceId.length).toBeGreaterThan(0)
-      // Must send full exercise context
-      expect(payload.exerciseId).toBe('ex-bench')
-      expect(payload.restSec).toBe(120)
-      expect(payload.sets).toBe(4)
-      expect(payload.reps).toBe('8-10')
-      expect(payload.title).toBe('Press Banca')
-      expect(payload.tag).toBeDefined()
-      expect(typeof payload.tag).toBe('string')
-    }
-
-    // Cancel via banner tap should also POST to /api/rest-timer/cancel
-    await page.evaluate(async () => {
-      const bannerEl = document.getElementById('rest-timer-banner')
-      if (bannerEl) bannerEl.click()
-      await new Promise(r => setTimeout(r, 500))
-    })
-
-    expect(cancelPayload).not.toBeNull()
-    if (cancelPayload) {
-      const cancelData = JSON.parse(cancelPayload)
-      expect(cancelData.tag).toBeDefined()
-      expect(cancelData.deviceId).toBeDefined()
-    }
+    await expect(page.locator('#rest-timer-banner')).toHaveCount(0)
+    // Completion must not schedule a new delayed push (the push drives the cycle).
+    expect(restTimerCalled).toBe(false)
   })
 })
