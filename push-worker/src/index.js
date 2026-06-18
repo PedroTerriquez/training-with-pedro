@@ -1,6 +1,6 @@
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
@@ -226,7 +226,7 @@ export default {
       return new Response(null, { headers: corsHeaders })
     }
 
-    if (req.method !== 'POST') {
+    if (req.method !== 'POST' && req.method !== 'GET') {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders })
     }
 
@@ -403,6 +403,96 @@ REGLAS DE RESPUESTA:
         const { tag } = await req.json()
         if (tag) await env.PUSH_KV.put(`cancel_${tag}`, '1', { expirationTtl: 3600 })
         return respond('ok')
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    // ── User & Friends endpoints ──
+
+    if (url.pathname === '/api/user/register') {
+      try {
+        const { username } = await req.json()
+        if (!username || username.length < 2) return respond({ error: 'Username must be at least 2 characters' }, 400)
+        const existing = await env.PUSH_KV.get(`user_${username}`)
+        if (existing) return respond({ error: 'Nombre de usuario ya registrado' }, 409)
+        await env.PUSH_KV.put(`user_${username}`, JSON.stringify({ username, streak: 0, exercisedToday: false, lastExerciseDate: '', lastUpdate: new Date().toISOString() }))
+        return respond({ status: 'ok' })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    if (url.pathname === '/api/user/sync') {
+      try {
+        const { username, streak, exercisedToday } = await req.json()
+        if (!username) return respond({ error: 'username required' }, 400)
+        const raw = await env.PUSH_KV.get(`user_${username}`)
+        const data = raw ? JSON.parse(raw) : { username }
+        data.streak = streak ?? data.streak ?? 0
+        data.exercisedToday = exercisedToday ?? data.exercisedToday ?? false
+        data.lastExerciseDate = exercisedToday ? new Date().toISOString().slice(0, 10) : data.lastExerciseDate
+        data.lastUpdate = new Date().toISOString()
+        await env.PUSH_KV.put(`user_${username}`, JSON.stringify(data))
+        return respond({ status: 'ok' })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    if (url.pathname === '/api/friends/search') {
+      try {
+        const q = url.searchParams.get('q') || ''
+        if (q.length < 1) return respond({ results: [] })
+        const all = await env.PUSH_KV.list({ prefix: 'user_' })
+        const results = []
+        for (const key of all.keys) {
+          const raw = await env.PUSH_KV.get(key.name)
+          if (!raw) continue
+          const u = JSON.parse(raw)
+          if (u.username.toLowerCase().includes(q.toLowerCase())) {
+            results.push({ username: u.username, streak: u.streak, exercisedToday: u.exercisedToday })
+          }
+        }
+        return respond({ results })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    if (url.pathname === '/api/friends/add') {
+      try {
+        const { username, friendUsername } = await req.json()
+        if (!username || !friendUsername) return respond({ error: 'username and friendUsername required' }, 400)
+        if (username === friendUsername) return respond({ error: 'No puedes agregarte a ti mismo' }, 400)
+        const friendRaw = await env.PUSH_KV.get(`user_${friendUsername}`)
+        if (!friendRaw) return respond({ error: 'Usuario no encontrado' }, 404)
+        const existingRaw = await env.PUSH_KV.get(`friends_${username}`)
+        const friends = existingRaw ? JSON.parse(existingRaw) : []
+        if (friends.some(f => f.friendUsername === friendUsername)) return respond({ error: 'Ya es tu amigo' }, 409)
+        friends.push({ friendUsername, addedAt: new Date().toISOString() })
+        await env.PUSH_KV.put(`friends_${username}`, JSON.stringify(friends))
+        return respond({ status: 'ok' })
+      } catch (err) {
+        return respond({ error: err.message }, 500)
+      }
+    }
+
+    if (url.pathname === '/api/friends/list') {
+      try {
+        const username = url.searchParams.get('username')
+        if (!username) return respond({ error: 'username required' }, 400)
+        const rawFriends = await env.PUSH_KV.get(`friends_${username}`)
+        const friendUsernames = rawFriends ? JSON.parse(rawFriends) : []
+        const friends = []
+        for (const f of friendUsernames) {
+          const raw = await env.PUSH_KV.get(`user_${f.friendUsername}`)
+          if (raw) {
+            const u = JSON.parse(raw)
+            friends.push({ username: u.username, streak: u.streak, exercisedToday: u.exercisedToday, lastUpdate: u.lastUpdate })
+          }
+        }
+        return respond({ friends })
       } catch (err) {
         return respond({ error: err.message }, 500)
       }
