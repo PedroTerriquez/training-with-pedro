@@ -10,7 +10,7 @@ const FORMAT_IMPORT = `Convierte la rutina del usuario a este JSON exacto. SOLO 
       "subtitle": string (músculos del día),
       "duration_min": number,
       "exercises": [{
-        "exercise_name": string (español estándar),
+        "exercise_name": string (si el ejercicio existe en el DICCIONARIO, usa su campo "es" EXACTO, copiado carácter por carácter; respeta los modificadores que distinguen ejercicios — inclinado, declinado, sentado, unilateral, agarre cerrado, etc. — y NO colapses dos ejercicios distintos en el mismo nombre. Si NO existe en el diccionario, conserva el nombre TAL CUAL lo escribió el usuario, sin traducir ni normalizar),
         "muscle": string (grupo muscular principal),
         "sets": number (default 3),
         "reps": string (rango "8-12" o número "10"),
@@ -35,7 +35,7 @@ Los campos "recommendations" y "next_session_advice" son OPCIONALES — si no ap
 
 Reglas para "analysis":
 - No inventes datos — usa solo los valores reales que ves en DATOS DE LA SESIÓN
-- Personaliza según el perfil del usuario (nombre, edad, sexo, objetivo, experiencia)
+- Personaliza según el perfil del usuario (nombre, edad, sexo, objetivo, experiencia y ocupación) Estos datos no deberían ser parte del texto final, solo esta permitido el nombre.
 - Estructura: desempeño general → puntos destacados → áreas de mejora
 - Entre 8 y 15 líneas, dividido en párrafos cortos
 - Si el usuario reporta esfuerzo "failure" (al fallo), reconoce el esfuerzo y sugiere ajuste de peso o recuperación
@@ -69,10 +69,7 @@ Significado de cada rotation_hint:
 
 DATOS DE LA SESIÓN ahora incluye:
 - rotation_hint: el tema que DEBES seguir
-- streak_days: días de racha acumulados (agrupación semanal)
-- streak_weeks: semanas completas de la racha
-- total_sessions: total de sesiones registradas históricamente
-- month_total_weight: peso acumulado levantado en el mes`
+- streak_days: días de racha acumulados (agrupación semanal)`
 
 const FORMAT_PROGRAM_COACH = `Recibes: PROGRAMA ACTUAL (JSON) + PERFIL DEL USUARIO + PREGUNTA DEL USUARIO + DICCIONARIO DE EJERCICIOS
 

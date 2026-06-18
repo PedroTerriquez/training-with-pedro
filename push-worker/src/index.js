@@ -316,10 +316,13 @@ export default {
 
     if (url.pathname === '/api/ai/import') {
       try {
-        const { text: userText, systemPrompt } = await req.json()
+        const { text: userText, systemPrompt, dictionary } = await req.json()
         if (!userText) return respond({ error: 'No text provided' }, 400)
 
-        const fullPrompt = 'RUTINA DEL USUARIO:\n' + userText
+        const dictBlock = (dictionary && dictionary.length)
+          ? '\n\nDICCIONARIO DE EJERCICIOS (usa el campo "es" EXACTO cuando el ejercicio corresponda; "en" y "aliases" son solo para ayudarte a identificarlo):\n' + JSON.stringify(dictionary)
+          : ''
+        const fullPrompt = 'RUTINA DEL USUARIO:\n' + userText + dictBlock
 
         const { text, provider } = await callAI([
           { role: 'system', content: systemPrompt || '' },

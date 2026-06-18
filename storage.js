@@ -88,20 +88,26 @@ const Storage = {
     })
   },
 
-  async findOrCreateExerciseByName(name, muscle) {
+  // opts.noFuzzy: skip fuzzy matching, use only exact/alias dictionary lookup.
+  // Used by AI import, where the AI already picked the exact dictionary name, so
+  // fuzzy would only risk wrongly merging two distinct exercises.
+  async findOrCreateExerciseByName(name, muscle, opts = {}) {
     const all = await getAll('exercises')
+    const lookup = (n) => {
+      if (typeof findExerciseEntry !== 'function') return null
+      return findExerciseEntry(n) || (opts.noFuzzy ? null : findExerciseEntryFuzzy(n))
+    }
 
     // Handle "A / B" pattern: use the part with a dictionary match,
     // create unmatched parts as separate exercises
     if (name.includes(' / ')) {
       const parts = name.split(' / ').map(s => s.trim()).filter(Boolean)
       for (const part of parts) {
-        const fn = typeof findExerciseEntry === 'function'
-        const entry = fn ? (findExerciseEntry(part) || findExerciseEntryFuzzy(part)) : null
+        const entry = lookup(part)
         if (entry) {
           for (const other of parts) {
             if (other !== part) {
-              const otherEntry = fn ? (findExerciseEntry(other) || findExerciseEntryFuzzy(other)) : null
+              const otherEntry = lookup(other)
               if (!otherEntry && !all.find(e => e.name.toLowerCase() === other.toLowerCase())) {
                 const ex = { id: await generateId(), name: other, dictId: '', muscle, imgUrl: '', gifUrl: '', tips: [], alternatives: [] }
                 await put('exercises', ex)
@@ -114,7 +120,7 @@ const Storage = {
       }
     }
 
-    const dictEntry = typeof findExerciseEntry === 'function' ? (findExerciseEntry(name) || findExerciseEntryFuzzy(name)) : null
+    const dictEntry = lookup(name)
     const dictId = dictEntry ? 'dict_' + dictEntry.id : null
 
     if (dictId) {

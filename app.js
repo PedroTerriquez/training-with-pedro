@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.80 · 2026-06-17 · Banner de descanso al doble de tamaño (crece hacia abajo desde la misma posición): anillo, tipografías y botón Saltar más grandes'
+const APP_VERSION = 'v1.81 · 2026-06-17 · Importar con IA: el diccionario se envía a la IA para mapear nombres exactos (sin match difuso en import); +12 entradas nuevas de variantes (agarre/stance/tempo) y corrección de aliases que colapsaban ejercicios distintos'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -564,6 +564,7 @@ async function importWithAI(text, onProgress) {
     body: JSON.stringify({
       text,
       systemPrompt: typeof buildImportPrompt === 'function' ? buildImportPrompt() : '',
+      dictionary: typeof buildImportDictionary === 'function' ? buildImportDictionary() : [],
     }),
   })
 
@@ -599,7 +600,7 @@ async function importWithAI(text, onProgress) {
       for (const ex of (d.exercises || [])) {
         processed++
         if (onProgress) onProgress(processed, totalExercises, ex.exercise_name)
-        const exercise = await Storage.findOrCreateExerciseByName(ex.exercise_name, ex.muscle || '')
+        const exercise = await Storage.findOrCreateExerciseByName(ex.exercise_name, ex.muscle || '', { noFuzzy: true })
         exercises.push({
           exerciseId: exercise.id,
           sets: ex.sets || 3,
