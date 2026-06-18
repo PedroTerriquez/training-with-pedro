@@ -130,7 +130,7 @@ async function seedIndexedDB(page, data, retries = 3) {
   }
 }
 
-test('full user flow: profile → warmup → week switch → training → stretch → coach → history', async ({ page }) => {
+test('full user flow: profile → warmup → week switch → training → stretch → coach → history → friends', async ({ page }) => {
   test.setTimeout(90000)
 
   // ── Seed IndexedDB ──
@@ -146,8 +146,25 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.waitForFunction(() => typeof window.appRefresh === 'function')
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {})
 
-  // Intercept coach AI API
-  await page.route('**/*.workers.dev/**', (route) => {
+  // Intercept Worker API calls
+  await page.route('**/*.workers.dev/**', async (route) => {
+    const url = route.request().url()
+    if (url.includes('/api/user/register')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) })
+    }
+    if (url.includes('/api/user/sync')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) })
+    }
+    if (url.includes('/api/friends/search')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: [{ username: 'Ana', streak: 12, exercisedToday: true }] }) })
+    }
+    if (url.includes('/api/friends/add')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) })
+    }
+    if (url.includes('/api/friends/list')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ friends: [{ username: 'Ana', streak: 12, exercisedToday: true, lastUpdate: new Date().toISOString() }] }) })
+    }
+    // Default: coach AI response (existing)
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -346,4 +363,52 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await expect(page.locator('body')).toContainText('Press Banca')
   await expect(page.locator('body')).toContainText('Press Militar')
   await expect(page.locator('body')).toContainText('Completado')
+
+  // ── Step 10: Friends — Navigate to Amigos Tab ──
+  await page.evaluate(() => { location.hash = '#friends' })
+  await page.waitForTimeout(500)
+
+  // First visit shows username prompt
+  await expect(page.locator('#username-prompt')).toBeVisible()
+  await expect(page.locator('#username-prompt')).toContainText('Bienvenido')
+
+  // ── Step 11: Set Username ──
+  const usernameInput = page.locator('#username-input')
+  await expect(usernameInput).toBeVisible()
+  await usernameInput.fill('TestUser')
+
+  const listoBtn = page.locator('#username-btn')
+  await expect(listoBtn).toBeEnabled()
+  await listoBtn.click()
+  await page.waitForTimeout(1000)
+
+  // Prompt disappears, main view shows
+  await expect(page.locator('#username-prompt')).not.toBeVisible()
+  await expect(page.locator('.friends-my-streak')).toContainText('racha')
+
+  // ── Step 12: Search for Friend ──
+  const searchInput = page.locator('#friend-search-input')
+  await expect(searchInput).toBeVisible()
+  await searchInput.fill('Ana')
+  await page.waitForTimeout(500)
+
+  // Search result shows mock friend
+  const searchResult = page.locator('.search-result-item')
+  await expect(searchResult).toBeVisible()
+  await expect(searchResult).toContainText('Ana')
+
+  // ── Step 13: Add Friend ──
+  const addBtn = page.locator('.search-result-add')
+  await expect(addBtn).toBeVisible()
+  await addBtn.click()
+  await page.waitForTimeout(500)
+
+  // Verify friend appears in list
+  await expect(page.locator('#friends-list')).toContainText('Ana')
+
+  // ── Step 14: Verify Friend Streak Display ──
+  const friendCard = page.locator('.friend-card')
+  await expect(friendCard).toBeVisible()
+  await expect(friendCard).toContainText('12')
+  await expect(friendCard).toContainText('Hoy')
 })
