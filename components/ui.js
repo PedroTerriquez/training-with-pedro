@@ -78,6 +78,7 @@ function TabBar({ active, onChange, accent }) {
     { id: 'today', label: 'Hoy', icon: TabIconHome },
     { id: 'plan', label: 'Plan', icon: TabIconCal },
     { id: 'history', label: 'Historial', icon: TabIconChart },
+    { id: 'friends', label: 'Amigos', icon: TabIconFriends },
     { id: 'you', label: 'Tú', icon: TabIconUser },
   ]
   const el = document.createElement('div')
@@ -109,6 +110,9 @@ function TabIconChart({ active }) {
 }
 function TabIconUser({ active }) {
   return `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.2" stroke="currentColor" stroke-width="1.6" fill="${active ? 'currentColor' : 'none'}" fill-opacity="${active ? 0.15 : 0}"/><path d="M3.5 17c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
+}
+function TabIconFriends({ active }) {
+  return `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="8" cy="6" r="2.8" stroke="currentColor" stroke-width="1.6" fill="${active ? 'currentColor' : 'none'}" fill-opacity="${active ? 0.15 : 0}"/><circle cx="14" cy="8" r="2.2" stroke="currentColor" stroke-width="1.5" fill="${active ? 'currentColor' : 'none'}" fill-opacity="${active ? 0.15 : 0}"/><path d="M3 15.5c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 14.5c0-1.8 1.6-3 3.5-3s3.5 1.2 3.5 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
 }
 
 // ── Bottom Sheet ──
