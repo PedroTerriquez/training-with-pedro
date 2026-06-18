@@ -110,12 +110,16 @@ async function init() {
     onStartNotificationTap()
     _checkRestTimer()
   }, { passive: true })
+
+  // Sync streak to Worker on init (catch missed pings)
+  syncStreak()
 }
 
 async function loadState() {
   _state.settings = await Storage.getSettings()
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
+  _state.exerciseLogs = await Storage.getAllLogs()
   _state.activeProgram = _state.settings.activeProgramId
     ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
     : _state.programs[0] || null
@@ -245,6 +249,16 @@ async function renderScreen() {
         onRefresh: refresh,
       })
       break
+    case 'friends':
+      mountFriends(_screenContainer, {
+        accent,
+        settings: _state.settings,
+        onRefresh: refresh,
+        computeStreak,
+        allLogs: _state.exerciseLogs,
+        syncStreak,
+      })
+      break
     default:
       mountToday(_screenContainer, {
         program: _state.activeProgram,
@@ -262,6 +276,44 @@ async function renderScreen() {
 function getTodayDayIndex() {
   const jsDay = new Date().getDay()
   return (jsDay + 6) % 7
+}
+
+function prevDay(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z')
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
+
+function computeStreak(logs) {
+  const dates = [...new Set(logs.map(l => l.date))].sort().reverse()
+  if (dates.length === 0) return 0
+  const today = new Date().toISOString().slice(0, 10)
+  let streak = 0
+  let expected = today
+  for (const date of dates) {
+    if (date === expected) { streak++; expected = prevDay(expected) }
+    else break
+  }
+  return streak
+}
+
+async function syncStreak() {
+  const settings = await Storage.getSettings()
+  const username = settings.username
+  if (!username || !PUSH_SERVER_URL) return
+  const logs = await Storage.getAllLogs()
+  const streak = computeStreak(logs)
+  const today = new Date().toISOString().slice(0, 10)
+  const exercisedToday = logs.some(l => l.date === today && l.weight > 0)
+  try {
+    await fetch(`${PUSH_SERVER_URL}/api/user/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, streak, exercisedToday }),
+    })
+  } catch (e) {
+    console.warn('syncStreak failed:', e)
+  }
 }
 
 async function openDetailSheet(exercise) {
@@ -376,6 +428,7 @@ async function openDetailSheet(exercise) {
         onLog: async (exerciseId, weight, sets, reps) => {
           const savedUnits = _state.settings?.units || 'kg'
           const log = await Storage.logWeight(exerciseId, weight, savedUnits, sets, reps)
+          syncStreak()
           return log ? { id: log, exerciseId, date: getToday(), weight, units: savedUnits, sets, reps } : null
         },
       })
@@ -393,6 +446,7 @@ async function refresh() {
   await Storage.saveSettings(_state.settings)
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
+  _state.exerciseLogs = await Storage.getAllLogs()
   _state.activeProgram = _state.settings.activeProgramId
     ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
     : _state.programs[0] || null
