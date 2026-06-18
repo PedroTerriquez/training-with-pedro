@@ -10,6 +10,20 @@ Apple's push service accepts them. The working mechanism is a **payload-less ("e
 push that only wakes the Service Worker**, which then reads the notification content
 from a local Cache. The whole rest-timer notification cycle is built on this.
 
+## Changelog: from broken to working
+
+The four changes that took the rest-notification flow from broken to correct
+(later versions — vibration, bigger banner — were cosmetic):
+
+| Ver | Symptom (broken) | Root cause | Fix |
+|-----|------------------|-----------|-----|
+| **v1.75** | No notification arrived at all | iOS silently drops encrypted Web Push (RFC 8291); Apple returns 201 but the browser discards it | **Empty push + local cache**: the push only wakes the SW; the notification text lives in a device-local cache. No fragile crypto. (← the change that made anything show.) |
+| **v1.76** | One tap produced 3 rest cycles (3+3 notifications) | Returning to foreground fired `focus` + `visibilitychange` + `init` together; each scheduled | **Reentrancy guard** + one-shot `/from-notification` flag → one schedule per tap |
+| **v1.77** | Timer didn't start when opened from the notification | iOS standalone PWAs don't fire `focus`/`visibilitychange` reliably | SW **`postMessage({type:'rest-start'})`** to the page instead of relying on those events |
+| **v1.78** | 4 notifications per rest (2+2) | Cloudflare Queues are at-least-once + the app can run in 2 instances → double delivery | **Server-side dedup**: `active_${deviceId}` (newest tag wins) + `sent_${tag}` (redelivery is a no-op) → exactly one delivery. Also removed the redundant in-app completion toast. |
+
+Each mechanism is detailed in the sections below.
+
 ## The decisive evidence
 
 While debugging "no notification arrives on Iniciar", we tailed the Worker
