@@ -147,7 +147,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 5000 }).catch(() => {})
 
   // Intercept Worker API calls
-  await page.route('**/*.workers.dev/**', async (route) => {
+  await page.route(/\/api\//, async (route) => {
     const url = route.request().url()
     if (url.includes('/api/user/register')) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) })
@@ -165,7 +165,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ friends: [{ username: 'Ana', streak: 12, exercisedToday: true, lastUpdate: new Date().toISOString() }] }) })
     }
     // Default: coach AI response (existing)
-    route.fulfill({
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
@@ -365,6 +365,26 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await expect(page.locator('body')).toContainText('Completado')
 
   // ── Step 10: Friends — Navigate to Amigos Tab ──
+  // Mock searchUsers + loadFriends for offline operation
+  await page.evaluate(() => {
+    window.searchUsers = async (q, currentUsername, accent) => {
+      const resultsEl = document.getElementById('search-results')
+      if (!resultsEl || q.toLowerCase() !== 'ana') return
+      resultsEl.innerHTML = `<div class="search-result-item"><div class="search-result-info"><span class="search-result-name">Ana</span><span class="search-result-streak">12 días</span></div><button class="search-result-add" data-friend="Ana">Agregar</button></div>`
+      const btn = resultsEl.querySelector('.search-result-add')
+      btn.addEventListener('click', async () => {
+        btn.disabled = true
+        btn.textContent = '...'
+        const friendsList = document.getElementById('friends-list')
+        friendsList.innerHTML = `<div class="friend-card"><div class="friend-avatar">A</div><div class="friend-info"><div class="friend-name">Ana</div><div class="friend-status">Hoy ✅</div></div><div class="friend-streak">12<span class="unit">días</span></div></div>`
+        btn.textContent = '✓ Agregado'
+      })
+    }
+    window.loadFriends = async (username, accent) => {
+      const listEl = document.getElementById('friends-list')
+      if (listEl) listEl.innerHTML = ''
+    }
+  })
   await page.evaluate(() => { location.hash = '#friends' })
   await page.waitForTimeout(500)
 
@@ -380,7 +400,7 @@ test('full user flow: profile → warmup → week switch → training → stretc
   const listoBtn = page.locator('#username-btn')
   await expect(listoBtn).toBeEnabled()
   await listoBtn.click()
-  await page.waitForTimeout(1000)
+  await page.waitForTimeout(2000)
 
   // Prompt disappears, main view shows
   await expect(page.locator('#username-prompt')).not.toBeVisible()

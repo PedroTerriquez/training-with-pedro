@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.81 · 2026-06-17 · Importar con IA: el diccionario se envía a la IA para mapear nombres exactos (sin match difuso en import); +12 entradas nuevas de variantes (agarre/stance/tempo) y corrección de aliases que colapsaban ejercicios distintos'
+const APP_VERSION = 'v1.82 · 2026-06-22 · Fix friend register (refresh/onRefresh), remove duration_min from AI coach analysis'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -111,15 +111,14 @@ async function init() {
     _checkRestTimer()
   }, { passive: true })
 
-  // Sync streak to Worker on init (catch missed pings)
-  syncStreak()
+
+
 }
 
 async function loadState() {
   _state.settings = await Storage.getSettings()
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
-  _state.exerciseLogs = await Storage.getAllLogs()
   _state.activeProgram = _state.settings.activeProgramId
     ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
     : _state.programs[0] || null
@@ -254,9 +253,9 @@ async function renderScreen() {
         accent,
         settings: _state.settings,
         onRefresh: refresh,
-        computeStreak,
-        allLogs: _state.exerciseLogs,
-        syncStreak,
+        computeStreak: appComputeStreak,
+        allLogs: [],
+        syncStreak: appSyncStreak,
       })
       break
     default:
@@ -278,31 +277,31 @@ function getTodayDayIndex() {
   return (jsDay + 6) % 7
 }
 
-function prevDay(dateStr) {
+function appPrevDay(dateStr) {
   const d = new Date(dateStr + 'T12:00:00Z')
   d.setDate(d.getDate() - 1)
   return d.toISOString().slice(0, 10)
 }
 
-function computeStreak(logs) {
+function appComputeStreak(logs) {
   const dates = [...new Set(logs.map(l => l.date))].sort().reverse()
   if (dates.length === 0) return 0
   const today = new Date().toISOString().slice(0, 10)
   let streak = 0
   let expected = today
   for (const date of dates) {
-    if (date === expected) { streak++; expected = prevDay(expected) }
+    if (date === expected) { streak++; expected = appPrevDay(expected) }
     else break
   }
   return streak
 }
 
-async function syncStreak() {
+async function appSyncStreak() {
   const settings = await Storage.getSettings()
   const username = settings.username
   if (!username || !PUSH_SERVER_URL) return
   const logs = await Storage.getAllLogs()
-  const streak = computeStreak(logs)
+  const streak = appComputeStreak(logs)
   const today = new Date().toISOString().slice(0, 10)
   const exercisedToday = logs.some(l => l.date === today && l.weight > 0)
   try {
@@ -312,7 +311,7 @@ async function syncStreak() {
       body: JSON.stringify({ username, streak, exercisedToday }),
     })
   } catch (e) {
-    console.warn('syncStreak failed:', e)
+    console.warn('appSyncStreak failed:', e)
   }
 }
 
@@ -428,7 +427,6 @@ async function openDetailSheet(exercise) {
         onLog: async (exerciseId, weight, sets, reps) => {
           const savedUnits = _state.settings?.units || 'kg'
           const log = await Storage.logWeight(exerciseId, weight, savedUnits, sets, reps)
-          syncStreak()
           return log ? { id: log, exerciseId, date: getToday(), weight, units: savedUnits, sets, reps } : null
         },
       })
@@ -446,7 +444,6 @@ async function refresh() {
   await Storage.saveSettings(_state.settings)
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
-  _state.exerciseLogs = await Storage.getAllLogs()
   _state.activeProgram = _state.settings.activeProgramId
     ? _state.programs.find((p) => p.id === _state.settings.activeProgramId)
     : _state.programs[0] || null
@@ -896,7 +893,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
   const allLogs = await Storage.getAllLogs()
   const s = await Storage.getSettings()
   const today = getToday()
-  const TOPICS = ['comparativa','racha','esfuerzo_volumen','tiempo_intensidad','recuperacion','progreso_global','retrospectiva_semanal']
+  const TOPICS = ['comparativa','racha','esfuerzo_volumen','recuperacion','progreso_global','retrospectiva_semanal']
   let topic
   if (s.coachTopicDate === today && s.coachTopic) {
     topic = s.coachTopic
@@ -946,7 +943,6 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
   const sessionData = {
     day_name: day.name || 'Entrenamiento',
     date: today,
-    duration_min: durationMin || 0,
     effort: { easy: 'fácil', good: 'justo', heavy: 'pesado', failure: 'al fallo' }[effort] || effort,
     units,
     user_profile: {

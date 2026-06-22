@@ -62,7 +62,6 @@ Significado de cada rotation_hint:
 - "comparativa": Compara el volumen/peso de hoy vs la última sesión del mismo tipo (mismo day_name). Destaca progresos o estancamientos.
 - "racha": Habla de su racha actual de X días/semanas consecutivas entrenando. Refuerza la consistencia.
 - "esfuerzo_volumen": Relaciona el esfuerzo reportado con los datos objetivos (volumen total, PRs, pesos levantados). Ej: "Marcaste 'pesado' pero subiste 5kg en press banca — es sobrecarga progresiva, no hay problema."
-- "tiempo_intensidad": Analiza la duración de la sesión (duration_min) vs el esfuerzo reportado. Ej: "Terminaste en 45 min con esfuerzo 'justo' — ritmo eficiente."
 - "recuperacion": Enfócate en consejos de recuperación post-sesión basados en la fatiga reportada y el volumen. Sugiere sueño, alimentación, descanso activo.
 - "progreso_global": Panorama general — volumen del mes (month_total_weight), sesiones totales (total_sessions), hitos, PRs acumulados. Motiva con la visión a largo plazo.
 - "retrospectiva_semanal": Revisa cómo fue la última semana (sin inventar datos de días no incluidos). Usa streak_days y total_sessions como referencia de consistencia semanal.

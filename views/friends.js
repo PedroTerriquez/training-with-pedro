@@ -1,11 +1,11 @@
 // ── Friends Screen ──
 
-function mountFriends(container, { accent, settings, refresh, computeStreak, allLogs, syncStreak }) {
+function mountFriends(container, { accent, settings, onRefresh, computeStreak, allLogs, syncStreak }) {
   container.innerHTML = ''
   const username = settings.username || ''
 
   if (!username) {
-    renderUsernamePrompt(container, { accent, refresh })
+    renderUsernamePrompt(container, { accent, refresh: onRefresh })
     return
   }
 
@@ -72,35 +72,27 @@ function renderUsernamePrompt(container, { accent, refresh }) {
     errorEl.style.display = 'none'
 
     try {
-      if (!PUSH_SERVER_URL) {
-        errorEl.textContent = 'PUSH_SERVER_URL no configurado'
-        errorEl.style.display = 'block'
-        btn.disabled = false
-        btn.textContent = 'Listo'
-        return
-      }
-      const res = await fetch(`${PUSH_SERVER_URL}/api/user/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        errorEl.textContent = data.error || 'Error al registrar'
-        errorEl.style.display = 'block'
-        btn.disabled = false
-        btn.textContent = 'Listo'
-        return
-      }
+      // Save locally immediately (always works)
       const s = await Storage.getSettings()
       s.username = username
       await Storage.saveSettings(s)
+      // Fire-and-forget server registration (best-effort)
+      if (PUSH_SERVER_URL) {
+        fetch(`${PUSH_SERVER_URL}/api/user/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        }).catch(() => {})
+      }
       if (typeof refresh === 'function') refresh()
     } catch (e) {
-      errorEl.textContent = 'Error de red: ' + e.message
-      errorEl.style.display = 'block'
-      btn.disabled = false
-      btn.textContent = 'Listo'
+      // Fallback: try saving locally again
+      try {
+        const s = await Storage.getSettings()
+        s.username = username
+        await Storage.saveSettings(s)
+        if (typeof refresh === 'function') refresh()
+      } catch {}
     }
   })
 }

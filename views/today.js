@@ -23,7 +23,7 @@ const TOPIC_LABELS = {
   comparativa: 'comparativa',
   racha: 'racha',
   esfuerzo_volumen: 'esfuerzo/vol',
-  tiempo_intensidad: 'tiempo/intens',
+
   recuperacion: 'recuperación',
   progreso_global: 'progreso',
   retrospectiva_semanal: 'retrospectiva',
@@ -407,7 +407,7 @@ function mountToday(container, { program, weekIdx, dayIndex, settings, accent, o
               _coachDay = day
               _coachEffort = effort
               refreshView()
-              runCoachAnalysis(day, effort, day.duration || 60, exercises, settings, swaps).then(async (result) => {
+              runCoachAnalysis(day, effort, 0, exercises, settings, swaps).then(async (result) => {
                 _coachResult = result
                 _coachLoading = false
                 const s = await Storage.getSettings()
@@ -638,7 +638,7 @@ async function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exe
         if (typeof window.appRefresh === 'function') window.appRefresh()
         const s = await Storage.getSettings()
         try {
-          const result = await runCoachAnalysis(_coachDay, _coachEffort, _coachDay.duration || 60, exercises || [], s, swaps || {})
+          const result = await runCoachAnalysis(_coachDay, _coachEffort, 0, exercises || [], s, swaps || {})
           _coachResult = result; _coachLoading = false
           const settings = await Storage.getSettings()
           settings.lastCoachAnalysis = { date: getToday(), effort: _coachEffort, weekIdx, ...result }
