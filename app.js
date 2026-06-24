@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.82 · 2026-06-22 · Fix friend register (refresh/onRefresh), remove duration_min from AI coach analysis'
+const APP_VERSION = 'v1.83 · 2026-06-23 · Fix week-switch exercise navigation (openDetailSheet searched all weeks)'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -327,8 +327,10 @@ async function openDetailSheet(exercise) {
   let prevExercise = null
   let nextExercise = null
   if (_state.activeProgram) {
-    for (const week of _state.activeProgram.weeks) {
-      for (const day of week.days) {
+    const currentWeekIdx = _state.settings?.currentWeekIdx || 0
+    const currentWeek = _state.activeProgram.weeks[currentWeekIdx]
+    if (currentWeek) {
+      for (const day of currentWeek.days) {
         const idx = day.exercises.findIndex((e) => e.exerciseId === exercise.id)
         if (idx !== -1) {
           progEx = day.exercises[idx]
@@ -363,7 +365,6 @@ async function openDetailSheet(exercise) {
           break
         }
       }
-      if (progEx) break
     }
   }
 

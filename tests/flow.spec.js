@@ -39,6 +39,28 @@ const SEED = {
         { name: 'Press Militar con Mancuernas', reason: 'Permite mayor rotación y menos tensión en hombros' },
       ],
     },
+    {
+      id: 'ex-squat',
+      name: 'Sentadilla',
+      muscle: 'Quadriceps',
+      imgUrl: '',
+      gifUrl: '',
+      tips: ['Mantén el pecho arriba', 'Rodillas hacia afuera', 'Baja hasta paralela'],
+      alternatives: [
+        { name: 'Sentadilla Búlgara', reason: 'Más trabajo unilateral, menos carga lumbar' },
+      ],
+    },
+    {
+      id: 'ex-deadlift',
+      name: 'Peso Muerto',
+      muscle: 'Back',
+      imgUrl: '',
+      gifUrl: '',
+      tips: ['Espalda recta', 'Empuja con las piernas', 'Activa el core'],
+      alternatives: [
+        { name: 'Peso Muerto Rumano', reason: 'Menos rango, más isquiotibiales' },
+      ],
+    },
   ],
   getSettings() {
     return {
@@ -67,7 +89,7 @@ const SEED = {
     const bench = { exerciseId: 'ex-bench', sets: 4, reps: '8-10', rest: 120 }
     const military = { exerciseId: 'ex-military', sets: 3, reps: '10-12', rest: 90 }
     const benchHeavy = { exerciseId: 'ex-bench', sets: 5, reps: '5', rest: 180 }
-    const militaryHeavy = { exerciseId: 'ex-military', sets: 4, reps: '6-8', rest: 150 }
+    const squat = { exerciseId: 'ex-squat', sets: 4, reps: '8-10', rest: 120 }
 
     return {
       id: 'prog-sample',
@@ -89,10 +111,10 @@ const SEED = {
           subtitle: '',
           tag: 'STRENGTH',
           days: buildDayArray({
-            name: 'Empuje Pesado',
-            subtitle: 'Press Banca 5×5 · Press Militar 4×6-8',
+            name: 'Pierna y Espalda',
+            subtitle: 'Press Banca 5×5 · Sentadilla',
             duration: 60,
-            exercises: [benchHeavy, militaryHeavy],
+            exercises: [benchHeavy, squat],
           }),
         },
       ],
@@ -130,7 +152,7 @@ async function seedIndexedDB(page, data, retries = 3) {
   }
 }
 
-test('full user flow: profile → warmup → week switch → training → stretch → coach → history → friends', async ({ page }) => {
+test('full user flow: profile → warmup → week switch (A→B) → training → stretch → coach → history → friends', async ({ page }) => {
   test.setTimeout(90000)
 
   // ── Seed IndexedDB ──
@@ -296,9 +318,10 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.getByRole('button', { name: 'Siguiente' }).first().click()
   await page.waitForTimeout(400)
 
-  // Exercise 2: Press Militar 4×6-8
-  const googleHref2 = await page.locator('.hero-google-btn').first().getAttribute('href')
-  expect(googleHref2).toContain('google.com/search')
+  // Exercise 2: Should show Sentadilla (from Week B), NOT Press Militar (from Week A)
+  // This verifies the week-switch navigation bug: openDetailSheet must search
+  // only the current week, not all weeks, for prev/next context.
+  await expect(page.locator('text=Sentadilla').first()).toBeVisible({ timeout: 2000 })
 
   // Increment stepper + register
   const stepperInc2 = page.locator('.stepper-inc').first()
@@ -359,9 +382,9 @@ test('full user flow: profile → warmup → week switch → training → stretc
   await page.evaluate(() => { location.hash = '#history' })
   await page.waitForTimeout(500)
 
-  // History shows the completed session with exercise names
+  // History shows the completed session with exercise names (from Week B)
   await expect(page.locator('body')).toContainText('Press Banca')
-  await expect(page.locator('body')).toContainText('Press Militar')
+  await expect(page.locator('body')).toContainText('Sentadilla')
   await expect(page.locator('body')).toContainText('Completado')
 
   // ── Step 10: Friends — Navigate to Amigos Tab ──
