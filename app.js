@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.83 · 2026-06-23 · Fix week-switch exercise navigation (openDetailSheet searched all weeks)'
+const APP_VERSION = 'v1.84 · 2026-06-23 · Reword daily coach prompt: perfil biomecánico, regla 2x2 NSCA, nivel automático'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -890,22 +890,12 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
 
   const units = settings.units || 'kg'
 
-  // ── Topic rotation ──
+  // ── Topic rotation (siempre aleatorio) ──
   const allLogs = await Storage.getAllLogs()
   const s = await Storage.getSettings()
   const today = getToday()
   const TOPICS = ['comparativa','racha','esfuerzo_volumen','recuperacion','progreso_global','retrospectiva_semanal']
-  let topic
-  if (s.coachTopicDate === today && s.coachTopic) {
-    topic = s.coachTopic
-  } else {
-    const available = TOPICS.filter(t => t !== s.lastCoachTopic)
-    topic = available[Math.floor(Math.random() * available.length)]
-    s.coachTopic = topic
-    s.coachTopicDate = today
-    s.lastCoachTopic = topic
-    await Storage.saveSettings(s)
-  }
+  const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)]
 
   // ── Streak (weekly grouping) ──
   const trainedDates = new Set()
@@ -953,6 +943,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
       body_weight: settings.weight ? `${settings.weight}${units}` : '',
       goal: settings.goal || '',
       experience: settings.experience || '',
+      occupation: settings.occupation || '',
     },
     exercises: exerciseData,
     total_volume: `${Math.round(totalVolume)}${units}`,
@@ -976,15 +967,29 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     const result = {
       date: sessionData.date,
       _topic: topic,
-      analysis: data.analysis || 'Buen trabajo hoy. Sigue así.',
-      verdict: data.verdict || 'neutral',
+      perfil_evaluado: data.perfil_evaluado || 'Nivel detectado automáticamente de tus datos',
+      analisis_adaptacion: data.analisis_adaptacion || 'Revisando tu progreso en los ejercicios registrados',
+      proximo_objetivo: data.proximo_objetivo || 'Sigue progresando con el peso actual',
+      nota_biomecanica: data.nota_biomecanica || 'Mantén buena técnica y prioriza recuperación',
+      recomendaciones: data.recomendaciones || [],
+      rotation_topic: data.rotation_topic || topic,
       _provider: data._provider || 'llama',
     }
 
     await Storage.saveCoachAnalysis(result)
     return result
   } catch (err) {
-    const fallback = { date: sessionData.date, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', _topic: topic, _provider: 'llama' }
+    const fallback = {
+      date: sessionData.date,
+      _topic: topic,
+      perfil_evaluado: 'Nivel detectado automáticamente de tus datos',
+      analisis_adaptacion: 'Buen esfuerzo hoy. Sigue así.',
+      proximo_objetivo: 'Sigue progresando con el peso actual',
+      nota_biomecanica: 'Prioriza técnica sobre peso y descansa bien.',
+      recomendaciones: [],
+      rotation_topic: topic,
+      _provider: 'llama',
+    }
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }

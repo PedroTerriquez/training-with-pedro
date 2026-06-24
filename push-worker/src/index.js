@@ -16,12 +16,14 @@ const GEMINI_SAFETY = [
 const COACH_SCHEMA = {
   type: 'object',
   properties: {
-    analysis: { type: 'string' },
-    verdict: { type: 'string', enum: ['positive', 'neutral', 'warning'] },
-    recommendations: { type: 'array', items: { type: 'string' } },
-    next_session_advice: { type: 'string' },
+    perfil_evaluado: { type: 'string' },
+    analisis_adaptacion: { type: 'string' },
+    proximo_objetivo: { type: 'string' },
+    nota_biomecanica: { type: 'string' },
+    recomendaciones: { type: 'array', items: { type: 'string' } },
+    rotation_topic: { type: 'string' },
   },
-  required: ['analysis', 'verdict'],
+  required: ['perfil_evaluado', 'analisis_adaptacion', 'proximo_objetivo', 'nota_biomecanica', 'rotation_topic'],
 }
 
 const IMPORT_SCHEMA = {

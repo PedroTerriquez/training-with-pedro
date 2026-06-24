@@ -191,9 +191,12 @@ test('full user flow: profile → warmup → week switch (A→B) → training �
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        analysis: '¡Excelente sesión, TestUser! Trabajaste con buena intensidad en press banca. Sigue así y no olvides descansar bien.',
-        verdict: 'positive',
-        _topic: 'comparativa',
+        perfil_evaluado: 'Intermedio · Sin restricciones biomecánicas significativas',
+        analisis_adaptacion: 'Cumple regla 2x2 en Press Banca · Estabilizando carga en Sentadilla',
+        proximo_objetivo: 'Press Banca → 55kg @ RIR 1',
+        nota_biomecanica: 'Por trabajo sedentario, prioriza movilidad torácica antes de press',
+        recomendaciones: ['Sube Press Banca 2.5kg la próxima sesión'],
+        rotation_topic: 'comparativa',
         _provider: 'test',
       }),
     })
