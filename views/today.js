@@ -586,38 +586,14 @@ async function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exe
       <span style="font-size:13px;color:rgba(255,255,255,0.55)">Analizando tu entrenamiento…</span>
     </div>`
   } else if (analysis) {
-    const perfilTxt = analysis.perfil_evaluado || ''
-    const adaptTxt = analysis.analisis_adaptacion || ''
-    const objetivoTxt = analysis.proximo_objetivo || ''
-    const notaTxt = analysis.nota_biomecanica || ''
-    const recomendaciones = analysis.recomendaciones?.slice(0, 3) || []
+    const destacados = analysis.recommendations?.slice(0, 3) || []
+    const resumen = analysis.analysis || ''
     const topicLabel = TOPIC_LABELS[analysis._topic] || analysis._topic || analysis.rotation_topic || ''
 
-    const labelStyle = (top) => `font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,0.45);font-weight:600;margin-bottom:${top}px`
-    const fieldStyle = `font-size:14px;line-height:1.55;color:rgba(255,255,255,0.9);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px`
-    const blockStyle = `padding:12px 14px;border-radius:14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.06)`
-
     bodyHtml = `
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
-        <div style="${blockStyle}">
-          <div style="${labelStyle(6)}">Perfil Evaluado</div>
-          <div style="${fieldStyle}">${perfilTxt}</div>
-        </div>
-        <div style="${blockStyle}">
-          <div style="${labelStyle(6)}">Análisis de Adaptación</div>
-          <div style="${fieldStyle}">${adaptTxt}</div>
-        </div>
-        <div style="${blockStyle};border-color:${accent}3a;background:${accent}0d">
-          <div style="${labelStyle(6)}">Próximo Objetivo</div>
-          <div style="font-size:16px;line-height:1.5;color:${accent};font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:-0.4px">${objetivoTxt}</div>
-        </div>
-        <div style="${blockStyle}">
-          <div style="${labelStyle(6)}">Nota Biomecánica</div>
-          <div style="${fieldStyle}">${notaTxt}</div>
-        </div>
-        ${recomendaciones.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:7px">${recomendaciones.map(r => `<span style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:9999px;background:${accent}16;border:0.5px solid ${accent}3a;font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent}"><span style="width:4px;height:4px;border-radius:50%;background:${accent};display:inline-block"></span>${r}</span>`).join('')}</div>` : ''}
-      </div>
-      <div style="margin-top:14px;display:flex;align-items:center;gap:8px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;text-transform:uppercase">
+      <div style="margin-top:12px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,0.9);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px">${resumen}</div>
+      ${destacados.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px">${destacados.map(d => `<span style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:9999px;background:${accent}16;border:0.5px solid ${accent}3a;font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent}"><span style="width:4px;height:4px;border-radius:50%;background:${accent};display:inline-block"></span>${d}</span>`).join('')}</div>` : ''}
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;text-transform:uppercase">
         <span style="color:rgba(255,255,255,0.35)">${topicLabel}</span>
       </div>`
   }
