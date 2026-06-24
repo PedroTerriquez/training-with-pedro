@@ -586,12 +586,21 @@ async function renderCoachCard(page, analysis, accent, dateStr, weekDayName, exe
       <span style="font-size:13px;color:rgba(255,255,255,0.55)">Analizando tu entrenamiento…</span>
     </div>`
   } else if (analysis) {
-    const destacados = analysis.recommendations?.slice(0, 3) || []
     const resumen = analysis.analysis || ''
+    const proximo = analysis.proximo_objetivo || ''
+    const destacados = analysis.recommendations?.slice(0, 5) || []
     const topicLabel = TOPIC_LABELS[analysis._topic] || analysis._topic || analysis.rotation_topic || ''
+    const verdictColors = { positive: '#4caf50', neutral: 'rgba(255,255,255,0.5)', warning: '#ff9800' }
+    const verdictLabels = { positive: 'Positiva', neutral: 'Neutral', warning: 'Revisión' }
+    const vColor = verdictColors[analysis.verdict] || verdictColors.neutral
+    const vLabel = verdictLabels[analysis.verdict] || verdictLabels.neutral
 
     bodyHtml = `
+      <div style="display:flex;gap:7px;margin-top:12px">
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:9999px;background:${vColor}18;border:0.5px solid ${vColor}44;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;color:${vColor}">${vLabel}</span>
+      </div>
       <div style="margin-top:12px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,0.9);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.1px">${resumen}</div>
+      ${proximo ? `<div style="margin-top:14px;padding:12px 14px;border-radius:14px;border:0.5px solid ${accent}3a;background:${accent}0d"><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:${accent};font-weight:600;margin-bottom:6px">Próximo Objetivo</div><div style="font-size:16px;line-height:1.5;color:${accent};font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:-0.4px">${proximo}</div></div>` : ''}
       ${destacados.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px">${destacados.map(d => `<span style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:9999px;background:${accent}16;border:0.5px solid ${accent}3a;font-family:'Space Grotesk',sans-serif;font-size:11.5px;font-weight:600;color:${accent}"><span style="width:4px;height:4px;border-radius:50%;background:${accent};display:inline-block"></span>${d}</span>`).join('')}</div>` : ''}
       <div style="margin-top:12px;display:flex;align-items:center;gap:8px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.6px;text-transform:uppercase">
         <span style="color:rgba(255,255,255,0.35)">${topicLabel}</span>
