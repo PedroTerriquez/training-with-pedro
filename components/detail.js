@@ -48,7 +48,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
         </div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:${isPrev ? 'flex-start' : 'flex-end'};gap:1px">
           <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:${disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.45)'};font-weight:600;line-height:1">${label}</div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:${disabled ? 'rgba(255,255,255,0.3)' : '#fafafa'};letter-spacing:-0.1px;line-height:1.25;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:${isPrev ? 'left' : 'right'}">${exercise ? exercise.name : fallback}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:${disabled ? 'rgba(255,255,255,0.3)' : '#fafafa'};letter-spacing:-0.1px;line-height:1.25;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:${isPrev ? 'left' : 'right'}">${exercise ? getExerciseDisplayName(exercise) : fallback}</div>
         </div>`
       return btn
     }
@@ -195,7 +195,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
     bottomRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:12px;position:relative;z-index:1'
     bottomRow.innerHTML = `
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#fafafa;letter-spacing:-0.6px;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,0.4)">${exercise.name}</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:#fafafa;letter-spacing:-0.6px;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,0.4)">${getExerciseDisplayName(exercise)}</div>
         <div style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 12px;border-radius:9999px;border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:14px;color:rgba(255,255,255,0.85);white-space:nowrap">
           <span style="font-weight:500">${exercise.sets}</span>
           <span style="color:rgba(255,255,255,0.45)">×</span>
@@ -522,7 +522,7 @@ function mountExerciseDetail(container, { exercise, accent, units, exercises, on
             <div style="position:absolute;bottom:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.45)">ALT ${String(i + 1).padStart(2, '0')}</div>
           </div>
           <div style="flex:1;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;min-width:0">
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.3;overflow-wrap:break-word">${alt.name}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.3;overflow-wrap:break-word">${getExerciseDisplayName(alt.name)}</div>
             <div style="font-size:13px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5">${alt.reason}</div>
             <div class="alt-search-btns" style="display:flex;gap:6px;margin-top:12px">
               <a class="alt-google-btn" href="https://www.google.com/search?tbm=vid&q=${encodeURIComponent(alt.name + ' exercise')}" target="_blank" rel="noopener noreferrer" style="width:30px;height:30px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;text-decoration:none;position:relative;z-index:1" aria-label="Buscar en Google">

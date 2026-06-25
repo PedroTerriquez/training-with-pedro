@@ -176,7 +176,7 @@ test.describe('Rest notification flow', () => {
 
     const banner = page.locator('#rest-timer-banner')
     await expect(banner).toBeVisible({ timeout: 3000 })
-    await expect(banner).toContainText('Press Banca')
+    await expect(banner).toContainText('Press de Banca con Barra')
 
     expect(startTimerPayload).not.toBeNull()
     const payload = JSON.parse(startTimerPayload)

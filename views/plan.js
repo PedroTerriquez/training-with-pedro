@@ -352,7 +352,7 @@ function createPlanExerciseRow(ex, accent, onOpen) {
       ${imgUrl ? `<img src="${imgUrl}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.018) 0 10px,rgba(255,255,255,0.05) 10px 20px)"></div>`}
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px;overflow-wrap:break-word">${ex.name || 'Desconocido'}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.2px;overflow-wrap:break-word">${getExerciseDisplayName(ex) || 'Desconocido'}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${ex.muscle || ''}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">

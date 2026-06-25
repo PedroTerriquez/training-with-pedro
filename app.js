@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.87 · 2026-06-25 · Normalizar diccionario: eliminar sección CSV, fusionar duplicados, mover únicos'
+const APP_VERSION = 'v1.88 · 2026-06-25 · Language toggle: ejercicios en español/inglés desde ajustes'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -89,6 +89,7 @@ async function init() {
   window.appRefresh = refresh
   window.silentRefresh = async () => {
     _state.settings = await Storage.getSettings()
+    window.exerciseLang = _state.settings?.language || 'es'
     _state.programs = await Storage.getPrograms()
     _state.exercises = await Storage.getExercises()
     _state.activeProgram = _state.settings.activeProgramId
@@ -117,6 +118,7 @@ async function init() {
 
 async function loadState() {
   _state.settings = await Storage.getSettings()
+  window.exerciseLang = _state.settings?.language || 'es'
   _state.programs = await Storage.getPrograms()
   _state.exercises = await Storage.getExercises()
   _state.activeProgram = _state.settings.activeProgramId
@@ -441,6 +443,7 @@ async function openDetailSheet(exercise) {
 
 async function refresh() {
   _state.settings = await Storage.getSettings()
+  window.exerciseLang = _state.settings?.language || 'es'
   _state.settings.lastUpdate = new Date().toISOString()
   await Storage.saveSettings(_state.settings)
   _state.programs = await Storage.getPrograms()
@@ -1190,7 +1193,7 @@ function _showRestTimerBanner(data, remainingMs) {
     </div>
     <div class="rtb-info">
       <span class="rtb-label">Descanso</span>
-      <span class="rtb-name">${data.name}</span>
+      <span class="rtb-name">${getExerciseDisplayName(data)}</span>
       ${meta ? `<span class="rtb-meta">${meta}</span>` : ''}
     </div>
     <button class="rtb-skip" type="button" aria-label="Saltar descanso">

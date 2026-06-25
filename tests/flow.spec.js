@@ -19,6 +19,7 @@ const SEED = {
     {
       id: 'ex-bench',
       name: 'Press Banca',
+      dictId: 'dict_press-banca-barra',
       muscle: 'Chest',
       imgUrl: '',
       gifUrl: '',
@@ -31,6 +32,7 @@ const SEED = {
     {
       id: 'ex-military',
       name: 'Press Militar',
+      dictId: 'dict_press-militar-barra',
       muscle: 'Shoulders',
       imgUrl: '',
       gifUrl: '',
@@ -42,6 +44,7 @@ const SEED = {
     {
       id: 'ex-squat',
       name: 'Sentadilla',
+      dictId: 'dict_sentadilla-barra-back-squat',
       muscle: 'Quadriceps',
       imgUrl: '',
       gifUrl: '',
@@ -53,6 +56,7 @@ const SEED = {
     {
       id: 'ex-deadlift',
       name: 'Peso Muerto',
+      dictId: 'dict_peso-muerto-convencional',
       muscle: 'Back',
       imgUrl: '',
       gifUrl: '',
@@ -83,6 +87,7 @@ const SEED = {
       sessionState: null,
       lastCoachAnalysis: null,
       rescheduleWeekOrder: {},
+      language: 'es',
     }
   },
   getProgram() {
@@ -456,4 +461,35 @@ test('full user flow: profile → warmup → week switch (A→B) → training �
   await expect(friendCard).toBeVisible()
   await expect(friendCard).toContainText('12')
   await expect(friendCard).toContainText('Hoy')
+
+  // ── Step 15: Language Toggle — Exercise Names ──
+  await page.evaluate(() => { location.hash = '#you' })
+  await page.waitForTimeout(500)
+
+  const langBtn = page.locator('#lang-toggle-btn')
+  await expect(langBtn).toBeVisible()
+  await expect(langBtn).toContainText('Español')
+
+  // Click to switch to English
+  await langBtn.click()
+  await page.waitForTimeout(500)
+
+  // Navigate to History — exercise names should be in English
+  await page.evaluate(() => { location.hash = '#history' })
+  await page.waitForTimeout(500)
+  await expect(page.locator('body')).toContainText('Barbell Bench Press')
+  await expect(page.locator('body')).toContainText('Barbell Full Squat')
+
+  // Toggle back to Spanish
+  await page.evaluate(() => { location.hash = '#you' })
+  await page.waitForTimeout(500)
+  const langBtn2 = page.locator('#lang-toggle-btn')
+  await expect(langBtn2).toContainText('English')
+  await langBtn2.click()
+  await page.waitForTimeout(500)
+
+  // Verify Spanish names restored
+  await page.evaluate(() => { location.hash = '#history' })
+  await page.waitForTimeout(500)
+  await expect(page.locator('body')).toContainText('Press Banca')
 })

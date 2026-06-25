@@ -47,7 +47,7 @@ async function renderConstanciaTab(container, { accent, units, program, weekIdx,
 
   const exerciseMap = {}
   if (exercises) {
-    exercises.forEach(e => { exerciseMap[e.id] = { name: e.name, muscle: e.muscle } })
+    exercises.forEach(e => { exerciseMap[e.id] = { name: getExerciseDisplayName(e), muscle: e.muscle } })
   }
 
   const allLogs = await Storage.getAllLogs()
@@ -117,7 +117,7 @@ function renderEjerciciosTab(container, { accent, units, onOpenExercise }) {
       btn.style.cssText = `background:#141414;border-radius:16px;padding:14px;border:0.5px solid rgba(255,255,255,0.06);cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:inherit`
       btn.innerHTML = `
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fafafa;letter-spacing:-0.3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${getExerciseDisplayName(e)}</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${e.muscle}</div>
         </div>
         ${e.logs.length > 0 ? Sparkline({ data: e.logs, width: 70, height: 26, color: delta >= 0 ? accent : '#ff6b6b' }) : '<div style="width:70px;height:26px"></div>'}

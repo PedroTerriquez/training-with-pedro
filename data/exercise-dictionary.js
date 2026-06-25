@@ -1888,6 +1888,17 @@ function getExerciseImageFromDictionary(name) {
   return e ? e.image : null
 }
 
+function getExerciseDisplayName(exerciseOrName, lang) {
+  lang = lang || (typeof window !== 'undefined' && window.exerciseLang) || 'es'
+  const entry = exerciseOrName?.dictId
+    ? getEntryById(exerciseOrName.dictId)
+    : findExerciseEntry(typeof exerciseOrName === 'string' ? exerciseOrName : exerciseOrName?.name || '')
+  if (entry) return lang === 'en' ? entry.en : entry.es
+  if (typeof exerciseOrName === 'object' && exerciseOrName?.name) return exerciseOrName.name
+  if (typeof exerciseOrName === 'string') return exerciseOrName
+  return ''
+}
+
 // Equipment keyword → directory prefix mapping for keyword resolver
 const EQUIPMENT_RULES = [
   { test: (n) => /polea|poleas|cuerda/.test(n), prefix: 'Cable' },
@@ -2021,3 +2032,4 @@ window.resolveExerciseMedia = resolveExerciseMedia
 window.translateExerciseToEnglish = translateExerciseToEnglish
 window.translateExerciseToSpanish = translateExerciseToSpanish
 window.getExerciseImageFromDictionary = getExerciseImageFromDictionary
+window.getExerciseDisplayName = getExerciseDisplayName

@@ -211,7 +211,7 @@ function DayDetail({ rec, accent, units, today }) {
       html += `<div style="display:flex;align-items:center;gap:11px;padding:9px 0">
         <div style="width:22px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:10px;color:${accent};opacity:0.7">${String(j + 1).padStart(2, '0')}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:500;color:#fafafa;letter-spacing:-0.1px;line-height:1.25">${e.name}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:500;color:#fafafa;letter-spacing:-0.1px;line-height:1.25">${getExerciseDisplayName(e)}</div>
           <div style="font-size:10.5px;color:rgba(255,255,255,0.45);margin-top:1px">${e.muscle || ''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
