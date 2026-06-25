@@ -142,9 +142,10 @@ const Storage = {
 
   async _assignDictIdsAndNormalize(exercises, force) {
     let migrated = 0, skipped = 0
+    const skippedNames = []
     for (const ex of exercises) {
       const dictEntry = findExerciseEntry(ex.name) || findExerciseEntryFuzzy(ex.name)
-      if (!dictEntry) { skipped++; continue }
+      if (!dictEntry) { skipped++; skippedNames.push(ex.name); continue }
 
       let changed = false
       const dictId = 'dict_' + dictEntry.id
@@ -183,7 +184,7 @@ const Storage = {
         migrated++
       }
     }
-    return { migrated, skipped }
+    return { migrated, skipped, skippedNames }
   },
 
   async _getDedupGroups() {
@@ -350,7 +351,7 @@ const Storage = {
 
     const exercises = await getAll('exercises')
 
-    const { migrated, skipped } = await this._assignDictIdsAndNormalize(exercises, force)
+    const { migrated, skipped, skippedNames } = await this._assignDictIdsAndNormalize(exercises, force)
 
     const groups = await this._getDedupGroups()
     let merged = 0
@@ -361,7 +362,7 @@ const Storage = {
     localStorage.setItem(FLAG, 'done')
     await backupAll()
     console.info(`[dictionary migration] migrated=${migrated} merged=${merged} skipped=${skipped} total=${exercises.length}`)
-    return { migrated, merged, skipped, total: exercises.length }
+    return { migrated, merged, skipped, total: exercises.length, skippedNames }
   },
 
   // ── JSON Export/Import (cross-context migration) ──

@@ -308,7 +308,7 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
     topRow.style.cssText = 'display:flex;align-items:flex-start;position:relative;z-index:1;padding:12px;gap:6px'
     topRow.innerHTML = `
       <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:9999px;background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.1);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.2px;font-weight:500;color:rgba(255,255,255,0.85);text-transform:uppercase">${item.tag || ''}</span>
-      ${item.desc && item.desc.startsWith('STALLBAR - ') ? '<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;background:#f59e0b;font-family:\'JetBrains Mono\',monospace;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:#0a0a0a;font-weight:600">STALLBAR</span>' : ''}`
+      ${item.stallbar ? '<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;background:#f59e0b;font-family:\'JetBrains Mono\',monospace;font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:#0a0a0a;font-weight:600">STALLBAR</span>' : ''}`
     hero.appendChild(topRow)
 
     // Bottom row: exercise name
@@ -321,16 +321,41 @@ function mountWarmupDetail({ items, mode, accent, onComplete }) {
     heroWrap.appendChild(hero)
     sw.appendChild(heroWrap)
 
-    // Description
+    // Description — sectioned cards or fallback to legacy desc
     const descWrap = document.createElement('div')
     descWrap.style.cssText = 'padding:14px 18px 0'
-    const descText = item.desc && item.desc.startsWith('STALLBAR - ') ? item.desc.slice(12) : (item.desc || '')
-    descWrap.innerHTML = `
-      <div style="display:flex;align-items:baseline;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:10px">
-        <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
-        Cómo hacerlo
-      </div>
-      <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.05px">${descText}</div>`
+
+    const sections = [
+      { id: 'posInicial', label: 'Posición Inicial', value: item.posInicial },
+      { id: 'ejecucion', label: 'Ejecución', value: item.ejecucion },
+      { id: 'respiracion', label: 'Respiración', value: item.respiracion },
+      { id: 'duracion', label: 'Duración', value: item.duracion },
+    ]
+
+    const hasSections = sections.some(s => s.value)
+
+    if (hasSections) {
+      sections.forEach((s) => {
+        if (!s.value) return
+        const card = document.createElement('div')
+        card.style.cssText = `background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;margin-bottom:6px`
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:8px">
+            <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
+            ${s.label}
+          </div>
+          <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.05px">${s.value}</div>`
+        descWrap.appendChild(card)
+      })
+    } else if (item.desc) {
+      // Fallback for GENERIC_WARMUP or legacy data
+      descWrap.innerHTML = `
+        <div style="display:flex;align-items:baseline;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:10px">
+          <div style="width:4px;height:4px;border-radius:50%;background:${accent}"></div>
+          Cómo hacerlo
+        </div>
+        <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.82);font-family:'Space Grotesk',sans-serif;letter-spacing:-0.05px">${item.desc}</div>`
+    }
     sw.appendChild(descWrap)
 
 

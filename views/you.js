@@ -385,6 +385,28 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     const dictForceBtn = document.getElementById('dict-force-btn')
     const dictMigrateStatus = document.getElementById('dict-migrate-status')
 
+    function _showSkippedOverlay(names, accent) {
+      const existing = document.getElementById('skipped-overlay')
+      if (existing) existing.remove()
+      const overlay = document.createElement('div')
+      overlay.id = 'skipped-overlay'
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:20px'
+      const card = document.createElement('div')
+      card.style.cssText = `background:#141414;border-radius:18px;border:0.5px solid rgba(255,255,255,0.06);padding:24px;max-width:340px;width:100%;max-height:70vh;overflow-y:auto`
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:#fafafa">Ejercicios sin match</div>
+          <button id="skipped-close-btn" style="background:none;border:0;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer;padding:4px;touch-action:manipulation">✕</button>
+        </div>
+        <ul style="margin:0;padding:0;list-style:none">
+          ${names.map(n => `<li style="padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.04);font-size:13px;color:rgba(255,255,255,0.8);font-family:'JetBrains Mono',monospace">${n}</li>`).join('')}
+        </ul>`
+      overlay.appendChild(card)
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
+      card.querySelector('#skipped-close-btn').addEventListener('click', () => overlay.remove())
+      document.body.appendChild(overlay)
+    }
+
     async function runMigration(force) {
       dictMigrateBtn.disabled = true
       if (dictForceBtn) dictForceBtn.disabled = true
@@ -393,18 +415,26 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       try {
         const result = await Storage.migrateExercisesToDictionary({ force })
         if (result.dictMissing) {
-          dictMigrateStatus.textContent = '❌ Diccionario no cargado'
+          dictMigrateStatus.innerHTML = '❌ Diccionario no cargado'
           dictMigrateStatus.style.color = '#ff6b6b'
         } else if (result.alreadyDone) {
-          dictMigrateStatus.textContent = '⚠️ Ya aplicado — usa Forzar para re-ejecutar'
+          dictMigrateStatus.innerHTML = '⚠️ Ya aplicado — usa Forzar para re-ejecutar'
           dictMigrateStatus.style.color = 'rgba(255,255,255,0.5)'
         } else {
-          dictMigrateStatus.textContent = `✅ Actualizados ${result.migrated} · fusionados ${result.merged} · sin match ${result.skipped}`
+          let html = `✅ Actualizados ${result.migrated} · fusionados ${result.merged} · sin match ${result.skipped}`
+          if (result.skipped > 0 && result.skippedNames && result.skippedNames.length > 0) {
+            html += ` <span id="ver-mas-link" style="color:${accent};cursor:pointer;text-decoration:underline;touch-action:manipulation">ver más</span>`
+          }
+          dictMigrateStatus.innerHTML = html
           dictMigrateStatus.style.color = accent
+          const verMas = dictMigrateStatus.querySelector('#ver-mas-link')
+          if (verMas) {
+            verMas.addEventListener('click', () => _showSkippedOverlay(result.skippedNames, accent))
+          }
           if (window.silentRefresh) await window.silentRefresh()
         }
       } catch (err) {
-        dictMigrateStatus.textContent = `❌ ${err.message}`
+        dictMigrateStatus.innerHTML = `❌ ${err.message}`
         dictMigrateStatus.style.color = '#ff6b6b'
       } finally {
         dictMigrateBtn.disabled = false
