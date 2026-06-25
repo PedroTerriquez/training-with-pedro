@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.88 · 2026-06-25 · Language toggle: ejercicios en español/inglés desde ajustes'
+const APP_VERSION = 'v1.89 · 2026-06-25 · Normalizar WARMUP_DATA: desc → posInicial/ejecucion/respiracion/duracion/stallbar'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
