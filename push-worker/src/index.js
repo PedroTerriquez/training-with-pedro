@@ -18,6 +18,7 @@ const COACH_SCHEMA = {
   properties: {
     analysis: { type: 'string' },
     verdict: { type: 'string', enum: ['positive', 'neutral', 'warning'] },
+    proximo_objetivo: { type: 'string' },
     recommendations: { type: 'array', items: { type: 'string' } },
     rotation_topic: { type: 'string' },
   },

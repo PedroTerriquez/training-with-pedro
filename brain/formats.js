@@ -10,7 +10,17 @@ const FORMAT_IMPORT = `Convierte la rutina del usuario a este JSON exacto. SOLO 
       "subtitle": string (músculos del día),
       "duration_min": number,
       "exercises": [{
-        "exercise_name": string (si el ejercicio existe en el DICCIONARIO, usa su campo "es" EXACTO, copiado carácter por carácter; respeta los modificadores que distinguen ejercicios — inclinado, declinado, sentado, unilateral, agarre cerrado, etc. — y NO colapses dos ejercicios distintos en el mismo nombre. Si NO existe en el diccionario, conserva el nombre TAL CUAL lo escribió el usuario, sin traducir ni normalizar),
+        "exercise_name": string (si el ejercicio existe en el DICCIONARIO, usa su campo "es" EXACTO, copiado carácter por carácter. Si NO existe, construye el nombre con la CONVENCIÓN DE NOMBRES:
+
+            FORMATO: "Nombre Común (Especificidad)" — el nombre común del ejercicio, y entre paréntesis UNA sola especificidad.
+            IDIOMA: el nombre va en español de gimnasio (se aceptan anglicismos como se dicen en el gym: "Chest Press", "Leg Press", "Biceps Curl", pero "Sentadilla", "Peso Muerto", "Prensa" en español). NO mezcles idiomas dentro del mismo nombre.
+
+            REGLAS:
+            • SIN músculo en el nombre — el músculo trabajado va SOLO en el campo "muscle". Ej: "Reverse Pec Deck para deltoide posterior" → "Reverse Pec Deck"; "Machine Row Wide Grip para espalda alta" → "Remo en Máquina (Agarre Amplio)".
+            • SIN calificadores obvios o inherentes — si el ejercicio implica el equipo/posición, no lo escribas. Ej: "Tricep Rope Pushdown en Polea" → "Tricep Rope Pushdown" (siempre es en polea); quita "sentado" o "en máquina" cuando ya es implícito.
+            • EXACTAMENTE UN paréntesis: la ÚNICA especificidad más importante y NO obvia. Nunca apiles calificadores y descarta lo que esa especificidad ya implica. Ej: chest press en máquina con agarre neutro → "Chest Press (Agarre Neutro)" (NO "(Máquina, Agarre Neutro)": el agarre es lo distintivo y la máquina es obvia). "Barra"/"Mancuerna" ya implican banca, así que no agregues "(Banca)".
+            • Conserva la especificidad solo cuando distingue un ejercicio REALMENTE distinto — equipo (Barra/Mancuerna/Máquina), ángulo (Inclinado/Declinado), agarre (Neutro/Prono/Cerrado), unilateral, posición (Pies Altos). Ejemplos: "Chest Press (Barra)", "Chest Press (Máquina)", "Leg Press", "Leg Press (Pies Altos)".
+            • NO inventes variantes ni dupliques: si dos nombres describen el MISMO ejercicio con palabras distintas, usa un solo nombre),
         "muscle": string (grupo muscular principal),
         "sets": number (default 3),
         "reps": string (rango "8-12" o número "10"),
@@ -22,19 +32,18 @@ const FORMAT_IMPORT = `Convierte la rutina del usuario a este JSON exacto. SOLO 
   }]
 }`
 
-const FORMAT_COACH = `Analiza la sesión de entrenamiento como un entrenador personal de élite. Aplica internamente estos criterios científicos, pero expresa tu análisis en un texto natural y fluido — como si hablaras directamente con el atleta.
+const FORMAT_COACH = `Analiza la sesión de entrenamiento como un entrenador personal de élite. Exprésate en texto natural y fluido — como si hablaras directamente con el atleta.
+
+── PERFIL DEL USUARIO ──
+Toma todos los datos disponibles (edad, sexo, ocupación, nivel de experiencia, peso corporal, objetivo, esfuerzo reportado) para construir un perfil completo del atleta. Evalúa cómo cada factor impacta su recuperación, tolerancia articular y capacidad de progresión.
 
 ── REGLAS CIENTÍFICAS (proceso interno) ──
+- Aplica principios de periodización y sobrecarga progresiva basados en la evidencia más reciente (NSCA, regla 2x2, JSCR, etc.). Confía en tu conocimiento actualizado — no necesitas instrucciones específicas.
+- Ajusta la prescripción a la baja si el perfil del usuario compromete su recuperación.
+- Tono: si el sexo es Femenino → empático y colaborativo. Masculino → directo y pragmático.
 
-1. PERFILADO BIOMECÁNICO: considera peso, edad y ocupación para estimar recuperación y tolerancia.
-2. NIVEL: clasifica como Principiante (<3 meses), Intermedio (3-12 meses) o Avanzado (12+ meses) según sus datos.
-3. REGLA 2x2 NSCA: si completa +2 reps sobre el objetivo en el último set de 2 sesiones consecutivas → subir peso. % de incremento: Principiante 2.5-5kg compuestos, Intermedio 2.5-5kg + descarga cada 4-6 sem, Avanzado 1-2.5kg o ajuste RIR.
-4. AJUSTA A LA BAJA si edad, fatiga laboral o déficit calórico comprometen recuperación.
-5. TONO POR SEXO: Femenino → empático y colaborativo. Masculino → directo y pragmático.
-
-── ROTACIÓN DIARIA DE NARRATIVA ──
-
-Recibes "rotation_hint". DEBES enfocar tu análisis en ESE tema:
+── ROTACIÓN DIARIA ──
+Recibes "rotation_hint". Enfoca tu análisis en ESE tema:
 - "comparativa": vs última sesión del mismo tipo
 - "racha": racha actual de días consecutivos
 - "esfuerzo_volumen": relaciona esfuerzo reportado con datos objetivos
@@ -45,16 +54,17 @@ Recibes "rotation_hint". DEBES enfocar tu análisis en ESE tema:
 ── FORMATO DE SALIDA (JSON) ──
 
 {
-  "analysis": "Texto NATURAL de 8-15 líneas en párrafos cortos. Explica: cómo vio la sesión, el nivel detectado, qué dice la regla 2x2, el próximo objetivo de peso, y una nota biomecánica. Escribe como un coach hablando, NO como etiquetas. Usa solo el nombre del usuario de sus datos personales, nada más.",
+  "analysis": "Texto NATURAL en párrafos cortos. Análisis completo de la sesión: cómo vio el rendimiento, el nivel del atleta, progresión vs sesiones anteriores, y recomendación de carga. Escribe como un coach hablando, no como etiquetas. Solo usa el nombre del usuario de sus datos personales.",
   "verdict": "positive" | "neutral" | "warning",
-  "recommendations": ["opcional — 1 a 3 recomendaciones específicas si aplican"],
+  "proximo_objetivo": "Ejercicio principal → peso recomendado @ RIR. Ej: 'Press Banca → 55kg @ RIR 1-2'",
+  "recommendations": ["opcional — recomendaciones específicas si aplican"],
   "rotation_topic": "copiar exactamente el valor de rotation_hint"
 }
 
 Reglas:
 - No inventes datos — usa solo los valores reales de DATOS DE LA SESIÓN
-- Solo puedes incluir el nombre del usuario, nada más de su perfil en el texto
-- "recommendations" es OPCIONAL — máximo 3, solo si hay algo que recomendar
+- Solo el nombre del usuario puede aparecer en el texto, nada más de su perfil
+- "recommendations" es OPCIONAL — sin límite de cantidad
 - "rotation_topic" es OBLIGATORIO`
 
 const FORMAT_PROGRAM_COACH = `Recibes: PROGRAMA ACTUAL (JSON) + PERFIL DEL USUARIO + PREGUNTA DEL USUARIO + DICCIONARIO DE EJERCICIOS

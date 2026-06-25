@@ -209,12 +209,30 @@ const Storage = {
   },
 
   async _reassignLogs(sourceId, rootId) {
-    const logs = await getByIndex('exerciseLogs', 'exerciseId', sourceId)
-    for (const log of logs) {
-      log.exerciseId = rootId
-      await put('exerciseLogs', log)
+    const sourceLogs = await getByIndex('exerciseLogs', 'exerciseId', sourceId)
+    const rootLogs = await getByIndex('exerciseLogs', 'exerciseId', rootId)
+    const rootByDate = new Map(rootLogs.map((l) => [l.date, l]))
+    let moved = 0
+    for (const log of sourceLogs) {
+      const existing = rootByDate.get(log.date)
+      if (existing) {
+        // Misma fecha ya registrada en el root: conserva la carga más pesada y elimina el duplicado.
+        if ((log.weight || 0) > (existing.weight || 0)) {
+          existing.weight = log.weight
+          existing.units = log.units
+          if (log.sets !== undefined) existing.sets = log.sets
+          if (log.reps !== undefined) existing.reps = log.reps
+          await put('exerciseLogs', existing)
+        }
+        await del('exerciseLogs', log.id)
+      } else {
+        log.exerciseId = rootId
+        await put('exerciseLogs', log)
+        rootByDate.set(log.date, log)
+        moved++
+      }
     }
-    return logs.length
+    return moved
   },
 
   async _reassignProgramRefs(sourceId, rootId) {

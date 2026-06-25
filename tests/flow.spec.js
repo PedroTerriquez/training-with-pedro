@@ -193,6 +193,7 @@ test('full user flow: profile → warmup → week switch (A→B) → training �
       body: JSON.stringify({
         analysis: 'Buen trabajo hoy, TestUser. Nivel intermedio detectado — tus cargas progresan de forma constante. En Press Banca cumples la regla 2x2: +2 reps en las últimas 2 sesiones, toca subir. En Sentadilla veo estabilidad, mantén el peso una semana más para consolidar técnica. Por tu perfil sedentario, no descuides movilidad de cadera antes de cada sesión.',
         verdict: 'positive',
+        proximo_objetivo: 'Press Banca → 55kg @ RIR 1-2',
         recommendations: ['Sube Press Banca 2.5kg la próxima sesión'],
         rotation_topic: 'comparativa',
         _provider: 'test',

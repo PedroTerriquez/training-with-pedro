@@ -1,7 +1,7 @@
 // ── App Shell ──
 // Router, state management, event bus
 
-const APP_VERSION = 'v1.85 · 2026-06-24 · Revert coach output to narrative text, keep scientific rules internal'
+const APP_VERSION = 'v1.87 · 2026-06-25 · Normalizar diccionario: eliminar sección CSV, fusionar duplicados, mover únicos'
 
 // ── Push Notification Config ──
 // PUSH_SERVER_URL and VAPID_PUBLIC_KEY are loaded from push-config.js
@@ -969,6 +969,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
       _topic: topic,
       analysis: data.analysis || 'Buen trabajo hoy. Sigue así y no olvides descansar bien.',
       verdict: data.verdict || 'neutral',
+      proximo_objetivo: data.proximo_objetivo || '',
       recommendations: data.recommendations || [],
       rotation_topic: data.rotation_topic || topic,
       _provider: data._provider || 'llama',
@@ -977,7 +978,7 @@ async function runCoachAnalysis(day, effort, durationMin, exercises, settings, s
     await Storage.saveCoachAnalysis(result)
     return result
   } catch (err) {
-    const fallback = { date: sessionData.date, _topic: topic, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', recommendations: [], rotation_topic: topic, _provider: 'llama' }
+    const fallback = { date: sessionData.date, _topic: topic, analysis: 'Buen trabajo hoy. Sigue así y no olvides descansar bien.', verdict: 'neutral', proximo_objetivo: '', recommendations: [], rotation_topic: topic, _provider: 'llama' }
     await Storage.saveCoachAnalysis(fallback)
     return fallback
   }

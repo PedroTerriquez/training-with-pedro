@@ -130,8 +130,8 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
     ${btn('ai-import-btn', 'Importar con IA', ';width:100%;margin:0 16px 14px;width:calc(100% - 32px)')}`
   container.appendChild(aiCard)
 
-  // ── Importar ──
-  section('Importar')
+  // ── Importar JSON ──
+  section('Importar JSON')
   const impCard = document.createElement('div')
   impCard.innerHTML = card(
     dataRow(`<div style="flex:1;min-width:0">
@@ -140,12 +140,12 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       ${statusEl('json-import-status')}
     </div>
     <input type="file" id="json-import-input" accept=".json" style="display:none">
-    ${btn('json-import-btn', 'Importar')}`)
+    ${btn('json-import-btn', 'Importar JSON')}`)
   )
   container.appendChild(impCard)
 
-  // ── Exportar ──
-  section('Exportar')
+  // ── Exportar JSON ──
+  section('Exportar JSON')
   const expCard = document.createElement('div')
   expCard.innerHTML = card(
     dataRow(`<div style="flex:1;min-width:0">
@@ -153,7 +153,7 @@ function renderStats(container, { accent, units, settings, onRefresh }) {
       <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.4">Descarga toda la base de datos como JSON</div>
       ${statusEl('json-export-status')}
     </div>
-    ${btn('json-export-btn', 'Exportar')}`)
+    ${btn('json-export-btn', 'Exportar JSON')}`)
   )
   container.appendChild(expCard)
 
